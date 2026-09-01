@@ -37,7 +37,7 @@ jobs:
       - id: ver
         run: echo "v=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"   # v0.1 -> 0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip                       # caches ~/.cache/pip only — never .esphome/
