@@ -53,7 +53,7 @@ jobs:
 
       # Upload ONLY site/ as the Pages artifact -> served at the project root.
       # .esphome/ is not under site/, so it can never leak here.
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: site
 
