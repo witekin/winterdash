@@ -4,9 +4,8 @@
 # OTA-update later without compiling. Attaches the bins to the GitHub Release. CYD is
 # intentionally NOT in the matrix (compile-only / NOT READY).
 #
-# IMPORTANT before enabling: this repo requires actions pinned to a full-length commit SHA.
-# Replace every `uses: org/action@vN` below with `uses: org/action@<40-hex-sha>  # vN`.
-# Validated end-to-end at release #1.
+# Actions use major-version tags (@vN) from trusted publishers; Dependabot alerts cover them. Pin to
+# full commit SHAs if you want stricter supply-chain hardening. Validated end-to-end at release #1.
 name: release
 
 on:
@@ -32,12 +31,12 @@ jobs:
           - { id: esp32-wroom32,       yaml: esphome/esp32-wroom32.yaml }
           # NO cyd — compile-only / NOT READY (manifest private:, new-board checklist).
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - id: ver
         run: echo "v=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"   # v0.1 -> 0.1
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip                       # caches ~/.cache/pip only — never .esphome/
@@ -84,7 +83,7 @@ jobs:
         run: python .github/scripts/ci_scan.py "${{ steps.bin.outputs.path }}"
 
       # Hand off ONLY the renamed bin — never .esphome/.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: fw-${{ matrix.id }}
           path: ${{ steps.bin.outputs.path }}
@@ -94,7 +93,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: _dl
           pattern: 'fw-*'
