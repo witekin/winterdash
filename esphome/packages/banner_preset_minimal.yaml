@@ -1,0 +1,27 @@
+# =============================================================================
+# banner_preset_minimal.yaml — the banner-picker select for a MINIMAL-baked board (4MB T-Display).
+# Only "Battery" (the single baked preset) + "Custom" (a user cut-out in storage). The 4MB board bakes just
+# Battery on the LCD AND in banners_baked_minimal.h, so the picker must not offer a preset that isn't baked
+# (picking one would 404 the web hero at /img/<name> and show the Battery fallback on the LCD).
+# Same select id + behavior as banner_preset_full.yaml (see it for the full rationale) — only the option set
+# differs. core.yaml's housekeeping lambda references only "Battery"/"Custom", so it works unchanged here.
+# =============================================================================
+# MINIMAL board bakes only Battery, so both shared-display lookup chains collapse to the Battery
+# default/fallback. Defining these substitutions EMPTY makes the ${banner_dash_lookup}/${banner_saver_lookup}
+# injection points expand to nothing -> the shared lambda never names a non-Battery id(), so the
+# preset_*_img ids (absent on this board) are never referenced at config time. See banner_preset_full.yaml.
+substitutions:
+  banner_dash_lookup: ""
+  banner_saver_lookup: ""
+
+select:
+  - platform: template
+    id: banner_preset
+    name: "Banner preset"
+    disabled_by_default: true
+    optimistic: true
+    restore_value: true
+    options:
+      - "Battery"
+      - "Custom"          # a saved cut-out in the storage partition
+    initial_option: "Battery"

@@ -1,0 +1,14 @@
+# Keep the GitHub Actions we use current + secure (SHA-pinned actions still get bumped —
+# Dependabot updates the SHA and the trailing version comment).
+#
+# Deliberately NO `pip` ecosystem: requirements.txt pins ESPHome on purpose (reproducible
+# toolchain); a version-bump PR would break it. Security ALERTS for pip still fire via Advanced
+# Security — we just don't auto-open version-bump PRs here.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci

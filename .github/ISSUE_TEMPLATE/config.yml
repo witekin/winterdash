@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & ideas (Discussions)
+    url: https://github.com/witekin/winterdash/discussions
+    about: Ask a question, share an idea, or offer hardware / help.
+  - name: Documentation (Wiki)
+    url: https://github.com/witekin/winterdash/wiki
+    about: Install, flashing, charger pairing, and usage guides.

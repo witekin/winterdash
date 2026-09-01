@@ -1,0 +1,30 @@
+# ESPHome
+.esphome/
+secrets.yaml
+*.bin
+__pycache__/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ESPHome build log
+compile.log
+assets/presets-preview/
+_recovery/
+_soak/
+
+# Pinned build toolchain (S2.5) — created via: python -m venv .venv &&
+# .venv/Scripts/python -m pip install -r requirements.txt. The canonical build
+# interpreter; keeps ESPHome locked at requirements.txt (never "latest").
+.venv/
+wiki-preview.html
+wiki-inbox/
+
+# publish-site: per-board firmware bins are CI-injected at deploy, never committed
+site/firmware/*.bin
+
+# scratch/junk drop for me to read (references, photos, mockups) — never committed
+_inbox/

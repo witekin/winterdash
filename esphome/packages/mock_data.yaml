@@ -1,0 +1,188 @@
+# =============================================================================
+# DEMO PRODUCER + CANONICAL SENSOR INTERFACE (source-abstraction)
+# -----------------------------------------------------------------------------
+# Defines the canonical sensor/text_sensor IDs the whole UI/web binds to, and a
+# simulator that fills them so the UX can be built before the charger arrives.
+#
+# sensor: bat_voltage, bat_current, bat_power, charger_temp
+# text_sensor: device_state_raw, charger_error_raw
+# global: last_packet_ms (freshness timestamp; UI derives link-health)
+#
+# The simulator is ALWAYS COMPILED but runs only when demo_active (Demo mode).
+# In Live mode it goes quiet and the real victron_ble producer publishes the
+# SAME ids. So this file is no longer swapped out — it is the demo producer plus
+# the shared interface. (Future clean-up: split the canonical definitions out from
+# the simulator once the live producer is in place.)
+# =============================================================================
+
+globals:
+  # Simulation clock in seconds, wraps every SIM_CYCLE seconds.
+  - id: sim_t
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+
+# Template sensors: pushed from the simulator interval below (never self-update).
+sensor:
+  - platform: template
+    id: bat_voltage
+    name: "Battery voltage"
+    device_class: voltage        # HA: proper unit/icon + long-term statistics
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    update_interval: never
+    filters:
+      - delta: 0.05   # producer-agnostic: only push bat_voltage on a real change (Demo + Live)
+  - platform: template
+    id: bat_current
+    name: "Battery current"
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+    update_interval: never
+    filters:
+      - delta: 0.1    # producer-agnostic: only push bat_current on a real change (Demo + Live).
+                      # 0.1A: the charger's readout resolution is coarse anyway -> sub-0.1A jitter is noise.
+  - platform: template
+    id: bat_power
+    name: "Battery power"
+    device_class: power
+    state_class: measurement
+    unit_of_measurement: "W"
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - delta: 0.5   # producer-agnostic: only push bat_power on a real change (Demo + Live)
+  - platform: template
+    id: charger_temp
+    name: "Charger temperature"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - delta: 1.0   # producer-agnostic: only push charger_temp on a real change (Demo + Live).
+                     # 1 degC: temperature drifts slowly and isn't safety-critical to the tenth.
+  # BLE link signal strength of the Victron device. In Live this comes from the
+  # advertisement RSSI (esp32_ble_tracker); here the simulator fakes a plausible value.
+  - platform: template
+    id: victron_rssi
+    name: "Victron RSSI"
+    internal: true   # Phase 2: off SSE/API -> /wd/info.json (web BT bars read it there; TTGO reads .state)
+    unit_of_measurement: "dBm"
+    accuracy_decimals: 0
+    update_interval: never
+    filters:
+      - delta: 5.0   # producer-agnostic: only push victron_rssi on a real change (Demo + Live).
+                     # RSSI is noisy + shown as coarse bars and matters far less than the packets it rides
+                     # on -> 5 dBm (was 3). The Live feed is already throttled to 1.5s in on_ble_advertise.
+
+text_sensor:
+  - platform: template
+    id: device_state_raw
+    name: "Device state"
+    update_interval: never
+  - platform: template
+    id: charger_error_raw
+    name: "Charger error"
+    update_interval: never
+
+# -----------------------------------------------------------------------------
+# Simulator: one tick every 2s drives a scripted charge cycle so every UI state
+# is exercised without any interaction. Timeline is in TICK indices (0-98, so the
+# full cycle is 99 ticks = ~198s at 2s/tick — tightened from 150/300s: the steady
+# Float stretches were ~44% dead air, so they were trimmed and the marquee FAULT lengthened):
+# 0-25 BULK voltage ramps 11.2 -> 14.4 (CHARGING, yellow) 52s
+# 26-41 ABSORPTION ~14.4-14.6 in window (CHARGING, green band) 32s
+# 42-50 ABSORPTION 13.9 below window (anomaly "Lower than...") 18s
+# 51-64 FLOAT ~13.7-13.8 in window (CHARGED, green) 28s
+# 65-76 FAULT charger_error set (FAULT, red) 24s
+# 77-88 FLOAT recovered 24s
+# 89-98 OFFLINE stops refreshing last_packet_ms (link ages -> "No signal") 20s
+# NOTE: 20s < the 30s offline-overlay threshold, so this shows the STALE "No signal"
+# state, NOT the full offline overlay — deliberate (a longer offline reads like the
+# demo "broke/stopped" to a non-technical viewer; was 56s once, felt broken).
+# -----------------------------------------------------------------------------
+interval:
+  - interval: 2s   # was 1s; a charger isn't a transactional system -> 2s halves the base SSE push rate.
+                   # Paired with delta filters on the canonicals (below), steady states go near-silent.
+    then:
+      - lambda: |-
+          // Source-abstraction: the simulator is one producer of the canonical
+          // sensors. It runs ONLY when the device is in Demo mode; in Live the real
+          // victron_ble producer feeds the same sensor ids instead. When gated
+          // off, sim_t freezes so the cycle resumes where it left on return to Demo.
+          if (!id(demo_active)) return;
+
+          const uint32_t CYCLE = 99;
+          uint32_t t = id(sim_t);
+          id(sim_t) = (t + 1) % CYCLE;
+
+          float v, i_bat, temp, power;
+          std::string state = "Float";
+          std::string err = "No error";
+          bool online = true;
+
+          if (t < 26) {                 // BULK: ramp up (52s)
+            float k = t / 26.0f;
+            state = "Bulk";
+            v = 11.2f + k * (14.4f - 11.2f);
+            i_bat = 4.9f - k * 0.9f;     // 4.9 -> 4.0
+            temp = 20.0f + k * 8.0f;     // 20 -> 28
+          } else if (t < 42) {          // ABSORPTION: in-window (32s)
+            float k = (t - 26) / 16.0f;
+            state = "Absorption";
+            v = 14.4f + k * 0.2f;        // 14.4 -> 14.6
+            i_bat = 4.0f - k * 3.0f;     // 4.0 -> 1.0
+            temp = 28.0f - k * 2.0f;
+          } else if (t < 51) {          // ABSORPTION: low anomaly (18s)
+            state = "Absorption";
+            v = 13.9f;                   // below 14.2-14.8 window
+            i_bat = 1.0f;
+            temp = 26.0f;
+          } else if (t < 65) {          // FLOAT: charged, in-window (28s)
+            state = "Float";
+            v = 13.75f + 0.05f * sinf(t * 0.5f);
+            i_bat = 0.3f;
+            temp = 22.0f;
+          } else if (t < 77) {          // FAULT (24s)
+            state = "Fault";
+            err = "High temperature";
+            v = 13.6f;
+            i_bat = 0.0f;
+            temp = 61.0f;
+          } else if (t < 89) {          // FLOAT: recovered (24s)
+            state = "Float";
+            v = 13.78f;
+            i_bat = 0.3f;
+            temp = 23.0f;
+          } else {                      // OFFLINE demo (89-98, 20s): freeze + stop refreshing
+            online = false;
+            v = 13.78f;
+            i_bat = 0.3f;
+            temp = 23.0f;
+            state = "Float";
+          }
+
+          v *= id(nominal_scale);   // scale the 12V script to the selected profile's nominal
+          power = v * i_bat;
+
+          if (online) {
+            id(bat_voltage).publish_state(v);
+            id(bat_current).publish_state(i_bat);
+            id(bat_power).publish_state(power);
+            id(charger_temp).publish_state(temp);
+            // State/error only on change (mirror the Live producer) — they're the default first-boot
+            // mode's biggest redundant SSE source (were pushed every 1s regardless).
+            static std::string last_state, last_err; static uint32_t ep = 0;
+            bool force = (ep != id(mode_epoch)); ep = id(mode_epoch);   // re-publish once after a mode switch
+            if (force || state != last_state) { id(device_state_raw).publish_state(state); last_state = state; }
+            if (force || err != last_err) { id(charger_error_raw).publish_state(err); last_err = err; }
+            // Fake a plausible, slowly-wandering BLE RSSI (~-52..-64 dBm).
+            id(victron_rssi).publish_state(-58.0f + 6.0f * sinf(t * 0.13f));
+            // Mark a fresh "BLE packet" — this is what the real on_message will do.
+            id(last_packet_ms) = millis();
+          }

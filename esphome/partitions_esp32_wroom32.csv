@@ -1,0 +1,14 @@
+# WinterDash 4MB partition table — HEADLESS board (ESP32-D0WDQ6, WROOM-32 dev, GD25Q32 4MB).
+# PROVISIONAL sizing (2026-08-29): app0/app1 = 1.8MB each (dual-OTA — no cable after deploy, OTA is the
+# whole point), storage = 320KB LittleFS (2-3 user custom banners; web still bakes the 10 presets in
+# banners_baked.h). Finalise the slot size AFTER the first dry compile reports the real app bytes:
+#   - app measures well under 1.8MB  -> optionally shrink slots, hand the slack to storage.
+#   - app overflows 1.8MB           -> shrink storage first, only then rethink (4MB is the hard ceiling).
+# Flash IS the binding limit here (inverse of TTGO, where DRAM binds). Reflash-gated: OTA can't rewrite
+# this table — a slot resize needs a CABLE flash. Per-board: never inherit TTGO's 16MB partitions.csv.
+# Name,     Type, SubType, Offset,    Size
+nvs,        data, nvs,     0x9000,    0x5000
+otadata,    data, ota,     0xe000,    0x2000
+app0,       app,  ota_0,   0x10000,   0x1D0000
+app1,       app,  ota_1,   0x1E0000,  0x1D0000
+storage,    data, spiffs,  0x3B0000,  0x50000

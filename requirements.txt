@@ -1,0 +1,6 @@
+# WinterDash build toolchain — pinned.
+#
+# ESPHome is pinned intentionally. Do NOT bump past 2026.6 without first handling the upgrade gate:
+# the web dashboard uses deprecated object-id REST URLs that 404 on >= 2026.7 (killing the whole web
+# config surface), and the vendored captive_portal must be re-synced (see its VENDORED.md for how).
+esphome==2026.4.0

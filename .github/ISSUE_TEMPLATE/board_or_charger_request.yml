@@ -1,0 +1,23 @@
+name: Board or charger support request
+description: Ask for a new board/charger — or offer hardware to help
+labels: ["enhancement", "hardware"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <img src="https://raw.githubusercontent.com/witekin/winterdash/main/.github/winterdash-lockup.png" height="40" alt="WinterDash">
+
+        WinterDash is tested on the hardware the maintainer owns. **Lending or sending hardware is the
+        fastest way to get a port done** — mention it below.
+  - type: input
+    id: hardware
+    attributes:
+      label: Which board or charger?
+      placeholder: "e.g. ESP32-2432S028R (CYD), or Victron Blue Smart IP22 12/30"
+    validations:
+      required: true
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Links / specs, and whether you can lend or send hardware, or help test.

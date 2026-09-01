@@ -1,0 +1,72 @@
+# =============================================================================
+# WinterDash — LilyGO TTGO T-Display (ESP32, mipi_spi model T-DISPLAY, 240x135)
+# -----------------------------------------------------------------------------
+# TWO producers publish the SAME canonical sensor IDs: the Demo simulator
+# (packages/mock_data.yaml) and the live Victron BLE decode (packages/victron_ble.yaml,
+# live-verified). Demo is a first-class mode (default when unpaired); Live takes
+# over once a MAC+bindkey are set. `demo_active` gates which producer drives the UI.
+# BLE link-loss is a two-step model: ble_signal_stale_s=10 (signal "No signal") then
+# ble_timeout_s=30 (offline overlay).
+# =============================================================================
+
+substitutions:
+  device_name: "winterdash"
+  friendly_name: "WinterDash"
+  fw_version: "dev"           # short version shown on the System screen. Later e.g. "0.1-ttgo"
+                              # (version-board). Full build detail (compile time) -> web About.
+  # BLE link-loss is a TWO-STEP model (charger advertises several times/s,
+  # so >~10s of silence is a real loss, not a hiccup). Both device + web use these two thresholds
+  # for one coherent transition — no more staggered dot-fade vs bars vs overlay:
+  ble_signal_stale_s: "10"  # STEP 1: BLE signal "gone" — top-bar dot -> bluetooth-off/grey AND the
+                            # BLE-page bars/quality -> "No signal". Live data stays (last-known).
+  ble_timeout_s: "30"       # STEP 2: full OFFLINE overlay takes over + a "No signal" event is logged.
+  # UI loop rates (compute/draw split). Compute = the heavy status logic (1 Hz BLE data ->
+  # 4 Hz was waste); draw = the LVGL paint (page switches are instant via the button handler,
+  # so this only sets number-refresh cadence + FAULT-blink smoothness). Tunable per board.
+  compute_interval: 1s
+  draw_interval: 500ms
+  # (dim/return/dim_level live in NVS numbers below — the old substitution copies were dead.)
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  # Version floor guard: fail the build fast if someone compiles with an OLDER ESPHome than the
+  # one this config is written + tested against. This is a FLOOR only — ESPHome has no max_version; the ceiling
+  # ("never take latest") is enforced by the pinned toolchain (requirements.txt esphome==2026.4.0, ideally a
+  # project venv). Bumping ESPHome is a deliberate, gated action
+  # URL migration + captive re-sync + heap re-measure BEFORE the bump). Keep this in sync with requirements.txt.
+  min_version: "2026.4.0"
+  # Unique hostname per board -> winterdash-<mac6>.local (so two units on one LAN don't collide on
+  # winterdash.local; read the address off the TTGO Network screen). The AP SSID stays static
+  # "WinterDashAP" because it's built from ${friendly_name}, NOT from name, so the baked setup QR
+  # remains valid on every unit.
+  name_add_mac_suffix: true
+  # Custom 16MB partition table (3MB app slots + ~9.9MB storage) is set under esp32: below.
+  # Reflash-gated: the table only changes via a CABLE flash (OTA can't rewrite it).
+  includes:
+    - dashboard_html.h
+    - convert_html.h
+    - banners_baked.h
+    - web_dashboard.h
+    - ble_scan.h
+    - charge_log.h
+    - wifi_reset.h
+    - netwatch_rtc.h
+    - api_traffic.h      # watchdog API-liveness feed (clean decl; shim in api_traffic.cpp)
+    - api_traffic.cpp    # separate TU (NOT #included into main) -> its access shim stays contained
+    - netwatch_probe.h   # watchdog Phase 2 — client-independent tcpip-thread liveness probe
+    - netwatch_probe.cpp
+    - status_compute.h
+# --- Package composition -----------------------------------------------------
+# core = board-agnostic platform layer (see packages/core.yaml). mock/victron =
+# the canonical data producers (Demo + Live BLE). This thin per-board master just
+# composes the core + board/display/input packages below.
+packages:
+  core: !include packages/core.yaml             # board-agnostic platform layer
+  banner_preset: !include packages/banner_preset_full.yaml   # full baked-gallery picker (select id)
+  board: !include packages/board_esp32_tdisplay_16mb.yaml     # TTGO hardware: esp32/spi/output/light
+  display: !include packages/display_tdisplay.yaml # TTGO UI: display/image/font/lvgl/number/banner
+  presets_extra: !include packages/presets_tdisplay_extra.yaml # the 9 non-Battery on-screen baked presets (16MB only)
+  input: !include packages/input_tdisplay_2btn.yaml     # TTGO 2-button nav
+  mock: !include packages/mock_data.yaml        # Demo producer + canonical interface
+  victron: !include packages/victron_ble.yaml   # Live producer (real BLE decode)

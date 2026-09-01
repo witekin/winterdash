@@ -1,0 +1,8 @@
+{
+  "_note": "Board registry — human-curated (label + photo per board). The release CI merges this with the per-board firmware.factory.bin assets from GitHub Releases to generate site/firmware/versions.json (the file the flasher fetches). To add a board: add an entry here + a photo in site/assets/ + a matrix row in .github/workflows/release.yml.",
+  "boards": {
+    "esp32-tdisplay-16mb": { "label": "LilyGO TTGO T-Display — 16 MB", "photo": "../assets/board-tdisplay.webp" },
+    "esp32-tdisplay-4mb":  { "label": "LilyGO TTGO T-Display — 4 MB",  "photo": "../assets/board-tdisplay.webp" },
+    "esp32-wroom32":       { "label": "Screenless ESP32 (WROOM-32)",   "photo": "../assets/board-wroom32.webp" }
+  }
+}

@@ -1,0 +1,102 @@
+# =============================================================================
+# led_wroom32.yaml — headless on-board MONO status LED (board-specific module)
+# -----------------------------------------------------------------------------
+# The headless board has no screen, so a single on-board LED is the only physical
+# feedback channel. GPIO2 = the WROOM-32 DevKit on-board LED (LED_BUILTIN, blue on
+# this unit; verified ). It is a strapping pin, but driven as an output
+# AFTER boot it is the classic blink LED — safe (the board already boots fine).
+#
+# BOARD-SPECIFIC + PLUGGABLE (like input_tdisplay_2btn / input_wroom32_boot): a headless unit
+# includes THIS module; the CYD swaps it for a future led_rgb.yaml (RGB LED, colour-
+# coded). The STATE SET is board-agnostic — it reads the SAME core signals the web +
+# display consume (AP-active, wifi-connected, the status DTO's fault/offline/warn) —
+# so the logic is "designed once"; each board's LED module just RENDERS as much as its
+# LED can carry: mono = a few blink PATTERNS, RGB = COLOURS. On mono we keep it COARSE
+# (alive / setup / attention); charge-phase nuance (Bulk/Abs/Float) is pushed to the
+# CYD RGB colour, not crammed into mono blinks a human can't parse.
+#
+# DEPENDENCIES (headless module set): reads id(boot_btn) + id(wifi_reset_pending) from
+# input_wroom32_boot, and the core status DTO. A board including led_wroom32 must also include
+# input_wroom32_boot (same way input_tdisplay_2btn depends on display_tdisplay).
+#
+# PRIORITY STATE MACHINE (highest active condition wins — ONE pattern at a time):
+# 0 committing reset (wifi_reset_pending) -> 10 Hz STROBE (brief, then reboot) "triggered!"
+# 1b BOOT held AND >= 5 s (threshold met) -> FAST blink ~8 Hz "release now to reset"
+# 1a BOOT held < 5 s (arming) -> SOLID on "I see the hold"
+# 1c NETWORK FAULT (netwatch_disabled) -> Morse SOS (...---...) "device unwell, power-cycle me"
+# * STARTUP settle (uptime < 12 s) -> heartbeat if connected else ~1 Hz (ignore boot AP+offline)
+# 2 AP / onboarding (real AP, past settle)-> FAST blink ~4 Hz "set me up"
+# 3 attention (scode==3 | offline | warn) -> TRIPLE-PULSE (blink-blink-blink—pause) "something's wrong"
+# 4 wifi connected + running -> CALM heartbeat (~500 ms flash / 6 s) "alive & OK"
+# 5 else (connecting, STA down) -> medium blink (~1 Hz) "working on it"
+# (implicit) LED dark -> no power / hung (baseline is always >= a pulse)
+# Reset UX (user-guided ): solid WHILE holding -> at >=5 s the LED switches to a fast blink
+# to say "release now" (the LED leads the hand, not a blind wait) -> release commits (on_click fires) ->
+# strobe -> reboot -> AP fast-blink. Release < 5 s cancels -> falls back to the state below.
+# Heartbeat tuned to a LONGER, less frequent flash (500 ms every 6 s, see state 4 below) per user feedback —
+# a short pulse every 2 s drew too much attention for an always-on winter appliance.
+# =============================================================================
+
+output:
+  - platform: gpio
+    pin: 2
+    id: led_status_out
+
+interval:
+  - interval: 50ms   # base tick; fine enough for the fastest pattern (10 Hz strobe) + smooth blinks
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          auto &o = esphome::status_compute::status_out();   // board-agnostic status DTO (compute-filled)
+          // Live BOOT-hold duration so the LED can lead the release (solid < 5s, "release now" >= 5s).
+          static uint32_t hold_start = 0;
+          const bool held = id(boot_btn).state;
+          if (held) { if (hold_start == 0) hold_start = now; } else hold_start = 0;
+          const uint32_t held_ms = held ? (now - hold_start) : 0;
+          const bool connected = wifi::global_wifi_component->is_connected();
+          const bool ap = wifi::global_wifi_component->is_ap_active();
+          // Startup settle window: for the first ~12s the fallback AP is still up (concurrent, until STA
+          // connects) AND the status DTO reads "offline" (no BLE/demo data yet) — both are BOOT TRANSIENTS,
+          // not a real "set me up" / "something's wrong". Suppress AP + attention until the board is up
+          // properly; show heartbeat if already connected, else the calm "connecting" blink. A genuinely
+          // unprovisioned unit lands on the AP pattern once the window passes (nobody watches the LED then).
+          const bool booting = now < 12000;
+          bool led;
+          if (id(wifi_reset_pending)) {                      // 0: committing the reset (about to reboot)
+            led = (now % 100) < 50;                          //    10 Hz strobe
+          } else if (held && held_ms >= 5000) {              // 1b: threshold met WHILE holding -> "release now"
+            led = (now % 125) < 62;                          //    ~8 Hz (2x AP's 4 Hz -> distinct "urgent, release")
+          } else if (held) {                                 // 1a: holding, not yet 5s -> arming
+            led = true;                                      //    solid
+          } else if (id(netwatch_disabled)) {                // 1c: NETWORK FAULT (breaker tripped) -> Morse SOS
+            // The headless render of the board-agnostic degrade state (= the TTGO's NETWORK FAULT screen). The
+            // watchdog gave up after repeated network trouble; the device needs a physical power-cycle. Morse
+            // SOS (...---...) = the universal distress signal, unmistakable vs the triple-pulse (attention) and
+            // the 4 Hz (AP). Above `booting` so a freshly-tripped unit shows it from boot (it's a latched,
+            // RTC-persisted state, not a boot transient); below the BOOT-hold gestures so a user recovering via
+            // BOOT-reset still sees the reset feedback. unit=150ms: dot=150, dash=450, gaps 150/450, word-gap to
+            // a clean 5400ms cycle.
+            const uint32_t p = now % 5400;
+            led = (p < 150) || (p >= 300 && p < 450) || (p >= 600 && p < 750) ||          // S  . . .
+                  (p >= 1200 && p < 1650) || (p >= 1800 && p < 2250) || (p >= 2400 && p < 2850) ||  // O - - -
+                  (p >= 3300 && p < 3450) || (p >= 3600 && p < 3750) || (p >= 3900 && p < 4050);     // S  . . .
+          } else if (booting) {                              //   STARTUP settle: ignore transient AP + offline
+            led = connected ? ((now % 6000) < 500) : ((now % 1000) < 100);  // heartbeat if up, else connecting
+          } else if (ap) {                                   // 2: onboarding (real AP, past the settle window)
+            led = (now % 250) < 125;                         //    ~4 Hz fast blink
+          } else if (o.scode == 3 || o.offline || o.serious_warn) {   // 3: attention (fault/lost-link/warn)
+            const uint32_t p = now % 1600;                   //    TRIPLE-pulse: three 120ms blips then dark
+            led = (p < 120) || (p >= 240 && p < 360) || (p >= 480 && p < 600);
+          } else if (connected) {                            // 4: all good
+            led = (now % 6000) < 500;                        //    calm heartbeat: 500ms flash every 6s
+          } else {                                           // 5: connecting (STA down past the settle window)
+            led = (now % 1000) < 100;                        //    medium 1 Hz blink
+          }
+          // Write only on a level CHANGE (edge), not every 50ms tick — the gpio output has no rate guard
+          // and won't warn, but this drops ~20 redundant writes/s to a handful (the pattern's edges).
+          static int8_t prev = -1;                           // -1 = unknown -> force the first write
+          const int8_t want = led ? 1 : 0;
+          if (want != prev) {
+            prev = want;
+            if (led) id(led_status_out).turn_on(); else id(led_status_out).turn_off();
+          }

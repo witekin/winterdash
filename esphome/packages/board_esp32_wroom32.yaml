@@ -1,0 +1,66 @@
+# =============================================================================
+# board_esp32_wroom32.yaml — plain ESP32 (WROOM-32) HARDWARE layer, NO display
+# -----------------------------------------------------------------------------
+# The headless port: an ESP32-D0WDQ6 dev board (4MB flash) with no screen. It is
+# the first board to prove core.yaml stands alone — same core, same producers,
+# same web + HA, just no display_tdisplay / input_tdisplay_2btn. The dashboard lives entirely
+# on the web page (which is the ONLY UI here), so banners_baked.h + gzip web are
+# inherited from core/shared unchanged (they have zero display dependency).
+#
+# This file is ONLY the chip + partition table. It deliberately drops the TTGO's
+# spi / output(ledc) / light(backlight) blocks — those exist purely for the LCD.
+#
+# PER-BOARD (R4/R5): flash_size + partitions describe THIS 4MB chip. Never inherit
+# TTGO's 16MB partitions.csv. See partitions_esp32_wroom32.csv (provisional slots,
+# finalised after the first dry compile reports real app bytes).
+#
+# A physical BOOT-hold re-onboarding escape hatch lives in input_wroom32_boot.yaml
+# (there is no screen to reach the "Reset WiFi" menu). System actions also stay
+# reachable via the button:/switch: entities in core over web + HA.
+# =============================================================================
+
+# --- Per-board banner cut-out sizes (v2a). Headless has no LCD, but it STILL serves the shared converter +
+# /gallery, and the .wdb slot format is board-shared, so it declares the same converter dims (web_dashboard.h
+# #errors without them). See board_esp32_tdisplay_16mb.yaml for the full rationale.
+substitutions:
+  banner_dash_w: "112"
+  banner_dash_h: "50"
+  banner_saver_w: "224"
+  banner_saver_h: "92"
+
+esphome:
+  platformio_options:
+    build_flags:
+      - "-DWD_DASH_W=${banner_dash_w}"
+      - "-DWD_DASH_H=${banner_dash_h}"
+      - "-DWD_SAVER_W=${banner_saver_w}"
+      - "-DWD_SAVER_H=${banner_saver_h}"
+      # --- v3 semi-uniform slot geometry: TWO web custom banners in the existing 320KB storage, OTA-only (no
+      # partition change, no cable). Headless is SCREENLESS -> nothing here mmap-RENDERS the .wdb (render lives
+      # only in display_tdisplay.yaml; headless only READS/SERVES it), so 4KB .wdb rounding is production-safe here
+      # HW-validated: 2 slots, next_free 0->1->-1, 2 distinct heroes served.
+      # R_DASH 20 + R_SAVER 64 + R_HERO 48 + R_THUMB 12 = SLOT_SPAN 144KB; 320KB/144 = 2 slots (32KB slack).
+      - "-DWD_WDB_ALIGN=0x1000"        # 4KB .wdb rounding (vs the 64KB compat default used by display boards)
+      - "-DWD_HERO_CAP=0xC000"         # 48KB hero webp region (headroom over the converter's 63KB gate is N/A here)
+      - "-DWD_THUMB_CAP=0x3000"        # 12KB thumb webp region
+      - "-DWD_EXPECT_SLOT_SPAN=0x24000"  # compat lock: this board's shipped geometry = 144KB
+
+esp32:
+  board: esp32dev
+  flash_size: 4MB                        # real chip GD25Q32 = 4MB
+  partitions: partitions_esp32_wroom32.csv    # 1.8MB dual-OTA slots + 320KB storage (provisional)
+  framework:
+    type: esp-idf
+    version: "5.5.4"                      # same pinned esp-idf as TTGO (reproducible; bump behind the gate)
+    # WiFi/BT buffer trims — INHERITED from the TTGO tuning (research-verified, OTA-safe). On headless there
+    # is no LVGL DMA-buffer crunch, so these are NOT crash-critical here; they are kept identical for one
+    # known-good WiFi profile on the first bring-up. They could be RELAXED later (headless has far more free
+    # heap without LVGL) if web throughput ever wants more buffers — retest OTA if you touch DYNAMIC_RX.
+    sdkconfig_options:
+      CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM: "4"
+      CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM: "12"
+      CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM: "16"   # OTA-sensitive — re-test OTA after any change
+      # BLE memory opt (mirrored from TTGO). #1 max_connections=1 lives in core.yaml
+      # (esp32_ble:) — drives BLE_MAX_CONN + host ACL consistently; the old manual line is gone. #3 floors
+      # the dead scan dup-list (dedup disabled at scan level). GATT-off (#2) rejected: won't link on ESPHome.
+      CONFIG_BTDM_SCAN_DUPL_CACHE_SIZE: "10"         # #3: 100 -> 10 (dead list)

@@ -1,0 +1,69 @@
+# =============================================================================
+# board_esp32_tdisplay_4mb.yaml — LilyGO TTGO T-Display HARDWARE layer, 4MB flash variant.
+# -----------------------------------------------------------------------------
+# SAME physical panel as the 16MB T-Display (240x135, mipi_spi T-DISPLAY, same dims/pins) — only the flash
+# chip differs (4MB vs 16MB). So the SPI/backlight/light + framework/sdkconfig trims + the WD_DASH/SAVER
+# banner dims are byte-identical to board_esp32_tdisplay_16mb.yaml; only three things change for 4MB:
+#   1. flash_size 16MB -> 4MB
+#   2. partitions -> partitions_esp32_tdisplay_4mb.csv (0x1D0000 dual-OTA + 320KB storage)
+#   3. -DWD_BAKE_MINIMAL: bake ONLY the Battery preset (LCD + web) so the app fits under the 1.8125MB slot.
+# The default slot geometry (64KB .wdb align, 64KB webp caps -> SLOT_SPAN 256KB) is UNCHANGED, so custom
+# banners keep full quality and there is no packed-offset (F3) render risk. Never inherit the 16MB table.
+# =============================================================================
+
+substitutions:
+  banner_dash_w: "112"
+  banner_dash_h: "50"
+  banner_saver_w: "224"
+  banner_saver_h: "92"
+
+esphome:
+  platformio_options:
+    build_flags:
+      - "-DWD_DASH_W=${banner_dash_w}"
+      - "-DWD_DASH_H=${banner_dash_h}"
+      - "-DWD_SAVER_W=${banner_saver_w}"
+      - "-DWD_SAVER_H=${banner_saver_h}"
+      # Same 256KB slot geometry as the 16MB (default 64KB .wdb align + 64KB webp caps) — full-quality customs,
+      # byte-compatible layout, no F3. New board, no field banners, but keep the compat lock as a geometry guard.
+      - "-DWD_EXPECT_SLOT_SPAN=0x40000"
+      # MINIMAL bake: only the Battery preset compiles (LCD image list via presets_extra omission + the display
+      # preset lookup-chains collapse to Battery here; web hero via banners_baked_minimal.h). This is what drops
+      # the app ~830KB (10->1 on-screen + 10->1 web webp) so it fits a 4MB dual-OTA slot.
+      - "-DWD_BAKE_MINIMAL"
+
+esp32:
+  board: esp32dev
+  flash_size: 4MB                # 4MB T-Display variant (the 16MB board sets 16MB)
+  partitions: partitions_esp32_tdisplay_4mb.csv  # 0x1D0000 dual-OTA + 320KB storage (1 full custom slot)
+  framework:
+    type: esp-idf
+    # Pin the esp-idf toolchain explicitly for reproducible builds — same pin as every board (see the 16MB
+    # board for the full rationale). Bump together with the ESPHome pin, behind the upgrade gate + OTA re-test.
+    version: "5.5.4"
+    # DRAM heap relief — identical trims to the 16MB T-Display (same panel + SSE/LVGL crash window). See
+    # board_esp32_tdisplay_16mb.yaml for the per-flag rationale; do not "tidy" — research-verified.
+    sdkconfig_options:
+      CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM: "4"     # 10 -> 6 -> 4 (permanent DMA floor; OTA-safe, min 2)
+      CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM: "12"   # 32 -> 12 (main crash-window fix, OTA-safe)
+      CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM: "16"   # 32 -> 16 (OTA-sensitive — re-test OTA after)
+      CONFIG_BTDM_SCAN_DUPL_CACHE_SIZE: "10"        # 100 -> 10 (dead list; dedup disabled at scan level)
+
+spi:
+  clk_pin: 18
+  mosi_pin: 19
+
+output:
+  - platform: ledc
+    pin: 4
+    id: backlight_output
+    frequency: 1000Hz
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    id: backlight
+    name: "Backlight"
+    internal: true   # on-device backlight only (driven by lambdas); never read/written by the web.
+    restore_mode: ALWAYS_OFF   # dark through boot; on_boot draws the splash then lights up (no retained-frame flash)
+    default_transition_length: 120ms

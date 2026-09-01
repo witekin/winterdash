@@ -1,0 +1,1082 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e0f13">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMTAwIiBoZWlnaHQ9IjExMDAiIHZpZXdCb3g9IjAgMCAxMTAwIDExMDAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iV2ludGVyRGFzaCBzbm93Zmxha2UgY2hhcmdpbmcgY2FibGUgbWFyayI+Cgo8ZGVmcz4KICA8bGluZWFyR3JhZGllbnQgaWQ9ImljZSIgeDE9IjAlIiB5MT0iNSUiIHgyPSI5MiUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0N0QzRjUiLz4KICAgIDxzdG9wIG9mZnNldD0iNDIlIiBzdG9wLWNvbG9yPSIjMjJCN0Y1Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjcyJSIgc3RvcC1jb2xvcj0iIzA3OEZGMiIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTY4RUVBIi8+CiAgPC9saW5lYXJHcmFkaWVudD4KICA8bGluZWFyR3JhZGllbnQgaWQ9InBsdWdEYXJrIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMxODM2NTMiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzA3MUMzMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE1Mi4wMCw0OC4wMCkiPgogIDxwYXRoIGQ9Ik0gMzg3IDAgTCAzNzEgMTIgTCAzNjQgMjcgTCAzNjMgMTUzIEwgMzU3IDE1MCBMIDMwNCAxMDQgTCAyOTMgOTcgTCAyNzcgOTUgTCAyNjMgMTAwIEwgMjU0IDEwOSBMIDI0OSAxMjQgTCAyNTEgMTM3IEwgMjYxIDE1MSBMIDM2NCAyMzggTCAzNjQgMzkwIEwgMzU4IDM5OCBMIDM0NyAzOTkgTCAyMjAgMzI0IEwgMjA3IDIwOSBMIDIwNCAxOTkgTCAxOTUgMTg4IEwgMTg2IDE4MyBMIDE3NCAxODEgTCAxNjIgMTg0IEwgMTUzIDE5MCBMIDE0NSAyMDMgTCAxNDQgMjE3IEwgMTUyIDI3NyBMIDE1MSAyODMgTCAxNDggMjgzIEwgNjQgMjMyIEwgNDggMjI0IEwgMzEgMjIzIEwgMTcgMjI5IEwgNiAyNDIgTCAyIDI1NSBMIDIgMjY0IEwgOCAyNzkgTCAxNiAyODcgTCAxMTAgMzQzIEwgMTA5IDM0NiBMIDM5IDM3NyBMIDMxIDM4NCBMIDI2IDM5NCBMIDI2IDQwOCBMIDI5IDQxNiBMIDM4IDQyNiBMIDQ5IDQzMSBMIDY2IDQzMSBMIDE4OSAzODEgTCAxOTMgMzgxIEwgMzEzIDQ1MSBMIDMxOSA0NTggTCAzMTkgNDY2IEwgMzEyIDQ3NSBMIDE4OSA1NDQgTCAxODMgNTQzIEwgNjYgNDk1IEwgNTIgNDk0IEwgNDEgNDk4IEwgMzEgNTA3IEwgMjYgNTE4IEwgMjYgNTMwIEwgMzEgNTQxIEwgNDQgNTUxIEwgMTEwIDU3OSBMIDExMSA1ODMgTCAxNCA2MzcgTCA2IDY0NSBMIDIgNjU0IEwgMCA2NTUgTCAwIDY3MyBMIDIgNjc0IEwgNiA2ODMgTCAxNSA2OTIgTCAyNSA2OTYgTCAzOCA2OTcgTCA1NCA2OTEgTCAxNDEgNjQyIEwgMTQ4IDY0MCBMIDE0OSA2NDQgTCAxMzcgNzAzIEwgMTM4IDcxNSBMIDE0MiA3MjMgTCAxNTAgNzMxIEwgMTYwIDczNSBMIDE3NiA3MzQgTCAxODkgNzI1IEwgMTk2IDcxMyBMIDIxOCA1OTggTCAzNTAgNTIyIEwgMzU3IDUxOSBMIDM2MyA1MjAgTCAzNjYgNTI0IEwgMzY1IDY2NyBMIDM2MCA2OTEgTCAzNTQgNzAxIEwgMzQxIDcxNCBMIDMzMCA3MjEgTCAyNDkgNzYwIEwgMjIwIDc3OCBMIDIwNSA3OTAgTCAxODQgODEzIEwgMTY2IDg0NSBMIDE1OCA4NzggTCAxNTggOTAxIEwgMTYyIDkyNSBMIDE3NCA5NTUgTCAxOTIgOTc3IEwgMjEwIDk5MCBMIDIyMCA5OTUgTCAyNDMgMTAwMSBMIDI0NCAxMDAzIEwgMjgwIDEwMDMgTCAyODEgMTAwMSBMIDI5OSA5OTggTCAzMjcgOTg3IEwgMzY3IDk2MiBMIDQwOCA5MzIgTCA0MzAgOTIwIEwgNDQ3IDkxNSBMIDQ1MCA5MTkgTCA0NjAgOTI1IEwgNDkxIDkzNSBMIDUxNyA5NTkgTCA1NTAgOTc4IEwgNTg5IDk5MyBMIDYxNCA5OTkgTCA2MjkgOTk5IEwgNjQ0IDk5MiBMIDY2MyA5NzkgTCA2ODIgOTYzIEwgNjk2IDk0OCBMIDcwOSA5MzAgTCA3MTQgOTIwIEwgNzIyIDg5MSBMIDcyMiA4NzAgTCA3MTggODYwIEwgNzEzIDg1NCBMIDY5NiA4NDUgTCA2NjEgODMzIEwgNjUzIDgyNSBMIDU4OCA4MTMgTCA1NTIgODExIEwgNTM3IDgxNSBMIDUyMyA4MjIgTCA0OTAgODMwIEwgNDU3IDg0NSBMIDQ1MCA4NTMgTCA0NDUgODY0IEwgNDIyIDg2OSBMIDM5OCA4NzkgTCAzNjYgODk5IEwgMzQ0IDkxNiBMIDMxMCA5MzggTCAyNzkgOTUwIEwgMjUxIDk1MSBMIDIzMCA5NDMgTCAyMTYgOTI4IEwgMjA5IDkxMSBMIDIwOCA4ODUgTCAyMTEgODczIEwgMjIxIDg1MyBMIDIzOCA4MzQgTCAyNTUgODIxIEwgMjg3IDgwNCBMIDM0NyA3ODEgTCAzNzcgNzY1IEwgMzkyIDc1NCBMIDQwNyA3MzkgTCA0MTcgNzI1IEwgNDI5IDY5NyBMIDQzMyA2NzQgTCA0MzMgNTIzIEwgNDM3IDUyMCBMIDQ0MyA1MjAgTCA1NzcgNTk3IEwgNTk2IDcxMiBMIDYwMyA3MjUgTCA2MTYgNzM0IEwgNjM0IDczNSBMIDY0MyA3MzEgTCA2NTIgNzIyIEwgNjU2IDcxMiBMIDY1NiA3MDEgTCA2NDYgNjQ3IEwgNjQ3IDY0MCBMIDY2NiA2NDkgTCA3NDMgNjkzIEwgNzU1IDY5NyBMIDc2NiA2OTcgTCA3NzkgNjkyIEwgNzg5IDY4MyBMIDc5MyA2NzMgTCA3OTUgNjcyIEwgNzk1IDY1NSBMIDc5MyA2NTQgTCA3OTAgNjQ2IEwgNzgxIDYzNyBMIDY4NSA1ODMgTCA2ODYgNTc5IEwgNzQ5IDU1MiBMIDc2MyA1NDMgTCA3NjkgNTMyIEwgNzcwIDUyMSBMIDc2NSA1MDggTCA3NTYgNDk5IEwgNzQyIDQ5NCBMIDcyOSA0OTUgTCA2MTEgNTQ0IEwgNjA2IDU0NCBMIDQ4MyA0NzQgTCA0NzggNDY3IEwgNDc4IDQ1OCBMIDQ4NCA0NTEgTCA2MDQgMzgxIEwgNjA4IDM4MSBMIDczMCA0MzEgTCA3NDEgNDMyIEwgNzUwIDQzMCBMIDc1NyA0MjYgTCA3NjYgNDE2IEwgNzcwIDQwNCBMIDc2OSAzOTMgTCA3NjMgMzgyIEwgNzUzIDM3NSBMIDY4NiAzNDYgTCA2ODUgMzQzIEwgNzc1IDI5MCBMIDc4NiAyODEgTCA3OTIgMjcxIEwgNzkzIDI2NSBMIDc5NSAyNjQgTCA3OTUgMjUzIEwgNzkzIDI1MiBMIDc4OCAyMzggTCA3NzggMjI4IEwgNzY1IDIyMyBMIDc1MSAyMjMgTCA3NDAgMjI3IEwgNjUwIDI4MiBMIDY0NSAyODMgTCA2NDQgMjc1IEwgNjUyIDIxOSBMIDY1MSAyMDIgTCA2NDcgMTk0IEwgNjQxIDE4OCBMIDYzMiAxODMgTCA2MjQgMTgxIEwgNjEwIDE4MyBMIDU5NyAxOTIgTCA1OTAgMjA1IEwgNTc2IDMyNCBMIDQ1MiAzOTggTCA0MzkgMzk4IEwgNDMzIDM5MCBMIDQzMyAyMzcgTCA1MTggMTY2IEwgNTQyIDE0NCBMIDU0NyAxMzMgTCA1NDcgMTE5IEwgNTQzIDEwOSBMIDUzNCAxMDAgTCA1MjEgOTUgTCA1MDcgOTYgTCA0OTggMTAwIEwgNDQxIDE0OSBMIDQzNCAxNTMgTCA0MzMgMjcgTCA0MjQgMTAgTCA0MTAgMCBaIiBmaWxsPSJ1cmwoI2ljZSkiLz4KICA8cGF0aCBkPSJNIDcwNCA4NjAgTCA2NTUgODQ2IEwgNjMyIDg0NyBMIDYyMyA4NTEgTCA2MTcgODU3IEwgNjExIDg2OCBMIDYwMSA4OTcgTCA1OTggOTExIEwgNTk4IDkyNSBMIDYwNyA5NjMgTCA2MTMgOTc3IEwgNjIwIDk4NCBMIDYyNSA5ODYgTCA2MzMgOTg2IEwgNjQ2IDk4MCBMIDY3NiA5NTcgTCA2OTggOTMyIEwgNzEwIDkwOSBMIDcxNCA4OTAgTCA3MTQgODczIEwgNzEwIDg2NSBaIiBmaWxsPSJ1cmwoI3BsdWdEYXJrKSIgb3BhY2l0eT0iMSIvPgo8cGF0aCBkPSJNIDUwOCA4ODIgTCA1MDQgODkyIEwgNTA2IDkxNyBMIDUxMSA5MzggTCA1MjIgOTYwIEwgNTIwIDk2MSBMIDUxNiA5NTggTCA1MTcgOTU2IEwgNTE2IDk1OCBMIDUxMiA5NTUgTCA1MjggOTY2IEwgNTU0IDk4MCBMIDU5MSA5OTMgTCA1ODAgOTg1IEwgNTgxIDk4MyBMIDU4MyA5ODUgTCA1ODAgOTc4IEwgNTc4IDk4MSBMIDU3MyA5NzIgTCA1NjAgOTE1IEwgNTU1IDkwMCBMIDU0OCA4OTMgTCA1MTYgODgxIFoiIGZpbGw9IiMxNzM2NTMiIG9wYWNpdHk9IjAuOTUiLz4KPHBhdGggZD0iTSA1MjIgODIyIEwgNTEwIDgyNCBMIDQ3OSA4MzQgTCA0NjIgODQyIEwgNDUyIDg1MCBMIDQ0NSA4NjYgTCA0NDIgODg3IEwgNDQzIDkwNSBMIDQ1MSA5MjAgTCA0NjAgOTI1IEwgNDkzIDkzNyBMIDQ4NiA5MjEgTCA0ODQgOTA2IEwgNDg1IDg4NyBMIDQ4OCA4NzIgTCA0OTUgODUzIEwgNTA0IDgzOCBaIiBmaWxsPSIjMjc0NzYyIiBvcGFjaXR5PSIwLjkiLz4KCiAgPGNpcmNsZSBjeD0iNjQ4LjAzIiBjeT0iODc2LjM0IiByPSIxMC4wMCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2ODUuNzEiIGN5PSI4ODUuODMiIHI9IjkuMzciIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iI0Q4REVFNSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPGNpcmNsZSBjeD0iNjIzLjU0IiBjeT0iOTExLjc1IiByPSIxMC40OSIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2NjIuMzIiIGN5PSI5MTcuMTAiIHI9IjEwLjE2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNEOERFRTUiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxjaXJjbGUgY3g9IjYzNC45OCIgY3k9Ijk1MC40NyIgcj0iOS44MiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8L2c+Cjwvc3ZnPgo=">
+<title>WinterDash</title>
+<style>
+  :root{
+    --bg:#0e0f13; --panel:#16181d; --panel2:#1c1f26; --line:#2a2e36;
+    --text:#e8e8e8; --muted:#8b9099; --faint:#5c626c;
+    --green:#3ddc84; --amber:#f5b942; --red:#ef5350; --blue:#38bdf8; --thermo:#f0785a;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased;padding:18px 14px 40px;display:flex;justify-content:center}
+  .app{width:100%;max-width:460px;display:flex;flex-direction:column;gap:14px}
+  .connlost{display:none;align-items:center;justify-content:center;gap:9px;background:var(--red);color:#fff;padding:9px 12px;border-radius:11px;font-size:13px;font-weight:600}
+  .connlost.show{display:flex}
+  .connlost.dead{cursor:pointer}                 /* terminal state: gave up reconnecting -> tap to reload */
+  .dotx{width:8px;height:8px;border-radius:2px;background:#fff;opacity:.9;flex:none}  /* static (no pulse) */
+  .dotpulse{width:8px;height:8px;border-radius:50%;background:#fff;animation:cpulse 1s ease-in-out infinite}
+  @keyframes cpulse{0%,100%{opacity:.35}50%{opacity:1}}
+  @media (prefers-reduced-motion:reduce){.dotpulse{animation:none}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  svg.ic{width:1em;height:1em;fill:currentColor;display:block;flex:none}
+
+  /* ---------- HERO screen (mirrors the TTGO dashboard) ---------- */
+  .screen{padding:0}
+  .banner{position:relative;height:112px;
+          background:linear-gradient(180deg,#1c1f26 0%,#101217 100%);
+          border-bottom:1px solid var(--line)}
+  /* Cap BOTH dims (aspect preserved, no distortion) so wide vehicles stay in the left
+ safe-area and never reach the status word — mirrors the device's left car-field. */
+  .car{position:absolute;left:12px;bottom:6px;max-height:96px;max-width:48%;height:auto;width:auto}
+  /* Custom banner = a full 240x58 image; fill the hero (same aspect), status word overlays it. */
+  .car.full{left:0;bottom:0;width:100%;height:auto;max-width:none;max-height:none}
+  .cluster{position:absolute;top:11px;right:14px;display:flex;align-items:center;gap:8px;color:var(--blue)}
+  .cluster .demo{color:var(--red);font-weight:800;font-size:11px;letter-spacing:.09em;display:none}
+  .cluster .wifi{color:var(--green)}
+  .cluster svg.ic{width:17px;height:17px}
+  .clock{font-size:16px;font-weight:600;color:#c4c8cf;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+  .status{position:absolute;left:56%;bottom:14px;display:flex;align-items:center;gap:9px;font-weight:800}
+  /* Full custom banner: subject sits in the left safe-area (~0-54%), right side is transparent.
+ Left-anchor the status just past that edge (so the icon stays put instead of flying with the
+ word length) with a small gap from the vehicle. */
+  .banner.full .status{left:55%;right:auto}
+  /* narrow screens: right-anchor + shrink so the word clears the car AND doesn't clip */
+  @media (max-width:480px){
+    .status{left:auto;right:12px}
+    .status .word{font-size:19px}
+    .status svg.ic{width:21px;height:21px}
+    .car{max-height:64px;max-width:46%}
+  }
+  .status svg.ic{width:26px;height:26px}
+  .status .word{font-size:25px;letter-spacing:.02em}
+  .status.blink{animation:blink 1s steps(2,start) infinite}
+  @keyframes blink{50%{opacity:.35}}
+  /* override AFTER the base rule (equal specificity → source order wins) so it actually applies */
+  @media (prefers-reduced-motion:reduce){.status.blink{animation:none}}
+
+  .zone{position:relative;padding:16px 18px 14px}
+  .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .volt{display:flex;align-items:baseline;gap:5px;line-height:1}
+  .volt .num{font-size:46px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .volt .num.ph{font-size:30px;font-weight:700;color:var(--faint)}
+  .volt .unit{font-size:18px;color:var(--faint);font-weight:600}
+  .aux{text-align:right;font-size:13px;line-height:1.35;color:var(--faint);min-height:34px;padding-top:4px}
+  .aux.warn{color:var(--amber);font-weight:600}
+  .aux.err{color:var(--red);font-weight:700}
+  .aux .big{font-size:15px;color:var(--muted)}
+
+  .bar{position:relative;height:12px;border-radius:6px;background:#1b1e25;margin:16px 0 2px;overflow:hidden}
+  .bar i{position:absolute;top:0;height:100%}
+  .bar .rl{background:var(--red);opacity:.45}
+  .bar .band{background:var(--green);opacity:.6;border-radius:3px}
+  .bar .mk{width:2px;height:18px;top:-3px;background:#fff;box-shadow:0 0 6px #fff;border-radius:1px;overflow:visible}
+
+  .stats{display:flex;justify-content:center;gap:34px;margin-top:14px}
+  .stat{display:flex;align-items:center;gap:7px;font-size:16px;font-weight:600}
+  .stat svg.ic{width:17px;height:17px}
+  .stat .bolt{color:var(--amber)} .stat .thm{color:var(--thermo)}
+  .stat .val{font-variant-numeric:tabular-nums}
+
+  /* ---------- list cards (detail / network) ---------- */
+  details.list{padding:0}
+  details.list>summary{list-style:none;cursor:pointer;margin:0;padding:14px 18px;font-size:12px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--panel2);
+    display:flex;align-items:center;justify-content:space-between;user-select:none}
+  details.list>summary::-webkit-details-marker{display:none}
+  details.list>summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--faint);
+    border-bottom:2px solid var(--faint);transform:rotate(-45deg);transition:transform .15s}
+  details.list[open]>summary{border-bottom:1px solid var(--line)}
+  details.list[open]>summary::after{transform:rotate(45deg)}
+  .row{display:flex;align-items:center;gap:12px;padding:13px 18px;border-top:1px solid var(--line)}
+  .row:first-of-type{border-top:0}
+  .row .lab{display:flex;align-items:center;gap:11px;color:var(--muted);font-size:15px;flex:1;min-width:0}
+  .row .lab svg.ic{width:18px;height:18px;color:var(--amber);flex:none}
+  .row .lab svg.ic.thm{color:var(--thermo)}
+  .row .v{font-weight:700;font-size:16px;color:var(--text);font-variant-numeric:tabular-nums;text-align:right}
+  .row .v.mut{color:var(--muted);font-weight:600;font-size:15px}
+  /* charger event log — muted timeline (inside Charger detail); reads as history, not controls */
+  .clog-head{padding:14px 18px 2px;font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--faint);font-weight:600;border-top:1px solid var(--line);opacity:.85}
+  .clog{padding:8px 18px 14px 16px;display:flex;flex-direction:column}
+  .clog .e{position:relative;padding:0 0 14px 20px;display:flex;justify-content:space-between;gap:12px}
+  .clog .e:last-child{padding-bottom:2px}
+  .clog .e::before{content:"";position:absolute;left:3px;top:4px;width:8px;height:8px;border-radius:50%;
+    background:var(--dc,var(--faint));box-shadow:0 0 0 3px var(--panel);z-index:1}
+  .clog .e::after{content:"";position:absolute;left:6.4px;top:6px;bottom:-4px;width:1.5px;background:var(--line)}
+  .clog .e:last-child::after{display:none}
+  .clog .s{font-size:13.5px;color:var(--text);font-weight:600}
+  .clog .ago{font-size:11px;color:var(--faint);margin-top:1px}
+  .clog .tw{text-align:right;flex:none}
+  .clog .tm{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .clog .dt{font-size:11px;color:var(--faint)}
+  .clog .more{position:relative;padding:0 0 2px 20px;font-size:11px;color:var(--faint);font-style:italic}
+  .clog .more::before{content:"";position:absolute;left:4.4px;top:3px;width:5px;height:5px;border-radius:50%;
+    background:var(--panel);border:1.5px solid var(--line)}
+  .clog-empty{color:var(--faint);font-size:12.5px;padding:4px 0 8px 20px}
+  .ok{color:var(--green)} .bad{color:var(--red)}
+  .bars{display:flex;align-items:flex-end;gap:2px;height:16px}
+  .bars b{width:3px;background:var(--faint);border-radius:1px}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+
+  .foot{color:var(--faint);font-size:11.5px;text-align:center;letter-spacing:.03em;margin-top:2px}
+  .foot b{color:var(--muted);font-weight:700;letter-spacing:.02em}
+  .about{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+  .about .brand{display:flex;align-items:center;gap:11px}
+  .about .brand .bm{width:40px;height:40px;flex:none;display:block}
+  .wm{font-weight:800;letter-spacing:.01em}
+  .wm .w1{color:#eaf4ff}
+  .wm .w2{color:var(--blue)}
+  .about .wm{font-size:23px;line-height:1}
+  .about .disclaimer{font-size:11.5px;line-height:1.5;color:var(--faint)}
+  .about .tag{font-size:13px;color:var(--faint);line-height:1.4;margin-top:-4px}
+  .about .arow{display:flex;justify-content:space-between;gap:12px;font-size:13.5px}
+  .about .arow .k{color:var(--muted)}
+  .about .arow .val{color:var(--text);font-weight:600;font-variant-numeric:tabular-nums}
+  .about .fwrow{align-items:center}
+  .about .fwval{display:flex;flex-direction:column;align-items:flex-end;gap:1px}
+  .about .fwbuild{font-size:11px;font-weight:400;color:var(--faint)}
+  .about .links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;margin-top:8px}
+  .about a.lnk{display:inline-flex;align-items:center;gap:6px;font-size:13px;
+    padding:6px 11px;border:1px solid var(--line);border-radius:8px;font-weight:600;text-decoration:none}
+  .about a.lnk{color:var(--muted)}
+  .about a.lnk:hover{color:var(--text);border-color:var(--muted)}
+  .setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-top:1px solid var(--line)}
+  .setrow:first-child{border-top:0}
+  .setlab{color:var(--muted);font-size:15px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{background:transparent;border:0;color:var(--muted);font:inherit;font-size:13px;font-weight:600;padding:6px 13px;cursor:pointer}
+  .seg button+button{border-left:1px solid var(--line)}
+  .seg button.on{background:var(--blue);color:#04121c}
+  .modehint{font-size:11px;font-weight:700;padding:1px 7px;border-radius:5px;letter-spacing:.03em;text-transform:uppercase}
+  .modehint.demo{color:var(--red);background:rgba(239,83,80,.13)}
+  .modehint.live{color:var(--green);background:rgba(61,220,132,.12)}
+  .subsec{border-top:1px solid var(--line)}
+  .subsec>summary{list-style:none;cursor:pointer;padding:13px 18px;font-size:14px;color:var(--muted);font-weight:600;display:flex;align-items:center;justify-content:space-between}
+  .subsec>summary::-webkit-details-marker{display:none}
+  .subsec>summary::after{content:"";width:7px;height:7px;border-right:2px solid var(--faint);border-bottom:2px solid var(--faint);transform:rotate(-45deg);transition:transform .15s;margin-left:8px}
+  .subsec[open]>summary{color:var(--text)}
+  .subsec[open]>summary::after{transform:rotate(45deg)}
+  .subsec .pairblk{border-top:0}
+  /* WinterDash branded subsection: two-tone wordmark (matches About, no mark) */
+  /* Baked banner thumbnail picker (future gallery extends this grid) */
+  .bpick{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .bthumb{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:9px 8px;
+    background:linear-gradient(180deg,#1c1f26,#14161c);border:1px solid var(--line);border-radius:10px;
+    cursor:pointer;transition:border-color .12s,background .12s;text-decoration:none;min-height:66px}
+  .bthumb img{height:34px;width:auto;max-width:88%;object-fit:contain}
+  .bthumb span{font-size:12px;color:var(--muted);font-weight:600;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bthumb:hover{border-color:var(--muted)}
+  .bthumb.on{border-color:var(--blue);background:#12203a}
+  .bthumb.on span{color:var(--text)}
+  /* user-slot tile overlays: ★ favorite (top-right), ✕ hold-to-delete (top-left) */
+  .bthumb .tact{position:absolute;top:4px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;
+    border:none;border-radius:6px;background:rgba(4,18,28,.72);color:var(--muted);font-size:12px;line-height:1;padding:0;cursor:pointer;z-index:2}
+  .bthumb .tact.fav{right:4px}
+  .bthumb .tact.fav.on{color:#fbbf24}
+  .bthumb .tact.del{left:4px;color:#f87171}
+  .bthumb .delfill{position:absolute;left:4px;top:4px;width:0;height:20px;border-radius:6px;background:rgba(248,113,113,.4);pointer-events:none;z-index:1}
+  .bthumb.newtile{border-style:dashed}
+  .bthumb.newtile span{color:var(--blue);font-size:24px;line-height:1;font-weight:400}
+  .bthumb.pulse{animation:bpulse 1.5s ease-out}
+  @keyframes bpulse{0%{box-shadow:0 0 0 0 rgba(56,189,248,.55)}100%{box-shadow:0 0 0 12px rgba(56,189,248,0)}}
+  .scanhdr{display:flex;align-items:center;justify-content:space-between}
+  .scanlist{display:flex;flex-direction:column;gap:5px;min-height:56px;max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px;margin-bottom:2px}
+  .scanrow{display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:12.5px}
+  .scanrow:hover{border-color:var(--muted)}
+  .scanrow.vic{border-color:var(--blue);background:rgba(56,189,248,.10)}
+  .scanrow .nm{color:var(--text);font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .scanrow .mc{color:var(--faint);font-variant-numeric:tabular-nums;font-size:11.5px}
+  .scanrow .vb{color:var(--blue);font-weight:700;font-size:10px;padding:1px 5px;border:1px solid var(--blue);border-radius:4px;flex:none}
+  .scanrow .rs{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;width:46px;text-align:right}
+  .scanempty{color:var(--faint);font-size:12px;padding:6px 2px}
+  /* scan status — deliberately NOT the faint helper-comment grey, so an active scan is noticeable */
+  .scanstatus{color:var(--muted);font-size:12.5px;padding:2px 4px;margin:auto;text-align:center;line-height:1.5}
+  .scansub{display:block;font-size:11px;color:var(--faint);margin-top:2px}
+  .scanstatus.scanning{color:var(--blue);font-weight:600}
+  .scanstatus .spin{display:inline-block;vertical-align:middle;width:12px;height:12px;margin-right:7px;border:2px solid var(--blue);border-top-color:transparent;
+    border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.scanstatus .spin{animation:none}}
+  .scanhint{color:var(--faint);font-size:11.5px;line-height:1.4;padding:2px 2px 2px}
+  .scanbtns{display:flex;gap:6px}
+  .eyebtn.tgl.on{color:var(--blue);border-color:var(--blue);background:rgba(56,189,248,.10)}
+  .setctl{display:flex;align-items:center;gap:6px}
+  .setctl input{width:66px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:14px;padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums}
+  .setctl input:focus{outline:none;border-color:var(--muted)}
+  .setctl .u{color:var(--faint);font-size:13px;width:14px}
+  .slid{display:flex;align-items:center;gap:11px;min-width:170px;flex:0 1 56%}
+  .slid input[type=range]{flex:1;min-width:90px;accent-color:var(--blue);cursor:pointer;height:22px}
+  .sval{min-width:46px;text-align:right;font-size:13.5px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+  .selctl{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:14px;font-weight:600;padding:6px 10px;cursor:pointer}
+  .selctl:focus{outline:none;border-color:var(--muted)}
+  .txtwide{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:13px;padding:6px 9px;width:170px;font-variant-numeric:tabular-nums}
+  .txtwide:focus{outline:none;border-color:var(--muted)}
+  .keyst{font-size:11px;font-weight:600;padding:1px 6px;border-radius:5px;margin-left:6px}
+  .keyst.set{color:var(--green);background:rgba(61,220,132,.12)}
+  .keyst.unset{color:var(--faint);background:var(--panel2)}
+  .setnoterow{padding:8px 18px 12px;color:var(--faint);font-size:12px;line-height:1.45}
+  .pairblk{padding:12px 18px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line)}
+  .pairlab{color:var(--muted);font-size:14px;display:flex;align-items:center;gap:8px}
+  .subsec .pairblk .pairsep{border-top:1px solid var(--line);margin-top:6px;padding-top:12px}
+  .pairrow{display:flex;align-items:center;gap:10px}
+  .pairrow>.pairlab{flex:none;margin-right:auto}
+  .pairctl{display:flex;align-items:center;gap:8px;flex:none}
+  .pairctl>.pairin{width:200px;flex:none}
+  .pairin{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:14px;padding:9px 11px;font-variant-numeric:tabular-nums;letter-spacing:.03em}
+  .pairin:focus{outline:none;border-color:var(--muted)}
+  .pairkeyrow{display:flex;gap:8px}
+  .eyebtn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:0 14px;cursor:pointer;flex:none}
+  .eyebtn:hover{color:var(--text)}
+  .keyval{margin-left:auto;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+  .keyval.ok{color:var(--green)}
+  .keyval.bad{color:var(--amber)}
+  .clrbtn{background:transparent;border:1px solid var(--line);border-radius:8px;color:var(--red);font:inherit;font-weight:600;font-size:13px;padding:7px 14px;cursor:pointer}
+  .clrbtn:hover{border-color:var(--red)}
+  .setsave{justify-content:flex-end;gap:14px}
+  .setnote{color:var(--amber);font-size:12.5px}
+  .savebtn{background:var(--blue);color:#04121c;border:0;border-radius:8px;font:inherit;font-weight:700;font-size:13px;padding:8px 18px;cursor:pointer}
+  .savebtn:disabled{background:var(--panel2);color:var(--faint);cursor:default}
+  .discardbtn{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:8px;font:inherit;font-weight:600;font-size:13px;padding:8px 14px;cursor:pointer}
+  .discardbtn:hover:not(:disabled){color:var(--text);border-color:var(--muted)}
+  .discardbtn:disabled{color:var(--faint);cursor:default}
+  /* System actions */
+  .sysrow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 18px;border-top:1px solid var(--line)}
+  .sysrow:first-child{border-top:0}
+  .systxt{min-width:0}
+  .sysname{color:var(--text);font-size:15px;font-weight:600}
+  .sysrow.danger .sysname{color:var(--red)}
+  .sysdesc{color:var(--faint);font-size:12px;margin-top:2px;line-height:1.4}
+  .sysbtn{position:relative;overflow:hidden;flex:none;min-width:128px;text-align:center;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-weight:700;font-size:13px;padding:8px 16px;cursor:pointer;touch-action:none;user-select:none}
+  .sysbtn:hover{border-color:var(--muted)}
+  .sysbtn.danger{color:var(--red);border-color:rgba(239,83,80,.5)}
+  .sysbtn.danger:hover{background:rgba(239,83,80,.10)}
+  .sysbtn.arm{color:#fff;border-color:var(--red)}
+  .sysbtn .hbl{position:relative;z-index:1}
+  .holdfill{position:absolute;left:0;top:0;bottom:0;width:0;background:rgba(239,83,80,.4);z-index:0}
+  .holdfill.blue{background:rgba(56,189,248,.4)}
+  .sysval{color:var(--text);font-weight:600;font-size:14px;font-variant-numeric:tabular-nums;flex:none}
+  .sysbtn.arm:not(.danger){color:var(--blue);border-color:var(--blue)}
+  .sysbtn.amber{color:var(--amber);border-color:rgba(245,185,66,.5)}
+  .sysbtn.amber:hover{background:rgba(245,185,66,.10)}
+  .sysbtn.amber.arm{color:var(--amber);border-color:var(--amber)}
+  .holdfill.amber{background:rgba(245,185,66,.4)}
+  .sysrow.warn .sysname{color:var(--amber)}
+  .sysnote{padding:10px 18px 14px;color:var(--faint);font-size:12px}
+  .sysnote:empty{display:none}
+  .sysnote.warn{color:var(--amber)}
+  .sim{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:2px}
+  .sim button{background:var(--panel);border:1px solid var(--line);color:var(--muted);
+              border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+  .sim button:hover{color:var(--text);border-color:var(--muted)}
+  /* Hero-change cooldown: after picking a banner, dim + block the grid briefly so a rapid click-burst
+ can't queue a storm of full-screen LVGL redraws (the task-watchdog repro on this no-PSRAM board —
+ a 2nd API/HA client narrows the heap margin enough that ~5-6 redraws in ~2s trip the WDT). */
+  #bpick.applying{opacity:.5;pointer-events:none;position:relative}
+  #bpick.applying::after{content:"Applying\2026";position:absolute;inset:0;display:flex;align-items:center;
+    justify-content:center;font-weight:700;color:var(--text);background:rgba(0,0,0,.28);border-radius:8px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="connlost" id="connLost"><span class="dotpulse"></span>Connection lost — reconnecting…</div>
+
+  <!-- ===== HERO: dashboard screen ===== -->
+  <section class="screen card">
+    <div class="banner">
+      <img class="car" id="carImg" alt="">
+      <div class="cluster">
+        <span class="demo" id="demoBadge">DEMO</span>
+        <svg class="ic" id="btIcon" viewBox="0 0 24 24"><path d="M14.88,16.29L13,18.17V14.41M13,5.83L14.88,7.71L13,9.58M17.71,7.71L12,2H11V9.58L6.41,5L5,6.41L10.59,12L5,17.58L6.41,19L11,14.41V22H12L17.71,16.29L13.41,12L17.71,7.71Z"/></svg>
+        <svg class="ic wifi" viewBox="0 0 24 24"><path d="M12,21L15.6,16.2C14.6,15.45 13.35,15 12,15C10.65,15 9.4,15.45 8.4,16.2L12,21M12,3C7.95,3 4.21,4.34 1.2,6.6L3,9C5.5,7.12 8.62,6 12,6C15.38,6 18.5,7.12 21,9L22.8,6.6C19.79,4.34 16.05,3 12,3M12,9C9.3,9 6.81,9.89 4.8,11.4L6.6,13.8C8.1,12.67 9.97,12 12,12C14.03,12 15.9,12.67 17.4,13.8L19.2,11.4C17.19,9.89 14.7,9 12,9Z"/></svg>
+        <span class="clock" id="clock">14:32</span>
+      </div>
+      <div class="status" id="status">
+        <svg class="ic" id="statIcon" viewBox="0 0 24 24"></svg>
+        <span class="word" id="statWord"></span>
+      </div>
+    </div>
+    <div class="zone">
+      <div class="hero">
+        <div class="volt"><span class="num" id="volt">13.78</span><span class="unit">V</span></div>
+        <div class="aux" id="aux"></div>
+      </div>
+      <div class="bar">
+        <i class="rl" id="rlLow"></i><i class="rl" id="rlHigh"></i>
+        <i class="band" id="band"></i><i class="mk" id="mk"></i>
+      </div>
+      <div class="stats">
+        <div class="stat"><svg class="ic bolt" viewBox="0 0 24 24"><path d="M2,9V11H22V9H2M2,13V15H7V13H2M9,13V15H15V13H9M17,13V15H22V13H17Z"/></svg><span class="val" id="sCurr">0.3 A</span></div>
+        <div class="stat"><svg class="ic thm" viewBox="0 0 24 24"><path d="M15 13V5A3 3 0 0 0 9 5V13A5 5 0 1 0 15 13M12 4A1 1 0 0 1 13 5V8H11V5A1 1 0 0 1 12 4Z"/></svg><span class="val" id="sTemp">22°C</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Charger detail ===== -->
+  <details class="card list">
+    <summary>Charger detail</summary>
+    <div class="row"><span class="lab"><svg class="ic thm" viewBox="0 0 24 24"><path d="M15 13V5A3 3 0 0 0 9 5V13A5 5 0 1 0 15 13M12 4A1 1 0 0 1 13 5V8H11V5A1 1 0 0 1 12 4Z"/></svg>Temperature</span><span class="v" id="dTemp">22°C</span></div>
+    <div class="row"><span class="lab"><svg class="ic" viewBox="0 0 24 24"><path d="M7,2V13H10V22L17,10H13L17,2H7Z"/></svg>DC voltage</span><span class="v" id="dVolt">13.78 V</span></div>
+    <div class="row"><span class="lab"><svg class="ic" viewBox="0 0 24 24"><path d="M2,9V11H22V9H2M2,13V15H7V13H2M9,13V15H15V13H9M17,13V15H22V13H17Z"/></svg>DC current</span><span class="v" id="dCurr">0.3 A</span></div>
+    <div class="row"><span class="lab"><svg class="ic" viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12C20,14.4 19,16.5 17.3,18C15.9,16.7 14,16 12,16C10,16 8.2,16.7 6.7,18C5,16.5 4,14.4 4,12A8,8 0 0,1 12,4M14,5.89C13.62,5.9 13.26,6.15 13.1,6.54L11.81,9.77L11.71,10C11,10.13 10.41,10.6 10.14,11.26C9.73,12.29 10.23,13.45 11.26,13.86C12.29,14.27 13.45,13.77 13.86,12.74C14.12,12.08 14,11.32 13.57,10.76L13.67,10.5L14.96,7.29L14.97,7.26C15.17,6.75 14.92,6.17 14.41,5.96C14.28,5.91 14.15,5.89 14,5.89M10,6A1,1 0 0,0 9,7A1,1 0 0,0 10,8A1,1 0 0,0 11,7A1,1 0 0,0 10,6M7,9A1,1 0 0,0 6,10A1,1 0 0,0 7,11A1,1 0 0,0 8,10A1,1 0 0,0 7,9M17,9A1,1 0 0,0 16,10A1,1 0 0,0 17,11A1,1 0 0,0 18,10A1,1 0 0,0 17,9Z"/></svg>DC power</span><span class="v" id="dPow">4 W</span></div>
+    <div class="clog-head">History</div>
+    <div id="clog" class="clog"><div class="clog-empty">No events yet</div></div>
+  </details>
+
+  <!-- ===== Network / BLE ===== -->
+  <details class="card list">
+    <summary>Network / BLE</summary>
+    <div class="row"><span class="lab"><span class="bars" id="bbars"></span>Bluetooth</span><span class="v" id="brssi">—</span></div>
+    <div class="row"><span class="lab"><svg class="ic" id="bleIco" viewBox="0 0 24 24" style="width:17px;height:17px;color:var(--blue)"><path id="bleIcoPath" d="M14.88,16.29L13,18.17V14.41M13,5.83L14.88,7.71L13,9.58M17.71,7.71L12,2H11V9.58L6.41,5L5,6.41L10.59,12L5,17.58L6.41,19L11,14.41V22H12L17.71,16.29L13.41,12L17.71,7.71Z"/></svg>Victron Blue</span><span class="v mut" id="ble">2s ago</span></div>
+    <div class="row"><span class="lab"><span class="bars" id="wbars"></span>WiFi</span><span class="v ok" id="wq">Good <span style="color:var(--faint);font-weight:400">(-58 dBm)</span></span></div>
+    <div class="row"><span class="lab">Network</span><span class="v" id="ssid">Home-WiFi</span></div>
+    <div class="row"><span class="lab">IP address</span><span class="v mut" id="ip">192.168.1.42</span></div>
+    <div class="row"><span class="lab">Hostname</span><span class="v mut" id="hostVal">winterdash-a1b2c3.local</span></div>
+    <div class="row"><span class="lab">Home Assistant</span><span class="v bad" id="ha"><svg class="ic" viewBox="0 0 24 24" style="width:17px;height:17px;display:inline-block;vertical-align:-3px;margin-right:4px"><path d="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z"/></svg>Not connected</span></div>
+  </details>
+
+  <!-- ===== Settings ===== -->
+  <details class="card list">
+    <summary>Settings</summary>
+    <div class="set">
+      <div class="setrow"><span class="setlab">Device mode <span class="modehint" id="modeHint"></span></span>
+        <div class="seg" id="segMode"><button data-v="Auto">Auto</button><button data-v="Demo">Demo</button><button data-v="Live">Live</button></div></div>
+      <details class="subsec">
+        <summary><span>Charger pairing (BLE) <span class="keyst" id="pairChip"></span></span></summary>
+        <div class="pairblk">
+          <div class="scanhdr"><span class="pairlab">Nearby BLE devices</span><span class="scanbtns"><button type="button" class="eyebtn tgl" id="btnVicOnly">Victron only</button><button type="button" class="eyebtn" id="btnScan">Rescan</button></span></div>
+          <div class="scanlist" id="scanList"><div class="scanstatus">Tap Rescan to search<span class="scansub">move the device closer to the charger if nothing shows</span></div></div>
+          <div class="scanhint">Unnamed entries are usually phones/wearables (privacy). Your Victron shows its name + badge, at the top.</div>
+          <div class="pairrow pairsep">
+            <label class="pairlab" for="inMac">Victron MAC <span class="keyval" id="macVal"></span></label>
+            <div class="pairctl">
+              <input type="text" class="pairin" id="inMac" placeholder="XX:XX:XX:XX:XX:XX" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+              <span class="eyebtn" style="visibility:hidden" aria-hidden="true">show</span>
+            </div>
+          </div>
+          <div class="pairrow">
+            <label class="pairlab" for="inKey">Victron key <span class="keyst" id="keyState"></span><span class="keyval" id="keyVal"></span></label>
+            <div class="pairctl">
+              <input type="password" class="pairin" id="inKey" placeholder="32 hex chars" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+              <button type="button" class="eyebtn" id="btnEye">show</button>
+            </div>
+          </div>
+          <div class="scanhint">Key: VictronConnect → Product info → “Instant readout via Bluetooth” → Show. Enable it on the charger first (firmware ≥ 3.61).</div>
+          <div class="pairrow"><span class="pairlab" style="color:var(--faint);font-size:13px">Clear stored MAC + key</span><button class="clrbtn" id="btnClearPair">Clear pairing</button></div>
+      </details>
+      <details class="subsec">
+        <summary><span>Charger settings</span></summary>
+        <div class="setrow"><span class="setlab">Charge profile</span>
+          <select class="selctl" id="selProf"><option>12V Normal</option><option>12V High</option><option>12V Li-ion</option><option>24V Normal</option><option>24V High</option><option>24V Li-ion</option></select></div>
+        <div class="setrow"><span class="setlab">Temperature</span>
+          <div class="seg" id="segTemp"><button data-v="C">°C</button><button data-v="F">°F</button></div></div>
+      </details>
+      <details class="subsec brand">
+        <summary><span class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></span></summary>
+        <div class="pairblk">
+          <span class="pairlab">Banner image</span>
+          <div class="bpick" id="bpick"></div>
+          <div class="scanhint" id="galHint">Tap a banner to use it — the change is instant. Tap <b>+</b> to make your own. On your banners: <b>★</b> favorite, hold <b>✕</b> to delete.</div>
+        </div>
+        <div class="setrow"><span class="setlab">Time zone</span>
+          <select class="selctl" id="selTz"><option>Europe/Warsaw</option><option>Europe/London</option><option>Europe/Lisbon</option><option>Europe/Athens</option><option>America/New_York</option><option>America/Chicago</option><option>America/Denver</option><option>America/Los_Angeles</option><option>UTC</option></select></div>
+        <div class="setrow"><span class="setlab">Backlight level</span>
+          <span class="slid"><input type="range" id="inBlLv" min="30" max="100" step="5"><span class="sval" id="vBlLv"></span></span></div>
+        <div class="setrow"><span class="setlab">Dim level</span>
+          <span class="slid"><input type="range" id="inDimLv" min="5" max="100" step="5"><span class="sval" id="vDimLv"></span></span></div>
+        <div class="setrow"><span class="setlab">Auto-return</span>
+          <span class="slid"><input type="range" id="inRetTo" min="5" max="60" step="5"><span class="sval" id="vRetTo"></span></span></div>
+        <div class="setrow"><span class="setlab">Dim after</span>
+          <span class="slid"><input type="range" id="inDimTo" min="10" max="180" step="5"><span class="sval" id="vDimTo"></span></span></div>
+      </details>
+      <div class="setrow setsave"><span class="setnote" id="setNote"></span><button class="discardbtn" id="btnDiscard" disabled>Discard</button><button class="savebtn" id="btnSave" disabled>Saved</button></div>
+    </div>
+  </details>
+
+  <!-- ===== System ===== -->
+  <details class="card list">
+    <summary>System</summary>
+    <div>
+      <div class="sysrow">
+        <div class="systxt"><div class="sysname">Reboot</div><div class="sysdesc">Restarts the device (takes ~30s). Hold the button for 2s to confirm.</div></div>
+        <button class="sysbtn" id="btnReboot" type="button"><span class="holdfill blue" id="rbFill"></span><span class="hbl">Reboot</span></button>
+      </div>
+      <div class="sysrow warn">
+        <div class="systxt"><div class="sysname">Reset Wi-Fi &amp; setup</div><div class="sysdesc">Forgets Wi-Fi and opens the "WinterDashAP" AP. This page will disconnect. Hold for 2s to confirm.</div></div>
+        <button class="sysbtn amber" id="btnWifi" type="button"><span class="holdfill amber" id="wfFill"></span><span class="hbl">Reset Wi-Fi</span></button>
+      </div>
+      <div class="sysrow danger">
+        <div class="systxt"><div class="sysname">Factory reset</div><div class="sysdesc">Erases all saved settings (pairing, banner, display). Hold for 2s to confirm.</div></div>
+        <button class="sysbtn danger" id="btnFactory" type="button"><span class="holdfill" id="facFill"></span><span class="hbl">Factory Reset</span></button>
+      </div>
+      <div class="sysnote" id="sysNote"></div>
+      <div class="sysrow"><div class="systxt"><div class="sysname">Free heap</div><div class="sysdesc">Available RAM — a device health metric.</div></div><span class="sysval" id="heapVal">—</span></div>
+    </div>
+  </details>
+
+  <!-- ===== About ===== -->
+  <details class="card list">
+    <summary>About</summary>
+    <div class="about">
+      <div class="brand"><img class="bm" alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMTAwIiBoZWlnaHQ9IjExMDAiIHZpZXdCb3g9IjAgMCAxMTAwIDExMDAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iV2ludGVyRGFzaCBzbm93Zmxha2UgY2hhcmdpbmcgY2FibGUgbWFyayI+Cgo8ZGVmcz4KICA8bGluZWFyR3JhZGllbnQgaWQ9ImljZSIgeDE9IjAlIiB5MT0iNSUiIHgyPSI5MiUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0N0QzRjUiLz4KICAgIDxzdG9wIG9mZnNldD0iNDIlIiBzdG9wLWNvbG9yPSIjMjJCN0Y1Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjcyJSIgc3RvcC1jb2xvcj0iIzA3OEZGMiIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTY4RUVBIi8+CiAgPC9saW5lYXJHcmFkaWVudD4KICA8bGluZWFyR3JhZGllbnQgaWQ9InBsdWdEYXJrIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMxODM2NTMiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzA3MUMzMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE1Mi4wMCw0OC4wMCkiPgogIDxwYXRoIGQ9Ik0gMzg3IDAgTCAzNzEgMTIgTCAzNjQgMjcgTCAzNjMgMTUzIEwgMzU3IDE1MCBMIDMwNCAxMDQgTCAyOTMgOTcgTCAyNzcgOTUgTCAyNjMgMTAwIEwgMjU0IDEwOSBMIDI0OSAxMjQgTCAyNTEgMTM3IEwgMjYxIDE1MSBMIDM2NCAyMzggTCAzNjQgMzkwIEwgMzU4IDM5OCBMIDM0NyAzOTkgTCAyMjAgMzI0IEwgMjA3IDIwOSBMIDIwNCAxOTkgTCAxOTUgMTg4IEwgMTg2IDE4MyBMIDE3NCAxODEgTCAxNjIgMTg0IEwgMTUzIDE5MCBMIDE0NSAyMDMgTCAxNDQgMjE3IEwgMTUyIDI3NyBMIDE1MSAyODMgTCAxNDggMjgzIEwgNjQgMjMyIEwgNDggMjI0IEwgMzEgMjIzIEwgMTcgMjI5IEwgNiAyNDIgTCAyIDI1NSBMIDIgMjY0IEwgOCAyNzkgTCAxNiAyODcgTCAxMTAgMzQzIEwgMTA5IDM0NiBMIDM5IDM3NyBMIDMxIDM4NCBMIDI2IDM5NCBMIDI2IDQwOCBMIDI5IDQxNiBMIDM4IDQyNiBMIDQ5IDQzMSBMIDY2IDQzMSBMIDE4OSAzODEgTCAxOTMgMzgxIEwgMzEzIDQ1MSBMIDMxOSA0NTggTCAzMTkgNDY2IEwgMzEyIDQ3NSBMIDE4OSA1NDQgTCAxODMgNTQzIEwgNjYgNDk1IEwgNTIgNDk0IEwgNDEgNDk4IEwgMzEgNTA3IEwgMjYgNTE4IEwgMjYgNTMwIEwgMzEgNTQxIEwgNDQgNTUxIEwgMTEwIDU3OSBMIDExMSA1ODMgTCAxNCA2MzcgTCA2IDY0NSBMIDIgNjU0IEwgMCA2NTUgTCAwIDY3MyBMIDIgNjc0IEwgNiA2ODMgTCAxNSA2OTIgTCAyNSA2OTYgTCAzOCA2OTcgTCA1NCA2OTEgTCAxNDEgNjQyIEwgMTQ4IDY0MCBMIDE0OSA2NDQgTCAxMzcgNzAzIEwgMTM4IDcxNSBMIDE0MiA3MjMgTCAxNTAgNzMxIEwgMTYwIDczNSBMIDE3NiA3MzQgTCAxODkgNzI1IEwgMTk2IDcxMyBMIDIxOCA1OTggTCAzNTAgNTIyIEwgMzU3IDUxOSBMIDM2MyA1MjAgTCAzNjYgNTI0IEwgMzY1IDY2NyBMIDM2MCA2OTEgTCAzNTQgNzAxIEwgMzQxIDcxNCBMIDMzMCA3MjEgTCAyNDkgNzYwIEwgMjIwIDc3OCBMIDIwNSA3OTAgTCAxODQgODEzIEwgMTY2IDg0NSBMIDE1OCA4NzggTCAxNTggOTAxIEwgMTYyIDkyNSBMIDE3NCA5NTUgTCAxOTIgOTc3IEwgMjEwIDk5MCBMIDIyMCA5OTUgTCAyNDMgMTAwMSBMIDI0NCAxMDAzIEwgMjgwIDEwMDMgTCAyODEgMTAwMSBMIDI5OSA5OTggTCAzMjcgOTg3IEwgMzY3IDk2MiBMIDQwOCA5MzIgTCA0MzAgOTIwIEwgNDQ3IDkxNSBMIDQ1MCA5MTkgTCA0NjAgOTI1IEwgNDkxIDkzNSBMIDUxNyA5NTkgTCA1NTAgOTc4IEwgNTg5IDk5MyBMIDYxNCA5OTkgTCA2MjkgOTk5IEwgNjQ0IDk5MiBMIDY2MyA5NzkgTCA2ODIgOTYzIEwgNjk2IDk0OCBMIDcwOSA5MzAgTCA3MTQgOTIwIEwgNzIyIDg5MSBMIDcyMiA4NzAgTCA3MTggODYwIEwgNzEzIDg1NCBMIDY5NiA4NDUgTCA2NjEgODMzIEwgNjUzIDgyNSBMIDU4OCA4MTMgTCA1NTIgODExIEwgNTM3IDgxNSBMIDUyMyA4MjIgTCA0OTAgODMwIEwgNDU3IDg0NSBMIDQ1MCA4NTMgTCA0NDUgODY0IEwgNDIyIDg2OSBMIDM5OCA4NzkgTCAzNjYgODk5IEwgMzQ0IDkxNiBMIDMxMCA5MzggTCAyNzkgOTUwIEwgMjUxIDk1MSBMIDIzMCA5NDMgTCAyMTYgOTI4IEwgMjA5IDkxMSBMIDIwOCA4ODUgTCAyMTEgODczIEwgMjIxIDg1MyBMIDIzOCA4MzQgTCAyNTUgODIxIEwgMjg3IDgwNCBMIDM0NyA3ODEgTCAzNzcgNzY1IEwgMzkyIDc1NCBMIDQwNyA3MzkgTCA0MTcgNzI1IEwgNDI5IDY5NyBMIDQzMyA2NzQgTCA0MzMgNTIzIEwgNDM3IDUyMCBMIDQ0MyA1MjAgTCA1NzcgNTk3IEwgNTk2IDcxMiBMIDYwMyA3MjUgTCA2MTYgNzM0IEwgNjM0IDczNSBMIDY0MyA3MzEgTCA2NTIgNzIyIEwgNjU2IDcxMiBMIDY1NiA3MDEgTCA2NDYgNjQ3IEwgNjQ3IDY0MCBMIDY2NiA2NDkgTCA3NDMgNjkzIEwgNzU1IDY5NyBMIDc2NiA2OTcgTCA3NzkgNjkyIEwgNzg5IDY4MyBMIDc5MyA2NzMgTCA3OTUgNjcyIEwgNzk1IDY1NSBMIDc5MyA2NTQgTCA3OTAgNjQ2IEwgNzgxIDYzNyBMIDY4NSA1ODMgTCA2ODYgNTc5IEwgNzQ5IDU1MiBMIDc2MyA1NDMgTCA3NjkgNTMyIEwgNzcwIDUyMSBMIDc2NSA1MDggTCA3NTYgNDk5IEwgNzQyIDQ5NCBMIDcyOSA0OTUgTCA2MTEgNTQ0IEwgNjA2IDU0NCBMIDQ4MyA0NzQgTCA0NzggNDY3IEwgNDc4IDQ1OCBMIDQ4NCA0NTEgTCA2MDQgMzgxIEwgNjA4IDM4MSBMIDczMCA0MzEgTCA3NDEgNDMyIEwgNzUwIDQzMCBMIDc1NyA0MjYgTCA3NjYgNDE2IEwgNzcwIDQwNCBMIDc2OSAzOTMgTCA3NjMgMzgyIEwgNzUzIDM3NSBMIDY4NiAzNDYgTCA2ODUgMzQzIEwgNzc1IDI5MCBMIDc4NiAyODEgTCA3OTIgMjcxIEwgNzkzIDI2NSBMIDc5NSAyNjQgTCA3OTUgMjUzIEwgNzkzIDI1MiBMIDc4OCAyMzggTCA3NzggMjI4IEwgNzY1IDIyMyBMIDc1MSAyMjMgTCA3NDAgMjI3IEwgNjUwIDI4MiBMIDY0NSAyODMgTCA2NDQgMjc1IEwgNjUyIDIxOSBMIDY1MSAyMDIgTCA2NDcgMTk0IEwgNjQxIDE4OCBMIDYzMiAxODMgTCA2MjQgMTgxIEwgNjEwIDE4MyBMIDU5NyAxOTIgTCA1OTAgMjA1IEwgNTc2IDMyNCBMIDQ1MiAzOTggTCA0MzkgMzk4IEwgNDMzIDM5MCBMIDQzMyAyMzcgTCA1MTggMTY2IEwgNTQyIDE0NCBMIDU0NyAxMzMgTCA1NDcgMTE5IEwgNTQzIDEwOSBMIDUzNCAxMDAgTCA1MjEgOTUgTCA1MDcgOTYgTCA0OTggMTAwIEwgNDQxIDE0OSBMIDQzNCAxNTMgTCA0MzMgMjcgTCA0MjQgMTAgTCA0MTAgMCBaIiBmaWxsPSJ1cmwoI2ljZSkiLz4KICA8cGF0aCBkPSJNIDcwNCA4NjAgTCA2NTUgODQ2IEwgNjMyIDg0NyBMIDYyMyA4NTEgTCA2MTcgODU3IEwgNjExIDg2OCBMIDYwMSA4OTcgTCA1OTggOTExIEwgNTk4IDkyNSBMIDYwNyA5NjMgTCA2MTMgOTc3IEwgNjIwIDk4NCBMIDYyNSA5ODYgTCA2MzMgOTg2IEwgNjQ2IDk4MCBMIDY3NiA5NTcgTCA2OTggOTMyIEwgNzEwIDkwOSBMIDcxNCA4OTAgTCA3MTQgODczIEwgNzEwIDg2NSBaIiBmaWxsPSJ1cmwoI3BsdWdEYXJrKSIgb3BhY2l0eT0iMSIvPgo8cGF0aCBkPSJNIDUwOCA4ODIgTCA1MDQgODkyIEwgNTA2IDkxNyBMIDUxMSA5MzggTCA1MjIgOTYwIEwgNTIwIDk2MSBMIDUxNiA5NTggTCA1MTcgOTU2IEwgNTE2IDk1OCBMIDUxMiA5NTUgTCA1MjggOTY2IEwgNTU0IDk4MCBMIDU5MSA5OTMgTCA1ODAgOTg1IEwgNTgxIDk4MyBMIDU4MyA5ODUgTCA1ODAgOTc4IEwgNTc4IDk4MSBMIDU3MyA5NzIgTCA1NjAgOTE1IEwgNTU1IDkwMCBMIDU0OCA4OTMgTCA1MTYgODgxIFoiIGZpbGw9IiMxNzM2NTMiIG9wYWNpdHk9IjAuOTUiLz4KPHBhdGggZD0iTSA1MjIgODIyIEwgNTEwIDgyNCBMIDQ3OSA4MzQgTCA0NjIgODQyIEwgNDUyIDg1MCBMIDQ0NSA4NjYgTCA0NDIgODg3IEwgNDQzIDkwNSBMIDQ1MSA5MjAgTCA0NjAgOTI1IEwgNDkzIDkzNyBMIDQ4NiA5MjEgTCA0ODQgOTA2IEwgNDg1IDg4NyBMIDQ4OCA4NzIgTCA0OTUgODUzIEwgNTA0IDgzOCBaIiBmaWxsPSIjMjc0NzYyIiBvcGFjaXR5PSIwLjkiLz4KCiAgPGNpcmNsZSBjeD0iNjQ4LjAzIiBjeT0iODc2LjM0IiByPSIxMC4wMCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2ODUuNzEiIGN5PSI4ODUuODMiIHI9IjkuMzciIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iI0Q4REVFNSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPGNpcmNsZSBjeD0iNjIzLjU0IiBjeT0iOTExLjc1IiByPSIxMC40OSIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2NjIuMzIiIGN5PSI5MTcuMTAiIHI9IjEwLjE2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNEOERFRTUiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxjaXJjbGUgY3g9IjYzNC45OCIgY3k9Ijk1MC40NyIgcj0iOS44MiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8L2c+Cjwvc3ZnPgo="><span class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></span></div>
+      <div class="tag">Companion display for Victron Blue Smart chargers — keeps an eye on your battery through the winter.</div>
+      <div class="arow fwrow"><span class="k">Firmware</span><span class="val fwval" id="fw"><span id="fwVer">dev</span><span class="fwbuild" id="fwBuild"></span></span></div>
+      <div class="disclaimer">Independent open-source project — not affiliated with, endorsed by, or sponsored by Victron Energy. “Victron” and “Blue Smart” are trademarks of Victron Energy B.V., used only to describe compatibility.</div>
+      <div class="links">
+        <a class="lnk" href="https://github.com/witekin/winterdash" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a class="lnk" href="https://github.com/witekin/winterdash/wiki" target="_blank" rel="noopener noreferrer">Docs</a>
+        <a class="lnk" href="https://esphome.io" target="_blank" rel="noopener noreferrer">Powered by ESPHome</a>
+      </div>
+    </div>
+  </details>
+
+  <div class="foot"><b class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></b> · <span id="footHost">winterdash-a1b2c3.local</span></div>
+</div>
+
+<script>
+  // ---- MDI icon paths (24x24) ----
+  const IC={
+    flash:"M7,2V13H10V22L17,10H13L17,2H7Z",
+    check:"M12 2C6.5 2 2 6.5 2 12S6.5 22 12 22 22 17.5 22 12 17.5 2 12 2M10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z",
+    alert:"M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z",
+    sleep:"M18.73,18C15.4,21.69 9.71,22 6,18.64C2.33,15.31 2.04,9.62 5.37,5.93C6.9,4.25 9,3.2 11.27,3C7.96,6.7 8.27,12.39 12,15.71C13.63,17.19 15.78,18 18,18C18.25,18 18.5,18 18.73,18Z"
+  };
+  const CLOSE="M12,2C17.53,2 22,6.47 22,12C22,17.53 17.53,22 12,22C6.47,22 2,17.53 2,12C2,6.47 6.47,2 12,2M15.59,7L12,10.59L8.41,7L7,8.41L10.59,12L7,15.59L8.41,17L12,13.41L15.59,17L17,15.59L13.41,12L17,8.41L15.59,7Z";
+  const BT_ON="M14.88,16.29L13,18.17V14.41M13,5.83L14.88,7.71L13,9.58M17.71,7.71L12,2H11V9.58L6.41,5L5,6.41L10.59,12L5,17.58L6.41,19L11,14.41V22H12L17.71,16.29L13.41,12L17.71,7.71Z";
+  const BT_OFF="M13,5.83L14.88,7.71L13,9.58V5.83M14.88,16.29L13,18.17V14.41L14.88,16.29M12,2L17.71,7.71L14.31,11.11L20.29,17.09L19,18.38L2.62,2L3.91,0.71L9.87,6.67L11,5.54V9.7L12,2Z";
+  const C={green:'#3ddc84',amber:'#f5b942',red:'#ef5350',neutral:'#e8e8e8',grey:'#8b9099',blue:'#38bdf8'};
+  const TIMEOUT=30;      // matches device ble_timeout_s — STEP 2 offline overlay
+  const SIG_STALE=10;    // matches device ble_signal_stale_s — STEP 1 "No signal" (dot + bars)
+
+  // ---- live data via web_server SSE ----
+  // el (status elapsed) and age (BLE freshness) come from the ESP, so the web
+  // mirrors the device instead of timing on its own.
+  const M={v:0,i:0,pw:0,t:0,raw:'',err:'',stat:'',snote:'',rssi:null,brssi:null,ssid:'',ipaddr:'',ha:false,el:null,age:null,offel:null,demo:false,
+    dmode:'',tunit:'C',dimto:null,retto:null,dimlv:null,blv:null,prof:'12V Normal',tz:'',mac:'',keyset:false,scanjson:'',clog:'',bp:'',fwver:'dev',fwbuild:'',host:'',heap:null};
+  let lastPacket=0,curCode=-1,sinceTs=Date.now(),offSince=0,staged={},savingUntil=0,customFetched=false,selId=null,heroLockUntil=0;
+  const MAP={'sensor-battery_voltage':'v','sensor-battery_current':'i','sensor-battery_power':'pw',
+    'sensor-charger_temperature':'t','sensor-wifi_rssi':'rssi',
+    'text_sensor-device_state':'raw','text_sensor-charger_error':'err','text_sensor-ip':'ipaddr',
+    'text_sensor-status':'stat','text_sensor-status_detail':'snote',
+    'binary_sensor-demo_mode':'demo',
+    'select-device_mode':'dmode','select-temp_unit':'tunit','select-charge_profile':'prof','select-timezone':'tz',
+    'number-dim_timeout':'dimto','number-return_timeout':'retto','number-dim_level':'dimlv','number-backlight_level':'blv',
+    'text-victron_mac':'mac',
+    'select-banner_preset':'bp'};
+    // NOTE: several fields are NO LONGER on SSE — pulled from /wd/*.json below on their own cadence,
+ // not via onState. Off SSE: BLE scan list, charger log (the big blobs that aborted the SSE
+ // buffer) -> M.scanjson / M.clog. Off SSE too: firmware, hostname, SSID + diagnostics
+ // (heap/uptime/reset reason) -> one /wd/info.json -> M.fw / M.host / M.ssid / M.heap. Kept on SSE:
+ // IP, HA link, demo flag, WiFi RSSI, Victron RSSI (small and/or genuinely live).
+ // Baked banner PNGs (data URIs); filled by esphome/tools/gen_web_banners.py.
+ /* baked banners de-inlined -> served at /img/<name> (banners_baked.h) */
+  const BASE=''; // same-origin when served by the device; set to 'http://<ip>' to test from file://
+  function onState(d){const k=MAP[d.id];if(k===undefined)return;M[k]=d.value;if(k==='v')lastPacket=Date.now();render();}
+  // Page<->device link (separate from the device<->charger OFFLINE state). A silently dropped SSE stream
+  // does NOT fire onerror, so we watchdog on liveness freshness. NOTE: ESPHome's web_server sends the SSE
+  // "ping" only ONCE at connect (web_server_idf.cpp — not periodic), so after Phase 2 moved the frequent
+  // timer/rssi sensors off SSE, a STABLE charger (canonical sensors delta-filtered, no state change) leaves
+  // the stream legitimately silent for long stretches. So freshness now counts BOTH SSE events AND a
+  // successful /wd/live.json poll (~3s) as "device reachable" (connOk in pollLive), and the threshold is 10s
+  // (> the live-poll gap) — else the old 6s watchdog false-fired + force-reconnected every ~6s on a quiet link.
+  let es=null,lastEventTs=Date.now(),connDead=false;
+  const connBanner=document.getElementById('connLost');
+  // After this long with NO liveness (neither an SSE event nor a successful /wd/live.json poll) we STOP retrying
+  // and show a terminal "Connection closed — refresh" instead of an endless "reconnecting…" spinner that implies
+  // imminent recovery. A device that only rebooted (incl. a watchdog self-reboot) comes back in ~45s and the SSE
+  // reconnects on its own; 60s means it genuinely did NOT return (wedged / powered off / out of range) -> the
+  // honest thing is to tell the human to refresh, not spin forever. (Pairs with the device-side netwatch.)
+  const CONN_GIVEUP_MS=60000;
+  function connOk(){lastEventTs=Date.now();
+    if(connDead){                                     // a stray in-flight fetch revived us -> leave the terminal state
+      connDead=false;
+      connBanner.classList.remove('dead');
+      connBanner.innerHTML='<span class="dotpulse"></span>Connection lost — reconnecting…';
+    }
+    if(connBanner.classList.contains('show')){        // was disconnected -> just reconnected
+      connBanner.classList.remove('show');
+      const sn=document.getElementById('sysNote');     // clear the stale "Rebooting…/Factory reset…" note (F9)
+      if(sn){sn.textContent='';sn.className='sysnote';}
+    }
+  }
+  function connect(){
+    try{if(es)es.close();}catch(_){}
+    es=new EventSource(BASE+'/events');
+    es.onopen=connOk;
+    es.addEventListener('ping',connOk);
+    es.addEventListener('state',e=>{connOk();try{onState(JSON.parse(e.data));}catch(_){}});
+    es.onmessage=e=>{connOk();try{const d=JSON.parse(e.data);if(d&&d.id)onState(d);}catch(_){}};
+  }
+  connect();
+  setInterval(()=>{
+    if(connDead)return;                               // terminal: stop reconnecting; wait for a manual refresh
+    const gap=Date.now()-lastEventTs;
+    if(gap>CONN_GIVEUP_MS){                            // device didn't come back -> honest terminal state, stop polling
+      connDead=true;
+      if(es){try{es.close();}catch(_){}es=null;}
+      connBanner.innerHTML='<span class="dotx"></span>Connection closed — tap or refresh to reconnect.';
+      connBanner.classList.add('show','dead');
+      return;
+    }
+    if(gap>10000){connBanner.classList.add('show');connect();}
+  },2000);
+  connBanner.addEventListener('click',()=>{if(connDead)location.reload();});
+  function svgIc(d){return '<svg class="ic" viewBox="0 0 24 24" style="width:17px;height:17px;display:inline-block;vertical-align:-3px;margin-right:4px"><path d="'+d+'"/></svg>';}
+  function fmtDur(s){s=Math.max(0,Math.floor(s));if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';return Math.floor(s/3600)+'h '+String(Math.floor((s%3600)/60)).padStart(2,'0')+'m';}
+
+  function render(){
+    const raw=String(M.raw||'').toLowerCase();
+    const v=+M.v||0,i=+M.i||0,pw=+M.pw||0,t=+M.t||0;
+    // charge profile → expected windows / axis / redlines (mirrors the device)
+    const prof=M.prof||'12V Normal';const sc=prof.indexOf('24V')===0?2:1;
+    const li=prof.indexOf('Li-ion')>=0,hi=prof.indexOf('High')>=0;
+    const absSp=(li?14.2:(hi?14.7:14.4))*sc,fltSp=13.8*sc,stoSp=(li?13.5:13.2)*sc;
+    const redLo=10.5*sc,redHi=(li?14.8:15.3)*sc,TOL=0.25*sc;
+    // VMIN below redLo so the <10.5V low-danger band has visible width (was ==redLo -> collapsed).
+    // VMAX unchanged (9.5 + 6 = 15.5). Mirrors the device axis.
+    const VMIN=9.5*sc,VSPAN=6*sc;const px=x=>Math.max(0,Math.min(100,(x-VMIN)/VSPAN*100));
+    // device-authoritative BLE age (falls back to page proxy until first received)
+    const devAge=(M.age!=null&&M.age!=='')?+M.age:null;
+    // A fresh SSE voltage frame proves ONLINE immediately. M.age now comes from the 10s /wd/info.json poll
+    // (Phase 2), so without this fast-path a mode switch / charger-coming-online would show "Waiting" for up
+    // to the poll interval even while voltage frames already arrive. lastPacket is set on every 'v' frame.
+    const pktAge=(lastPacket>0)?(Date.now()-lastPacket)/1000:Infinity;
+    const fresh=pktAge<=TIMEOUT;                                          // recent packet -> definitely online
+    const age=(devAge!=null&&devAge>=0)?devAge:(lastPacket>0?pktAge:-1);
+    // offline only if NEITHER a recent packet NOR a fresh device age (device age covers stable-voltage
+    // silence: no 'v' frame arrives but BLE contact continues). never = no packet ever + device says never.
+    const offline=!fresh&&((devAge!=null)?(devAge<0||devAge>TIMEOUT):((lastPacket===0)||(age>TIMEOUT)));
+    const never=!fresh&&((devAge!=null&&devAge<0)||(devAge==null&&lastPacket===0));
+    const D='—';
+    // Offline duration is ESP-authoritative (sensor-offline_elapsed) so TTGO + web agree;
+    // fall back to page-local timing only until the first value arrives.
+    const devOff=(M.offel!=null&&M.offel!=='')?+M.offel:null;
+    if(offline){if(!offSince)offSince=Date.now();}else offSince=0;
+    const offDur=(devOff!=null&&devOff>=0)?devOff:(offSince?(Date.now()-offSince)/1000:0);
+
+    // The device computes the status word + verdict ONCE and publishes them (text_sensor-status /
+    // -status_detail). We DISPLAY them — no recomputing the state→word mapping or the no-load rule
+    // here (single source of truth => no device↔web drift). Word -> colour/icon is pure presentation.
+    const recond=raw.indexOf('recondition')>=0||raw.indexOf('equalize')>=0;  // for the voltage-red suppress below
+    const WMAP={CHARGING:[C.amber,IC.flash,1],CHARGED:[C.green,IC.check,2],RECOND:[C.amber,IC.flash,4],FAULT:[C.red,IC.alert,3],IDLE:[C.grey,IC.sleep,0],OFFLINE:[C.red,BT_OFF,9]};
+    let word=String(M.stat||''),wm=WMAP[word]||[C.grey,IC.sleep,0];
+    let col=wm[0],icon=wm[1],code=wm[2];
+    // Band = expected-voltage window for the bar. It's a LOCAL presentation calc, but requires BOTH the
+    // published status (code) AND the raw state to agree — so a transient where the per-packet
+    // device_state frame leads the on-change status frame never flashes a mismatched window (F1).
+    let band=null;
+    if(code===1&&(raw==='absorption'||raw==='repeated absorption'))band=[absSp-TOL,absSp+TOL];
+    else if(code===2&&(raw==='float'||raw==='storage'||raw==='sustain'))band=(raw==='storage'||raw==='sustain'||li)?[stoSp-TOL,stoSp+TOL]:[fltSp-TOL,fltSp+TOL];
+    if(offline){word='OFFLINE';col=C.red;icon=BT_OFF;code=9;band=null;}   // bt-off (not the fault "!" alert) — offline stays visually distinct from a charger fault
+    // Until the device has published a real status, show nothing (a fresh load otherwise flickers).
+    const haveStatus=(M.stat!==''&&M.stat!=null);
+    if(!haveStatus){word='';col=C.grey;icon=IC.sleep;code=0;band=null;}
+
+    if(code!==curCode){curCode=code;sinceTs=Date.now();}
+    // status elapsed from the ESP (falls back to page timing until first received)
+    const elapsed=(M.el!=null&&M.el!==''&&+M.el>=0)?fmtDur(+M.el):fmtDur((Date.now()-sinceTs)/1000);
+
+    let vcol=C.neutral;
+    if(offline)vcol=C.grey;
+    else if((v>redHi&&!recond)||v<redLo||code===3)vcol=C.red;
+    else if(band)vcol=(v<band[0]-0.05||v>band[1]+0.05)?C.amber:C.green;
+
+    const stat=document.getElementById('status');
+    stat.style.opacity=haveStatus?'1':'0';   // hidden until first ESP sync (no status flicker)
+    stat.classList.toggle('blink',code===3);
+    document.getElementById('statIcon').innerHTML='<path d="'+icon+'"/>';
+    document.getElementById('statWord').textContent=word;
+    stat.style.color=col;
+    const voltEl=document.getElementById('volt');
+    voltEl.textContent=never?D:v.toFixed(2);
+    voltEl.classList.toggle('ph',never);
+    voltEl.style.color=vcol;
+
+    const aux=document.getElementById('aux');
+    // Verdict now comes from the device (text_sensor-status_detail) — the SAME string the TTGO shows
+    // (Overvoltage / Undervoltage / Lower|Higher than expected / High voltage - not for storage). No
+    // local recompute => the TTGO/web aux line can't drift (this also fills the old web gap where a
+    // no-band over/undervoltage showed a red number with no explanation).
+    const snote=(!offline&&code!==3)?String(M.snote||''):'';
+    if(code===3&&M.err&&M.err!=='No error'){aux.className='aux err';aux.innerHTML=M.err;}
+    else if(offline){aux.className='aux';const hint=(never&&M.mac&&M.keyset&&offDur>30)?'<span style="display:block;margin-top:5px;font-size:11px;font-weight:400;color:var(--faint)">No data — check key/MAC or enable Instant Readout</span>':'';aux.innerHTML=never?('Waiting for charger<br><span class="big">'+fmtDur(offDur)+'</span>'+hint):('Last seen<br><span class="big">'+fmtDur(age)+' ago</span>');}
+    else if(snote){aux.className='aux warn';aux.innerHTML=snote;}
+    else{aux.className='aux';aux.innerHTML='Elapsed<br><span class="big">'+elapsed+'</span>';}
+
+    document.getElementById('rlLow').style.cssText='left:0;width:'+px(redLo)+'%';
+    document.getElementById('rlHigh').style.cssText='left:'+px(15*sc)+'%;width:'+(100-px(15*sc))+'%';
+    const bd=document.getElementById('band');
+    if(band&&!offline)bd.style.cssText='display:block;left:'+px(band[0])+'%;width:'+(px(band[1])-px(band[0]))+'%';else bd.style.display='none';
+    const mk=document.getElementById('mk');mk.style.left='calc('+px(v)+'% - 1px)';mk.style.opacity=offline?'0.3':'1';
+
+    // No live charger data (offline / Live-without-data) → dashes, not stale values.
+    const fahr=M.tunit==='F';const tsym=fahr?'°F':'°C';
+    // charger with no temp sensor sends null / "" / "nan" over SSE -> show "-", not a fake 0°.
+    // (+M.t||0 would turn null/"" into a real-looking 0, which is the mobile "0°C" bug.)
+    const tnum=(x=>{if(x==null)return NaN;const s=String(x).trim();return (s===''||!isFinite(+s))?NaN:+s;})(M.t);
+    const tNA=isNaN(tnum);
+    const tc=fahr?Math.round(tnum*9/5+32):Math.round(tnum);
+    const tStr=tNA?D:(tc+tsym);
+    document.getElementById('sCurr').textContent=offline?D:(i.toFixed(1)+' A');
+    document.getElementById('sTemp').textContent=offline?D:tStr;
+    document.getElementById('dTemp').textContent=offline?D:tStr;
+    document.getElementById('dVolt').textContent=offline?D:(v.toFixed(2)+' V');
+    document.getElementById('dCurr').textContent=offline?D:(i.toFixed(1)+' A');
+    document.getElementById('dPow').textContent=offline?D:(Math.round(pw)+' W');
+
+    const rssi=M.rssi;let lit=0,wc=C.grey,wq='No signal';
+    if(rssi!=null&&rssi!==''){const r=+rssi;if(r>=-60){lit=4;wc=C.green;wq='Good';}else if(r>=-68){lit=3;wc=C.green;wq='Good';}else if(r>=-75){lit=2;wc=C.amber;wq='Fair';}else{lit=1;wc=C.red;wq='Poor';}}
+    const wb=document.getElementById('wbars');Array.from(wb.children).forEach((b,idx)=>{b.style.background=idx<lit?wc:'var(--faint)';});
+    const wqel=document.getElementById('wq');wqel.innerHTML=(rssi==null?wq:wq+' <span style="color:var(--faint);font-weight:400">('+Math.round(+rssi)+' dBm)</span>');wqel.style.color=wc;
+    document.getElementById('ssid').textContent=M.ssid||'-';
+    document.getElementById('ip').textContent=M.ipaddr||'-';
+
+    // Bluetooth (Victron BLE) signal — mirrors WiFi; dashes when offline.
+    let blit=0,bwc=C.grey,bwq='No signal';const brssi=M.brssi;
+    // Stale-guard: victron_rssi holds its last value during a packet gap, so a short silence would
+    // keep showing "Good". Treat the signal as gone after SIG_STALE, well before the offline overlay.
+    const bleStale=offline||age>SIG_STALE;
+    if(!bleStale&&brssi!=null&&brssi!==''){const r=+brssi;if(r>=-60){blit=4;bwc=C.blue;bwq='Good';}else if(r>=-70){blit=3;bwc=C.blue;bwq='Good';}else if(r>=-78){blit=2;bwc=C.amber;bwq='Fair';}else{blit=1;bwc=C.red;bwq='Poor';}}
+    const bbEl=document.getElementById('bbars');Array.from(bbEl.children).forEach((b,idx)=>{b.style.background=idx<blit?bwc:'var(--faint)';});
+    const brEl=document.getElementById('brssi');
+    // In Demo the Victron-BLE signal is simulated (mock RSSI) — tag it so it isn't mistaken for a real
+    // link sitting next to the genuinely-real WiFi row.
+    const bleDemoTag=M.demo?' <span style="color:var(--amber);font-weight:600;font-size:10.5px;letter-spacing:.04em">demo</span>':'';
+    brEl.innerHTML=(bleStale?'No signal':(bwq+' <span style="color:var(--faint);font-weight:400">('+Math.round(+brssi)+' dBm)</span>'))+bleDemoTag;
+    brEl.style.color=bleStale?'var(--muted)':bwc;
+
+    const ha=document.getElementById('ha');
+    if(M.ha){ha.className='v ok';ha.innerHTML=svgIc(IC.check)+'Connected';}
+    else{ha.className='v bad';ha.innerHTML=svgIc(CLOSE)+'Not connected';}
+
+    // Binary link icon (mirrors the device dot): blue bluetooth when fresh, grey bluetooth-off once
+    // STEP-1 stale, red bluetooth-off past STEP-2 offline. No amber/red frac fade.
+    const bcol=offline?C.red:(bleStale?C.grey:C.blue);
+    const bi=document.getElementById('bleIco');bi.style.color=bcol;
+    document.getElementById('bleIcoPath').setAttribute('d',(offline||bleStale)?BT_OFF:BT_ON);
+    document.getElementById('btIcon').style.color=bcol;   // top cluster BT reflects link
+    // "ago" only conveys value while stale (how long it's been bad); when fresh show a static "Live"
+    // (the ticking 0-2s counter is just "recent", already told by the icon + the whole page updating).
+    document.getElementById('ble').textContent=never?D:(bleStale?(fmtDur(age)+' ago'):'Live');
+
+    document.getElementById('demoBadge').style.display=M.demo?'inline':'none';
+    {const v=document.getElementById('fwVer'),b=document.getElementById('fwBuild');if(v)v.textContent=M.fwver||'dev';if(b){const m=String(M.fwbuild||'').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);b.textContent=m?(m[1]+m[2]+m[3]+'_'+m[4]+m[5]+m[6]):(M.fwbuild||'');}}
+    if(M.host){const a=document.getElementById('hostVal'),b=document.getElementById('footHost');if(a)a.textContent=M.host;if(b)b.textContent=M.host;}
+    {const h=+M.heap,el=document.getElementById('heapVal');if(el)el.textContent=(M.heap!=null&&M.heap!==''&&isFinite(h))?(Math.round(h/1024)+' KB'):'—';}
+    // Banner hero: selection is INSTANT + device-authoritative (not staged). Baked preset =
+    // a left-anchored cut-out fetched from /img/<name>; Custom = the selected user slot's full WebP
+    // (fills the hero), fetched by id through the serial gallery queue and cached.
+    const carImg=document.getElementById('carImg');
+    if(carImg){
+      const bp=M.bp;   // baked preset name (Battery/Sedan/…/Boat) or 'Custom' (undefined until first SSE)
+      if(bp && BAKED.includes(bp)){
+        carImg.classList.remove('full');carImg.parentElement.classList.remove('full');
+        carImg.src=BASE+'/img/'+encodeURIComponent(bp);
+      }else if(bp==='Custom'){
+        // custom is now a tight CUT-OUT -> render like baked (left cut-out, status to the right),
+        // NOT full-width (that stretched it + the status overlapped the subject).
+        carImg.classList.remove('full');carImg.parentElement.classList.remove('full');
+        if(selId!=null && fullCache.has(selId))carImg.src=fullCache.get(selId);
+        else{carImg.removeAttribute('src');
+          if(selId!=null)ensureFull(selId);                // fetch the selected slot's hero WebP
+          else if(!customFetched){customFetched=true;legacyHero(carImg);}  // slot unknown: legacy fallback
+        }
+      }else carImg.removeAttribute('src');                 // unknown yet -> no wrong flash
+    }
+    markOn();syncSettings();renderScanList();renderCharLog();
+  }
+
+  // wifi bars (colored in render) + clock
+  (function(){
+    const wb=document.getElementById('wbars');[5,8,11,14].forEach(y=>{const b=document.createElement('b');b.style.height=y+'px';wb.appendChild(b);});
+    const bb=document.getElementById('bbars');[5,8,11,14].forEach(y=>{const b=document.createElement('b');b.style.height=y+'px';bb.appendChild(b);});
+    const c=document.getElementById('clock');
+    const tick=()=>{const d=new Date();c.textContent=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');};tick();setInterval(tick,10000);
+  })();
+
+  // ---- Settings form: POST to web_server REST (?...&body), reflect state via SSE ----
+  function post(url){return fetch(BASE+url,{method:'POST'}).catch(()=>{});}
+  // Hold-to-confirm gate (client-side rAF; only the final fire hits the device). Returns {reset}
+  // so a caller can cancel an in-flight hold (the gallery cancels holds when the grid rebuilds).
+  // onMsg(kind) is optional ('hold' at start, 'cancel' on release-before-fire).
+  function holdBtn(btn,fill,ms,onFire,onMsg){
+    if(!btn||!fill)return null;
+    let raf=0,t0=0,done=false;
+    const reset=()=>{if(raf)cancelAnimationFrame(raf);raf=0;done=false;fill.style.width='0';btn.classList.remove('arm');};
+    const tick=()=>{const p=Math.min(1,(performance.now()-t0)/ms);fill.style.width=(p*100)+'%';
+      if(p>=1){done=true;reset();onFire();return;}raf=requestAnimationFrame(tick);};
+    const start=e=>{e.preventDefault();e.stopPropagation();if(done)return;btn.classList.add('arm');t0=performance.now();raf=requestAnimationFrame(tick);if(onMsg)onMsg('hold');};
+    const cancel=()=>{if(raf&&!done){reset();if(onMsg)onMsg('cancel');}};
+    btn.addEventListener('pointerdown',start);
+    btn.addEventListener('pointerup',cancel);
+    btn.addEventListener('pointerleave',cancel);
+    btn.addEventListener('pointercancel',cancel);
+    return {reset};
+  }
+  // ---- System actions: Reboot AND Factory reset both use hold-to-confirm (fills a bar), same
+  // as the TTGO's hold-to-act gate. The hold is purely client-side (rAF); only the final press
+  // hits the device, so this never loads the single-connection web_server. ----
+  (function(){
+    const note=document.getElementById('sysNote');
+    const msg=(t,cls)=>{if(note){note.textContent=t||'';note.className='sysnote'+(cls?' '+cls:'');}};
+    const sysMsg=label=>kind=>{if(kind==='hold')msg('Keep holding '+label+'…');else msg('Cancelled — hold the full 2 seconds.');};
+    holdBtn(document.getElementById('btnReboot'),document.getElementById('rbFill'),2000,
+      ()=>{post('/button/restart/press');msg('Rebooting… the page reconnects in ~30s.','warn');},sysMsg('to reboot'));
+    holdBtn(document.getElementById('btnWifi'),document.getElementById('wfFill'),2000,
+      ()=>{post('/button/reset_wifi/press');msg('Restarting into Wi-Fi setup — join the "WinterDashAP" network, then open 192.168.4.1.','warn');},sysMsg('to reset Wi-Fi'));
+    holdBtn(document.getElementById('btnFactory'),document.getElementById('facFill'),2000,
+      ()=>{post('/button/factory_reset/press');msg('Factory reset — device is rebooting with default settings.','warn');},sysMsg('to erase all settings'));
+  })();
+  const inBlLv=document.getElementById('inBlLv'),inDimLv=document.getElementById('inDimLv'),inDimTo=document.getElementById('inDimTo'),inRetTo=document.getElementById('inRetTo');
+  const vBlLv=document.getElementById('vBlLv'),vDimLv=document.getElementById('vDimLv'),vDimTo=document.getElementById('vDimTo'),vRetTo=document.getElementById('vRetTo');
+  const selProf=document.getElementById('selProf');
+  const selTz=document.getElementById('selTz');
+  const inMac=document.getElementById('inMac'),inKey=document.getElementById('inKey'),keyState=document.getElementById('keyState');
+  const btnEye=document.getElementById('btnEye'),keyVal=document.getElementById('keyVal'),macVal=document.getElementById('macVal'),modeHint=document.getElementById('modeHint');
+  btnEye.onclick=()=>{const p=inKey.type==='password';inKey.type=p?'text':'password';btnEye.textContent=p?'hide':'show';};
+  function pairVal(){
+    const m=inMac.value.trim();const macOk=/^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$/.test(m);
+    macVal.textContent=m?(macOk?'✓':'check format'):'';macVal.className='keyval '+(macOk?'ok':(m?'bad':''));
+    const k=inKey.value.trim();const hex=/^[0-9a-fA-F]*$/.test(k);const kOk=k.length===32&&hex;
+    keyVal.textContent=k?(k.length+'/32'+(kOk?' ✓':(hex?'':' not hex'))):'';
+    keyVal.className='keyval '+(kOk?'ok':(k?'bad':''));
+  }
+  const btnSave=document.getElementById('btnSave'),setNote=document.getElementById('setNote'),btnDiscard=document.getElementById('btnDiscard');
+  // Stage changes locally; write to NVS only on Save (protects flash from per-click wear).
+  // (staged is declared with the top-level state so it's initialized before any render.)
+  function stage(k,v){staged[k]=v;refreshSave();syncSettings();}
+  // device_mode is a runtime mode, not a saved setting -> apply instantly (not staged).
+  document.querySelectorAll('#segMode button').forEach(b=>b.onclick=()=>post('/select/device_mode/set?option='+encodeURIComponent(b.dataset.v)));
+  document.querySelectorAll('#segTemp button').forEach(b=>b.onclick=()=>stage('temp_unit',b.dataset.v));
+  // Sliders: live readout + stage on drag. Two coupled pairs enforce the invariants:
+  // Dim level <= Backlight level (dim can't be brighter than active)
+  // Dim after >= Auto-return (dim happens AFTER the return, so you see it returned)
+  function sliderWire(el,v,id,unit,coupled){
+    el.addEventListener('input',()=>{v.textContent=Math.round(+el.value)+unit;stage(id,+el.value);if(coupled)coupled();});
+  }
+  sliderWire(inBlLv,vBlLv,'backlight_level','%',()=>{      // backlight drops -> dim's max follows
+    inDimLv.max=Math.round(+inBlLv.value);
+    if(+inDimLv.value>+inBlLv.value){inDimLv.value=inBlLv.value;vDimLv.textContent=Math.round(+inDimLv.value)+'%';stage('dim_level',+inDimLv.value);}
+  });
+  sliderWire(inDimLv,vDimLv,'dim_level','%');
+  sliderWire(inRetTo,vRetTo,'return_timeout','s',()=>{     // return grows -> dim-after's min follows
+    inDimTo.min=Math.max(10,Math.round(+inRetTo.value));
+    if(+inDimTo.value<+inRetTo.value){inDimTo.value=inRetTo.value;vDimTo.textContent=Math.round(+inDimTo.value)+'s';stage('dim_timeout',+inDimTo.value);}
+  });
+  sliderWire(inDimTo,vDimTo,'dim_timeout','s');
+  selProf.addEventListener('change',()=>stage('charge_profile',selProf.value));
+  selTz.addEventListener('change',()=>stage('timezone',selTz.value));
+  // ===== Banner gallery ========================================================
+  // Grid built ONCE (on gallery load / after a mutation) — never in render(), which only toggles
+  // .on/★ via markOn(). Selection is INSTANT + device-authoritative (it left the Save batch). EVERY
+  // gallery network op (GET /gallery, thumbs, select/favorite/delete POSTs) goes through ONE serial
+  // queue so the single-connection web_server is never hit in parallel (SSE is the only always-on).
+  // Default = the full baked set; the device overrides it per-board from GET /gallery's board.baked (a 4MB
+  // unit ships Battery-only -> only that tile shows, no phantom presets it can't honor). Fallback keeps an
+  // older device (no board.baked field) rendering the full grid as before.
+  let BAKED=['Battery','Sedan','SUV','Pickup','Van','Classic','Sports','Quad','Motorcycle','Boat'];
+  let gallery=null, galHolds=[], thumbIO=null;
+  const thumbCache=new Map(), fullCache=new Map(), thumb404=new Set();
+  let gchain=Promise.resolve();
+  function gq(fn){const p=gchain.then(()=>fn());gchain=p.then(()=>{},()=>{});return p;}
+  // Decode a .wdb (WDB1 + RGB565A8 planar) to a data URL — legacy hero fallback for a bare slot-0
+  // banner with no full WebP (pre-converter era). Kept for that one case only.
+  function wdbBufToDataURL(b){
+    try{
+      if(b[0]!==0x57||b[1]!==0x44||b[2]!==0x42||b[3]!==0x31)return null;   // "WDB1"
+      const w=b[6]|(b[7]<<8),h=b[8]|(b[9]<<8),n=w*h,o=48,oa=48+n*2;
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      const cx=cv.getContext('2d'),im=cx.createImageData(w,h),d=im.data;
+      for(let i=0;i<n;i++){const v=b[o+i*2]|(b[o+i*2+1]<<8);
+        d[i*4]=((v>>11)&0x1F)<<3;d[i*4+1]=((v>>5)&0x3F)<<2;d[i*4+2]=(v&0x1F)<<3;d[i*4+3]=b[oa+i];}
+      cx.putImageData(im,0,0);return cv.toDataURL('image/webp');
+    }catch(_){return null;}
+  }
+  function legacyHero(carImg){
+    fetch(BASE+'/banner-full').then(r=>r.ok?r.blob():Promise.reject()).then(b=>{carImg.src=URL.createObjectURL(b);})
+      .catch(()=>fetch(BASE+'/banner').then(r=>r.ok?r.arrayBuffer():Promise.reject())
+        .then(ab=>{const u=wdbBufToDataURL(new Uint8Array(ab));if(u)carImg.src=u;}).catch(()=>{}));
+  }
+  function ensureFull(id){
+    if(fullCache.has(id))return;
+    gq(()=>fetch(BASE+'/gallery/hero?id='+id).then(r=>r.ok?r.blob():Promise.reject()))
+      .then(b=>{fullCache.set(id,URL.createObjectURL(b));render();}).catch(()=>{});
+  }
+  function markOn(){
+    document.querySelectorAll('#bpick .bthumb').forEach(t=>{
+      const on=(t.dataset.kind==='baked'&&M.bp===t.dataset.v)||(t.dataset.kind==='user'&&M.bp==='Custom'&&selId===+t.dataset.id);
+      t.classList.toggle('on',!!on);
+    });
+  }
+  function refreshGallery(tries){
+    tries=tries||0;
+    return gq(()=>fetch(BASE+'/gallery').then(r=>r.ok?r.json():Promise.reject())).then(j=>{
+      gallery=j; thumb404.clear();
+      if(j.board&&Array.isArray(j.board.baked)&&j.board.baked.length)BAKED=j.board.baked;   // per-board baked set (else keep the full-list default)
+      const s=(j.slots||[]).find(x=>x.sel); selId=s?s.id:null;
+      buildGrid(); render();
+    }).catch(()=>{ if(tries<10) setTimeout(()=>refreshGallery(tries+1), 1500); });  // device still booting/saving -> retry (no manual F5)
+  }
+  // Hero-change cooldown (~5s): the FIRST click applies instantly; further clicks are dropped until the
+  // lock lifts, so a rapid banner-burst can't storm the device with full-screen redraws (WDT repro).
+  const HERO_COOLDOWN_MS=5000;
+  function lockHero(){ const g=document.getElementById('bpick'); if(!g)return; g.classList.add('applying');
+    setTimeout(()=>g.classList.remove('applying'),HERO_COOLDOWN_MS); }
+  function selectBaked(name){ if(Date.now()<heroLockUntil)return; if(M.bp===name)return;
+    heroLockUntil=Date.now()+HERO_COOLDOWN_MS; lockHero();
+    M.bp=name; selId=null; markOn(); render(); post('/select/banner_preset/set?option='+encodeURIComponent(name)); }
+  function selectUser(id){ if(Date.now()<heroLockUntil)return; if(M.bp==='Custom'&&selId===id)return;
+    heroLockUntil=Date.now()+HERO_COOLDOWN_MS; lockHero();
+    M.bp='Custom'; selId=id; markOn(); render(); gq(()=>fetch(BASE+'/gallery/select?id='+id,{method:'POST'})); }
+  function toggleFav(id,on){ if(gallery){const s=(gallery.slots||[]).find(x=>x.id===id);if(s)s.fav=on;} buildGrid();
+    gq(()=>fetch(BASE+'/gallery/favorite?id='+id+'&fav='+(on?1:0),{method:'POST'})); }
+  function deleteSlot(id){
+    if(thumbCache.has(id)){URL.revokeObjectURL(thumbCache.get(id));thumbCache.delete(id);}
+    if(fullCache.has(id)){URL.revokeObjectURL(fullCache.get(id));fullCache.delete(id);}
+    gq(()=>fetch(BASE+'/gallery/delete?id='+id,{method:'POST'})).then(()=>refreshGallery());
+  }
+  function loadThumb(im){
+    const id=+im.dataset.id;
+    if(thumbCache.has(id)){im.src=thumbCache.get(id);return;}
+    if(thumb404.has(id))return;
+    gq(()=>fetch(BASE+'/gallery/thumb?id='+id).then(r=>r.ok?r.blob():Promise.reject(r.status)))
+      .then(b=>{const u=URL.createObjectURL(b);thumbCache.set(id,u);
+        const el=document.querySelector('#bpick [data-kind="user"][data-id="'+id+'"] img');if(el)el.src=u;})
+      .catch(()=>{thumb404.add(id);});
+  }
+  function loadBaked(im){
+    if(im.src)return;const name=im.dataset.baked;
+    gq(()=>fetch(BASE+'/img/'+encodeURIComponent(name)).then(r=>r.ok?r.blob():Promise.reject())).then(b=>{im.src=URL.createObjectURL(b);}).catch(()=>{});
+  }
+  function loadTile(im){ if(im.dataset.baked!=null)loadBaked(im);else loadThumb(im); }
+  function observeThumbs(){
+    if(thumbIO)thumbIO.disconnect();
+    // Both user AND baked thumbnails load through the serial gallery queue (gq) via the observer, so
+    // opening Settings never fires a parallel burst of image requests (that starved the single httpd
+    // worker + SSE -> json:111 overflow + "connection lost"). One-at-a-time, only when scrolled near.
+    const imgs=document.querySelectorAll('#bpick [data-kind="user"] img[data-id],#bpick [data-kind="baked"] img[data-baked]');
+    if(!('IntersectionObserver'in window)){imgs.forEach(loadTile);return;}
+    thumbIO=new IntersectionObserver(es=>{es.forEach(en=>{if(en.isIntersecting){thumbIO.unobserve(en.target);loadTile(en.target);}});},{rootMargin:'100px'});
+    imgs.forEach(im=>{if(!im.src)thumbIO.observe(im);});
+  }
+  function userTile(s){
+    const t=document.createElement('div');t.className='bthumb';t.dataset.kind='user';t.dataset.id=s.id;
+    const df=document.createElement('div');df.className='delfill';
+    const im=document.createElement('img');im.alt='';im.dataset.id=s.id;if(thumbCache.has(s.id))im.src=thumbCache.get(s.id);
+    const sp=document.createElement('span');sp.textContent=s.name||('Banner '+s.id);
+    const fav=document.createElement('button');fav.type='button';fav.className='tact fav'+(s.fav?' on':'');fav.textContent='★';fav.title=s.fav?'Unfavorite':'Favorite';
+    fav.addEventListener('click',e=>{e.stopPropagation();toggleFav(s.id,!s.fav);});
+    const del=document.createElement('button');del.type='button';del.className='tact del';del.textContent='✕';del.title='Hold to delete';
+    del.addEventListener('click',e=>e.stopPropagation());
+    const h=holdBtn(del,df,2000,()=>deleteSlot(s.id));if(h)galHolds.push(h.reset);
+    t.append(df,im,sp,fav,del);
+    t.addEventListener('click',()=>selectUser(s.id));
+    return t;
+  }
+  function bakedTile(name){
+    const t=document.createElement('div');t.className='bthumb';t.dataset.kind='baked';t.dataset.v=name;
+    const im=document.createElement('img');im.alt='';im.dataset.baked=name;  // loaded via the serial queue (observeThumbs) — NOT a parallel src burst
+    const sp=document.createElement('span');sp.textContent=name;
+    t.append(im,sp);t.addEventListener('click',()=>selectBaked(name));
+    return t;
+  }
+  function buildGrid(){
+    const grid=document.getElementById('bpick');if(!grid)return;
+    galHolds.forEach(r=>{try{r&&r();}catch(_){}});galHolds=[];
+    grid.innerHTML='';
+    const slots=(gallery&&gallery.slots)?gallery.slots.slice():[];
+    slots.filter(s=>s.fav).sort((a,b)=>a.id-b.id).forEach(s=>grid.appendChild(userTile(s)));
+    slots.filter(s=>!s.fav).sort((a,b)=>a.id-b.id).forEach(s=>grid.appendChild(userTile(s)));
+    BAKED.forEach(n=>grid.appendChild(bakedTile(n)));
+    const nt=document.createElement('a');nt.className='bthumb newtile';nt.href='/convert';nt.title='Make a new banner';nt.innerHTML='<span>+</span>';
+    grid.appendChild(nt);
+    markOn();observeThumbs();
+  }
+  inMac.addEventListener('input',()=>{
+    stage('victron_mac',inMac.value.trim());
+    // a different MAC = a different device = a different key -> force re-entry
+    if(inMac.value.trim()!==(M.mac||'')){inKey.value='';stage('victron_bindkey','');}
+    pairVal();
+  });
+  inKey.addEventListener('input',()=>{stage('victron_bindkey',inKey.value.trim());pairVal();});
+  // Clear goes through the same Save flow as everything else (no instant NVS write).
+  document.getElementById('btnClearPair').onclick=()=>{
+    inMac.value='';inKey.value='';stage('victron_mac','');stage('victron_bindkey','');pairVal();
+  };
+  // ---- BLE scan list (from text_sensor-ble_scan JSON) ----
+  const scanList=document.getElementById('scanList'),btnVicOnly=document.getElementById('btnVicOnly'),pairChip=document.getElementById('pairChip');
+  let lastScan='@',vicOnly=false,scanUntil=0;   // scanUntil mirrors the device's 60s scan window
+  btnVicOnly.onclick=()=>{vicOnly=!vicOnly;btnVicOnly.classList.toggle('on',vicOnly);lastScan='@';renderScanList();};
+  function escHtml(s){const p=document.createElement('span');p.textContent=s;return p.innerHTML;}
+  function pickDevice(mac){inMac.value=mac;stage('victron_mac',mac);inKey.value='';stage('victron_bindkey','');pairVal();}
+  function renderScanList(){
+    if(M.scanjson===lastScan)return;lastScan=M.scanjson;
+    let arr=[];try{arr=JSON.parse(M.scanjson||'[]');}catch(_){}
+    if(vicOnly)arr=arr.filter(d=>d.v);
+    if(!arr.length){
+      const active=Date.now()<scanUntil;   // 3-state: scanning (window open) / idle (tap Rescan)
+      scanList.innerHTML = active
+        ? '<div class="scanstatus scanning"><span class="spin"></span>Rescan in progress…'+(vicOnly?' (Victron only)':'')+'</div>'
+        : '<div class="scanstatus">'+(vicOnly?'No Victron devices in range.':'Tap Rescan to search')+'<span class="scansub">move the device closer to the charger if nothing shows</span></div>';
+      return;
+    }
+    scanList.innerHTML='';
+    arr.forEach(d=>{const row=document.createElement('div');row.className='scanrow'+(d.v?' vic':'');
+      const ico=d.v?'<svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px;color:var(--blue);flex:none"><path d="'+BT_ON+'"/></svg>':'';
+      row.innerHTML=ico+'<span class="nm">'+escHtml(d.name||'(no name)')+'</span>'+(d.v?'<span class="vb">Victron</span>':'')+'<span class="mc">'+escHtml(d.mac)+'</span><span class="rs">'+(+d.rssi)+' dBm</span>';
+      row.onclick=()=>pickDevice(d.mac);scanList.appendChild(row);});
+  }
+  document.getElementById('btnScan').onclick=()=>{
+    post('/button/ble_scan_clear/press');
+    scanUntil=Date.now()+60000;lastScan='@';renderScanList();     // open the 60s window + show "in progress"
+    setTimeout(pollScan,600);                                     // first pull soon (don't wait for the 2s tick)
+    setTimeout(()=>{lastScan='@';renderScanList();},60600);       // flip back to idle copy when the window lapses
+  };
+
+  // ---- charger event log (from text_sensor-charger_log JSON; newest-first) ----
+  let lastClog='@';
+  function fmtAgo(s){s=+s||0;if(s<60)return 'just now';const m=Math.floor(s/60);if(m<60)return m+' min ago';const h=Math.floor(m/60);if(h<24)return h+' h ago';return Math.floor(h/24)+' d ago';}
+  // timeline dot colour by charger state
+  function clogColor(s){s=String(s||'').toLowerCase();
+    if(s.indexOf('fault')===0)return 'var(--red)';
+    if(s.indexOf('bulk')>=0||s.indexOf('absorption')>=0)return 'var(--amber)';
+    if(s.indexOf('float')>=0||s.indexOf('storage')>=0)return 'var(--green)';
+    if(s.indexOf('no signal')>=0)return 'var(--muted)';
+    return 'var(--faint)';}   // Off / Powered on / unknown
+  function renderCharLog(){
+    if(M.clog===lastClog)return;lastClog=M.clog;
+    const box=document.getElementById('clog');if(!box)return;
+    let o={};try{o=JSON.parse(M.clog||'{}');}catch(_){}
+    const arr=(o&&o.e)||[],more=(o&&+o.more)||0;
+    if(!arr.length){box.innerHTML='<div class="clog-empty">No events yet</div>';return;}
+    let html=arr.map(e=>{
+      const ago=fmtAgo(e.ago);
+      // With a wall clock: state + "N ago" under it on the left; time over date on the right.
+      // Pre-SNTP (no e.t): state only on the left, "N ago" as the right-hand value (no bogus date).
+      const left=e.t?('<div><div class="s">'+escHtml(e.s)+'</div><div class="ago">'+escHtml(ago)+'</div></div>')
+                    :('<div><div class="s">'+escHtml(e.s)+'</div></div>');
+      const right=e.t?('<div class="tw"><div class="tm">'+escHtml(e.t)+'</div>'+(e.d?'<div class="dt">'+escHtml(e.d)+'</div>':'')+'</div>')
+                     :('<div class="tw"><div class="tm">'+escHtml(ago)+'</div></div>');
+      return '<div class="e" style="--dc:'+clogColor(e.s)+'">'+left+right+'</div>';
+    }).join('');
+    // Honest truncation marker: the ring only keeps the last 8, so once older events are
+    // dropped the bottom entry is NOT the start — say so instead of implying it is.
+    if(more>0)html+='<div class="more">'+more+' earlier event'+(more>1?'s':'')+' not kept</div>';
+    box.innerHTML=html;
+  }
+  function refreshSave(){
+    if(savingUntil>Date.now()){btnSave.disabled=true;btnDiscard.disabled=true;btnSave.textContent='Saving…';setNote.textContent='';return;}
+    const n=Object.keys(staged).length;btnSave.disabled=!n;btnDiscard.disabled=!n;btnSave.textContent=n?'Save changes':'Saved';setNote.textContent=n?'Unsaved changes':'';
+  }
+  // Discard: drop all staged edits and snap every control back to the device state.
+  btnDiscard.onclick=()=>{if(btnDiscard.disabled)return;staged={};inKey.value='';pairVal();refreshSave();syncSettings();render();};
+  btnSave.onclick=()=>{
+    if(btnSave.disabled)return;            // soft guard: ignore rapid re-clicks
+    // Pause /events for the save window: a settings POST triggers a device apply + an LVGL redraw; on this
+    // heap-tight no-PSRAM board {POST + SSE serialization on loopTask + that redraw} coinciding can fail a
+    // small LVGL glyph-buffer alloc (from the shared system heap — LVGL has no fallback) -> task_watchdog.
+    // Closing /events drops the SSE leg during the save; we reconnect after the save lock. (deep-research )
+    if(es){es.close();es=null;}
+    for(const k in staged){
+      if(k==='temp_unit'||k==='charge_profile'||k==='timezone')post('/select/'+k+'/set?option='+encodeURIComponent(staged[k]));
+      else if(k==='victron_mac')post('/text/victron_mac/set?value='+encodeURIComponent(staged[k]));
+      else if(k==='victron_bindkey')post('/wd/bindkey?value='+encodeURIComponent(staged[k]));  // Phase 3: write-only endpoint (value never streams back)
+      else post('/number/'+k+'/set?value='+staged[k]);
+    }
+    if('victron_bindkey' in staged)M.keyset=!!staged.victron_bindkey;   // Phase 3: optimistic — keyset else only re-syncs on the 10s info.json poll
+    inKey.value='';            // never keep the secret in the field after saving
+    // Soft guard: hold the button in a "Saving…" state ~1.5s so a burst of POSTs can't
+    // hammer the single web connection (this board is RAM/connection-tight).
+    pairVal();staged={};savingUntil=Date.now()+1500;refreshSave();setTimeout(refreshSave,1550);
+    setTimeout(connect,1600);   // reconnect SSE once the save settled (before the 6s freshness watchdog fires)
+  };
+  function syncSettings(){
+    document.querySelectorAll('#segMode button').forEach(b=>b.classList.toggle('on',b.dataset.v===M.dmode));
+    if(M.dmode==='Auto'){modeHint.textContent=M.demo?'demo':'live';modeHint.className='modehint '+(M.demo?'demo':'live');}
+    else{modeHint.textContent='';modeHint.className='modehint';}
+    const tV=('temp_unit' in staged)?staged.temp_unit:M.tunit;
+    document.querySelectorAll('#segTemp button').forEach(b=>b.classList.toggle('on',b.dataset.v===tV));
+    if(!('charge_profile' in staged)&&M.prof&&document.activeElement!==selProf)selProf.value=M.prof;
+    if(!('timezone' in staged)&&M.tz&&document.activeElement!==selTz)selTz.value=M.tz;
+    // banner selection is instant + device-authoritative now -> markOn() owns the .on state (not here)
+    if(!('victron_mac' in staged)&&document.activeElement!==inMac)inMac.value=M.mac||'';
+    // bindkey is write-only: never populate the field; show only set/not-set.
+    const keySet=('victron_bindkey' in staged)?!!staged.victron_bindkey:!!M.keyset;
+    keyState.textContent=keySet?'set':'not set';keyState.className='keyst '+(keySet?'set':'unset');
+    // collapsed-summary chip: paired = a MAC and a key are stored
+    const paired=!!(M.mac&&M.keyset);
+    pairChip.textContent=paired?'paired':'not set';pairChip.className='keyst '+(paired?'set':'unset');
+    // Sliders reflect device state (unless staged or being dragged); then apply the coupling
+    // bounds (setting max/min auto-clamps the value), then draw the readouts.
+    const setVal=(el,id,v)=>{if(!(id in staged)&&document.activeElement!==el&&v!=null&&v!=='')el.value=Math.round(+v);};
+    setVal(inBlLv,'backlight_level',M.blv);setVal(inDimLv,'dim_level',M.dimlv);
+    setVal(inRetTo,'return_timeout',M.retto);setVal(inDimTo,'dim_timeout',M.dimto);
+    if(inBlLv.value!=='')inDimLv.max=Math.round(+inBlLv.value);    // dim <= backlight
+    if(inRetTo.value!=='')inDimTo.min=Math.max(10,Math.round(+inRetTo.value));  // dim-after >= return, floor 10s
+    vBlLv.textContent=(inBlLv.value!==''?Math.round(+inBlLv.value):'—')+'%';
+    vDimLv.textContent=(inDimLv.value!==''?Math.round(+inDimLv.value):'—')+'%';
+    vRetTo.textContent=(inRetTo.value!==''?Math.round(+inRetTo.value):'—')+'s';
+    vDimTo.textContent=(inDimTo.value!==''?Math.round(+inDimTo.value):'—')+'s';
+  }
+
+  // Gallery: load the index once (tiny JSON — resolves the custom hero + builds the grid; thumbs
+  // stay lazy until their tiles scroll into view). ?banner=N from the converter -> open the section
+  // + pulse the new tile (it's already selected server-side by the converter's Save).
+  (function(){
+    const params=new URLSearchParams(location.search);
+    const want=params.has('banner')?+params.get('banner'):null;
+    const sec=document.querySelector('.subsec.brand');
+    if(sec)sec.addEventListener('toggle',()=>{if(sec.open)observeThumbs();});
+    refreshGallery().then(()=>{
+      if(want!=null && gallery && (gallery.slots||[]).some(s=>s.id===want)){
+        if(sec)sec.open=true;
+        // Re-assert the selection: the converter auto-selects server-side (commit + /gallery/select), but that
+        // can be raced/lost during the busy compose + page navigate. refreshGallery() set selId from /gallery's
+        // sel field; if it didn't come back as this slot, re-issue the select (idempotent) so the freshly saved
+        // banner reliably becomes the hero.
+        if(selId!==want) selectUser(want);
+        setTimeout(()=>{const t=document.querySelector('#bpick [data-kind="user"][data-id="'+want+'"]');
+          if(t){t.scrollIntoView({block:'nearest'});t.classList.add('pulse');}},80);
+        history.replaceState(null,'','/');
+      }
+    });
+  })();
+
+  // ---- lazy JSON endpoints (off SSE) ----
+  // These blobs no longer ride SSE (they were the >640B payloads that aborted the device's
+  // SSE buffer). The browser pulls each from /wd/*.json on its own cadence: the event log slowly;
+  // the scan list only while a 60s rescan window is open. Each fill reuses the existing
+  // dedup-guarded render fn.
+  function wdFetch(u,cb){if(connDead)return;fetch(BASE+u,{cache:'no-store'}).then(r=>r.ok?r.text():'').then(cb).catch(()=>{});}  // connDead -> stop all polling (terminal "refresh" state)
+  function pollLog(){wdFetch('/wd/log.json',t=>{M.clog=t;renderCharLog();});}
+  function pollScan(){wdFetch('/wd/scan.json',t=>{M.scanjson=t;renderScanList();});}
+  function pollInfo(){wdFetch('/wd/info.json',t=>{if(!t)return;let o;try{o=JSON.parse(t);}catch(_){return;}
+    if(o.fwver!=null)M.fwver=o.fwver; if(o.fwbuild!=null)M.fwbuild=o.fwbuild;
+    if(o.host!=null)M.host=o.host; if(o.ssid!=null)M.ssid=o.ssid;
+    if(o.heap!=null)M.heap=o.heap; if(o.keyset!=null)M.keyset=!!o.keyset;   // slow tier: static + diag + pairing state
+    render();});}
+  // Fast-live tier (/wd/live.json, ~3s): the heartbeat + the frequently-changing mirrors. A successful fetch =
+  // device reachable -> keeps the SSE-freshness watchdog fresh even when the SSE is quiet (ESPHome sends no
+  // periodic SSE ping). uptime dropping = the device restarted (but answered) -> reconnect the SSE to re-sync.
+  let lastUptime=null;
+  function pollLive(){wdFetch('/wd/live.json',t=>{if(!t)return;connOk();let o;try{o=JSON.parse(t);}catch(_){return;}
+    if(o.el!=null)M.el=o.el; if(o.age!=null)M.age=o.age; if(o.offel!=null)M.offel=o.offel;
+    if(o.brssi!=null)M.brssi=o.brssi; if(o.ha!=null)M.ha=!!o.ha;
+    if(o.uptime!=null){ if(lastUptime!=null&&o.uptime<lastUptime-2)connect(); lastUptime=o.uptime; }
+    render();});}
+  pollInfo(); setInterval(pollInfo,30000);                            // static/diag/keyset — slow snapshot
+  pollLive(); setInterval(pollLive,3000);                             // fast heartbeat + live mirrors (uptime/el/age/offel/brssi/ha)
+  pollLog(); setInterval(pollLog,12000);                              // "Last Events" — near-live is plenty
+  setInterval(()=>{ if(Date.now()<scanUntil) pollScan(); },2000);    // only during an open rescan window
+
+  setInterval(render,1000); // tick age / elapsed
+  render();
+</script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+# =============================================================================
+# banner_preset_full.yaml — the banner-picker select with the FULL baked gallery.
+# Used by the 16MB T-Display, headless, and CYD (every board that bakes all 10 presets).
+# A minimal-baked board (4MB T-Display) includes banner_preset_minimal.yaml instead — a select id can be
+# defined only once, so the per-board option set lives in a per-board package, NOT in core. core.yaml keeps
+# the board-agnostic housekeeping lambda (which only ever references "Battery" + "Custom").
+#
+# BOARD-AGNOSTIC behavior: the WEB dashboard hero is driven ONLY by this select's SSE state on EVERY board
+# (dashboard.html: `bp=M.bp` -> /img/<name>), so a headless unit with no display still needs it or its hero
+# stays blank on first run (initial_option never publishes). It is a pure template select with NO display
+# code — the TTGO screen merely READS id(banner_preset).state in its draw loop (global id) and applies the
+# LVGL image from the main-loop interval, NOT from an on_value here (web_server runs in the httpd task;
+# mutating LVGL from a /set callback races the renderer and crashes the board).
+# =============================================================================
+# Per-board banner lookup-chain injected TEXTUALLY into display_tdisplay's shared draw lambdas
+# (${banner_dash_lookup} / ${banner_saver_lookup}). Substitutions are expanded on the raw YAML BEFORE
+# ESPHome resolves id(...) references inside lambda text, so the non-Battery id()s only ever appear on a
+# board that also bakes them (via presets_tdisplay_extra.yaml). The minimal (4MB) package defines these
+# as empty strings, collapsing both chains to the Battery default/fallback with no dangling id() refs.
+# Keep these chains in lock-step with the `options:` list below and with presets_tdisplay_extra.yaml.
+substitutions:
+  banner_dash_lookup: |-
+    if (bp == "Sedan") bimg = id(preset_sedan_img);
+    else if (bp == "SUV") bimg = id(preset_suv_img);
+    else if (bp == "Pickup") bimg = id(preset_pickup_img);
+    else if (bp == "Van") bimg = id(preset_van_img);
+    else if (bp == "Classic") bimg = id(preset_classic_img);
+    else if (bp == "Sports") bimg = id(preset_sports_img);
+    else if (bp == "Quad") bimg = id(preset_quad_img);
+    else if (bp == "Motorcycle") bimg = id(preset_motorcycle_img);
+    else if (bp == "Boat") bimg = id(preset_boat_img);
+  banner_saver_lookup: |-
+    if (sbp == "Sedan") sv = id(preset_sedan_saver_img);
+    else if (sbp == "SUV") sv = id(preset_suv_saver_img);
+    else if (sbp == "Pickup") sv = id(preset_pickup_saver_img);
+    else if (sbp == "Van") sv = id(preset_van_saver_img);
+    else if (sbp == "Classic") sv = id(preset_classic_saver_img);
+    else if (sbp == "Sports") sv = id(preset_sports_saver_img);
+    else if (sbp == "Quad") sv = id(preset_quad_saver_img);
+    else if (sbp == "Motorcycle") sv = id(preset_motorcycle_saver_img);
+    else if (sbp == "Boat") sv = id(preset_boat_saver_img);
+
+select:
+  - platform: template
+    id: banner_preset
+    name: "Banner preset"
+    disabled_by_default: true   # HA: pure web/display concern (can't internal: — web reads+writes it)
+    optimistic: true
+    restore_value: true
+    options:
+      - "Battery"
+      - "Sedan"
+      - "SUV"
+      - "Pickup"
+      - "Van"
+      - "Classic"
+      - "Sports"
+      - "Quad"
+      - "Motorcycle"
+      - "Boat"
+      - "Custom"          # a saved cut-out in the storage partition
+    initial_option: "Battery"

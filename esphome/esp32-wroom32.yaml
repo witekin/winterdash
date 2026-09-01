@@ -1,0 +1,57 @@
+# =============================================================================
+# WinterDash — HEADLESS port (plain ESP32 WROOM-32, 4MB, no display)
+# -----------------------------------------------------------------------------
+# Thin per-board master (sibling of esp32-tdisplay-16mb.yaml, the TTGO master). Same
+# board-agnostic core + same two data producers (Demo + live Victron BLE), but NO
+# display_tdisplay / input_tdisplay_2btn. The UI is the web dashboard only; HA (native API) is
+# optional as always. It also proves core.yaml truly stands alone: it compiles
+# with zero display ids dangling.
+#
+# Distinct hostname per board via name_add_mac_suffix -> winterdash-<mac6>.local,
+# so the headless unit and a TTGO never collide on the LAN (their MACs differ).
+# =============================================================================
+
+substitutions:
+  device_name: "winterdash"
+  friendly_name: "WinterDash"
+  fw_version: "dev-headless"     # System info is web-only here; shown in web About / HA
+  # BLE link-loss two-step model (same thresholds as TTGO; consumed by core's compute lambda):
+  ble_signal_stale_s: "10"       # STEP 1: BLE signal "gone" (web dot -> grey, BLE quality -> No signal)
+  ble_timeout_s: "30"            # STEP 2: full offline state + a "No signal" event logged
+  # Compute cadence (heavy status logic, 1 Hz BLE data). There is NO draw loop here (no display),
+  # so draw_interval is intentionally absent — it is a display_tdisplay-only substitution.
+  compute_interval: 1s
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  min_version: "2026.4.0"
+  name_add_mac_suffix: true      # -> winterdash-<mac6>.local (distinct from the TTGO unit)
+  # Same shared/core headers as the TTGO master — every one is board-agnostic (web + status + logs).
+  # banners_baked.h stays: the web dashboard serves the vehicle banner even with no screen.
+  includes:
+    - dashboard_html.h
+    - convert_html.h
+    - banners_baked.h
+    - web_dashboard.h
+    - ble_scan.h
+    - charge_log.h
+    - wifi_reset.h
+    - netwatch_rtc.h
+    - api_traffic.h      # watchdog API-liveness feed. NB: core.yaml declares api: unconditionally, so USE_API is
+    - api_traffic.cpp    # defined here too -> the real shim runs; the watchdog arms only if an HA client connects.
+    - netwatch_probe.h   # watchdog Phase 2 — client-independent tcpip-thread liveness probe
+    - netwatch_probe.cpp
+    - status_compute.h
+
+# --- Package composition (headless) ------------------------------------------
+# NO display / NO 2-button nav. board_esp32_wroom32 = 4MB esp32 + own partition table;
+# input_wroom32_boot = BOOT-hold re-onboarding (the headless escape hatch).
+packages:
+  core: !include packages/core.yaml            # board-agnostic platform layer (compute + web + publish + seed)
+  banner_preset: !include packages/banner_preset_full.yaml   # full baked-gallery picker (select id)
+  board: !include packages/board_esp32_wroom32.yaml # plain ESP32, 4MB, partitions_esp32_wroom32.csv
+  input: !include packages/input_wroom32_boot.yaml  # BOOT/GPIO0 hold-5s -> Wi-Fi re-onboard
+  led: !include packages/led_wroom32.yaml          # on-board mono status LED (GPIO2) — board-specific
+  mock: !include packages/mock_data.yaml        # Demo producer + canonical interface
+  victron: !include packages/victron_ble.yaml   # Live producer (real BLE decode)

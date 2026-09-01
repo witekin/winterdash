@@ -1,0 +1,40 @@
+# =============================================================================
+# input_wroom32_boot.yaml — headless single-button (BOOT/GPIO0) re-onboarding
+# -----------------------------------------------------------------------------
+# A headless board has no screen -> no way to reach the System-menu "Reset WiFi"
+# action if the WiFi creds are wrong (web unreachable). The on-board BOOT button
+# (GPIO0, same strapping pin the TTGO uses for btn1) is the physical escape hatch:
+# HOLD it ~5s -> raise id(wifi_reset_pending). Core's 500ms loop consumes the flag
+# (packages/core.yaml: "web / TTGO menu / headless BOOT-hold") -> forget_wifi_creds()
+# + reboot -> the open fallback AP "WinterDashAP" comes up for re-onboarding.
+#
+# GPIO0 is a strapping pin: it must read HIGH at boot for a normal boot (LOW = UART
+# download). Read at runtime with a pullup it's a normal momentary button, released
+# after boot -> safe. This is exactly how the TTGO drives btn1.
+#
+# No lv_* / no display ids here -> board-agnostic. A short tap does nothing (only a
+# deliberate long hold triggers the destructive reset). Board-specific LED feedback
+# (mono here, RGB on CYD) is a later polish item (led_wroom32.yaml).
+# =============================================================================
+
+binary_sensor:
+  - platform: gpio
+    id: boot_btn
+    pin:
+      number: 0
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 30ms
+    # min 5s (deliberate) / max 30s (guards a stuck-LOW pin from firing forever, but wide enough that a
+    # calm release AFTER the LED's ">=5s release-now" cue still lands inside the window and commits).
+    on_click:
+      min_length: 5s
+      max_length: 30s
+      then:
+        - logger.log:
+            level: WARN
+            format: "BOOT held 5s -> Wi-Fi re-onboarding requested (erase creds + reboot to setup AP)"
+        - lambda: 'id(wifi_reset_pending) = true;'

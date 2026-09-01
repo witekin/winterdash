@@ -1,0 +1,1134 @@
+# =============================================================================
+# core.yaml — BOARD-AGNOSTIC platform layer
+# -----------------------------------------------------------------------------
+# Shared by every WinterDash board master (TTGO, headless, CYD). Contains nothing
+# display- or pin-specific: connectivity, web, API/OTA, BLE ingest, canonical
+# sensors + derived status seam, NVS config entities, and the netwatch mechanism.
+# Board-specific hardware (esp32 board/partitions/sdkconfig, spi/display/light,
+# buttons) lives in packages/board_*.yaml + display_*.yaml + input_*.yaml.
+#
+# Included via the board master's `packages:` list. IDs/globals are global across
+# merged packages, so lambdas here may reference ids defined in board/display
+# packages and vice-versa (all must stay defined for the board being built).
+#
+# Board-agnostic blocks live here (composed by the per-board masters).
+# (expansion sorted-diff must stay empty vs the pre-split baseline).
+# =============================================================================
+
+logger:
+  level: INFO
+  baud_rate: 115200
+
+# --- Connectivity (usable now; ready for Home Assistant adoption later) -------
+wifi:
+  # CREDS-LESS generic bin (B-WiFi Step 2 ): NO baked ssid/password -> first boot with no
+  # NVS creds raises the fallback AP + captive portal immediately; creds entered there persist in NVS
+  # across reboot/OTA. (Do NOT blank ssid/password — an empty SSID registers a garbage STA; the keys
+  # must be OMITTED, which is what this is.) Dev iterates via winterdash-<mac6>.local after provisioning.
+  # NOTE: reboot_timeout is INERT on this board — the reboot branch is `!has_ap() && reboot_timeout!=0`
+  # (wifi_component.cpp), and we run a fallback `ap:` (has_ap()==true), so it's skipped; a wedge-with-link-up
+  # also keeps refreshing last_connected_. Kept only as documentation; the network wedge is handled by the
+  # netwatch self-recovery watchdog (interval:), not this.
+  reboot_timeout: 15min
+  # OPEN fallback AP (no password): a non-technical user just taps "WinterDashAP" and the captive
+  # portal opens. Any password would have to be shown on-screen anyway (zero real security for a
+  # physically-accessible garage device) while adding friction — so it's intentionally open.
+  # SSID lives in 4 synced places: here, gen_setup_qr.py (QR payload), the page_setup label, and the
+  # web copy — change them together.
+  ap:
+    ssid: "${friendly_name}AP"
+    # Model Y / offgrid: NEVER auto-raise the fallback AP on an STA-connect timeout. `ap_timeout` is an
+    # `ap:` sub-key (WIFI_NETWORK_AP), NOT a top-level `wifi:` key — earlier confusion put it under wifi:.
+    # 0 disables the timeout guard (wifi_component.cpp: `ap_timeout_ != 0 && now - last_connected_ > ...`),
+    # so a device that HAS creds but is out of range (vanlife/boat) keeps retrying STA + showing charger
+    # data instead of hijacking the display with the setup screen. First-boot onboarding is UNAFFECTED:
+    # a no-creds boot raises the AP via the separate `has_ap()` branch in setup(), independent of
+    # ap_timeout. Re-onboard when needed = the "Reset WiFi & setup" menu action (clear_sta()+reboot).
+    ap_timeout: 0s
+
+captive_portal:
+  # gzip so USE_CAPTIVE_PORTAL_GZIP is defined and captive serves INDEX_GZ (our branded gzip page from
+  # the vendored component). Must match tools/gen_captive_index.py (which emits gzip).
+  compression: gzip
+
+api:
+  # reboot_timeout 0s = DISABLED, and this is the RESOLVED decision (see the "Home Assistant" note) —
+  # keep it 0s even with HA adopted. `reboot_timeout` reboots when NO API client is present for the window,
+  # which is WRONG for this product: (1) an offgrid device (no HA — Model Y persona) would reboot on a loop;
+  # (2) HA down for maintenance / out of range would reboot the node, dropping the still-working LCD + charge
+  # log. It also does NOT help the network wedge (a wedged HA client stays in clients_ as connected=true, so it
+  # never fires) — that failure is handled by the netwatch self-recovery watchdog (interval:), not this.
+  reboot_timeout: 0s
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+    # Suppress the network self-recovery watchdog while an OTA is in flight (a large inbound transfer can
+    # transiently pressure the heap; a mid-OTA reboot would abort the update). Cleared on error; on success
+    # the device reboots anyway.
+    on_begin:
+      then:
+        - lambda: 'id(netwatch_ota_active) = true;'
+    on_error:
+      then:
+        - lambda: 'id(netwatch_ota_active) = false;'
+    # Symmetric clear (watchdog): on_error was the only reset -> a no-reboot OTA path would leave the watchdog
+    # suppressed forever. on_end fires on success too (harmless: success reboots anyway, re-arming from scratch).
+    on_end:
+      then:
+        - lambda: 'id(netwatch_ota_active) = false;'
+
+safe_mode:
+  # Pin explicitly (default is 60s): the netwatch 120s arm MUST stay > this, so a Layer-B watchdog reboot never
+  # accrues a safe_mode boot-failure attempt (the two breakers must not race). Free insurance vs a future default bump.
+  boot_is_good_after: 60s
+
+time:
+  - platform: sntp
+    id: sntp_time
+
+# --- RAM probe: load the BLE stack (passive scan, like the Victron broadcast
+# receiver will) so the free-heap budget is realistic, and log free heap. ---
+# BLE host connection budget. We NEVER open a BLE connection
+# (passive advert scan only), so floor max_connections to 1 (schema min; scanning uses no connection
+# slots). This drives BOTH CONFIG_BT_ACL_CONNECTIONS (host = max+1 -> 2) AND CONFIG_BTDM_CTRL_BLE_MAX_CONN
+# (controller = 1) consistently -> ~2-4KB DRAM back. Replaces the old manual CONFIG_BTDM_CTRL_BLE_MAX_CONN
+# in board_*.yaml (which did only the controller half + conflicted with ESPHome's auto-write). Also
+# future-proofs the 2026.10 deprecation of max_connections under esp32_ble_tracker. Board-agnostic -> core.
+esp32_ble:
+  max_connections: 1
+
+esp32_ble_tracker:
+  scan_parameters:
+    # PASSIVE scan: Instant Readout lives in the PRIMARY advertisement, so passive receives the
+    # charger fine — and we stop sending scan-requests, which with a chatty charger nearby was
+    # near-continuous radio TX (the "always-on LED" + WiFi load). Trade-off: the pairing scan list
+    # loses scan-response NAMES of OTHER devices (our Victron is still flagged by MAC + 0x02E1).
+    # If richer pairing names are ever wanted, flip to active only during a scan window (on-demand).
+    active: false
+  # Collect nearby devices for the pairing scan list.
+  on_ble_advertise:
+    - then:
+        - lambda: |-
+            bool vic = false;
+            for (auto &md : x.get_manufacturer_datas()) {
+              auto u = md.uuid.get_uuid();
+              if (u.len == ESP_UUID_LEN_16 && u.uuid.uuid16 == 0x02E1) { vic = true; break; }
+            }
+            // only accumulate the scan list during a 60s window opened by the pairing "Scan"
+            // button — steady state (Demo or Live) does no scan-table work. The charger-RSSI feed
+            // below runs unconditionally (it doesn't touch the scan table).
+            if (id(scan_open_until_ms) && (int32_t)(millis() - id(scan_open_until_ms)) < 0)
+              esphome::ble_scan::add(x.address_str(), x.get_name(), x.get_rssi(), vic, millis());
+            // feed the real advertisement RSSI of OUR charger to the canonical sensor (Live).
+            if (!id(demo_active) && !id(victron_mac).state.empty()) {
+              std::string mac = id(victron_mac).state;
+              for (auto &c : mac) c = toupper((unsigned char) c);
+              if (x.address_str() == mac) {
+                // Throttle to 1.5s like the other Live publishes — the charger advertises several
+                // times/s and each publish is an SSE frame on the single fragile web connection.
+                // (The TTGO reads victron_rssi.state in its loop, so 1.5s refresh is plenty.)
+                static uint32_t rssi_t = 0; uint32_t rn = millis();
+                if (rn - rssi_t >= 1500) { id(victron_rssi).publish_state(x.get_rssi()); rssi_t = rn; }
+              }
+            }
+
+debug:
+  update_interval: 10s
+
+# Live view from phone/PC at winterdash-<mac>.local (no HA needed).
+# v2 is the lighter UI — matters on this RAM budget. Watch Heap Free under load.
+# Vendored captive_portal (local override) — identical to the built-in EXCEPT captive_index.h, which
+# we regenerate from web/onboarding.html (gzip) so the AP captive page IS our branded WinterDash setup
+# UI. This is the only way to brand the captive page in ESPHome: its handler out-prioritises ours in
+# AP mode, so we replace the bytes it serves rather than fight the handler order. Keeps DNS hijack +
+# /config.json + /wifisave + ota.web_server auto-load intact. Re-sync on ESPHome bumps (only this one
+# file diverges from upstream).
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [captive_portal]
+
+web_server:
+  version: 2
+  port: 80
+  log: false   # don't stream device log lines over the SSE /events feed (steady + reconnect heap load).
+               # Cuts one continuous JSON source on the tight-heap board; the web dashboard doesn't use it.
+
+text:
+  - platform: template
+    id: victron_mac
+    name: "Victron MAC"
+    disabled_by_default: true   # HA: not needed (interim — moves to /wd/pair with bindkey)
+    optimistic: true
+    restore_value: true
+    mode: text
+    initial_value: ""
+    max_length: 17
+  - platform: template
+    id: victron_bindkey
+    name: "Victron bindkey"
+    internal: true   # Phase 3: write-only via POST /wd/bindkey — value NEVER streams (opsec). NVS/.state stay.
+    optimistic: true
+    restore_value: true
+    mode: password
+    initial_value: ""
+    max_length: 32
+
+sensor:
+  - platform: wifi_signal
+    id: wifi_rssi
+    name: "WiFi RSSI"
+    disabled_by_default: true   # HA: 'meh' diagnostic (already 30s+delta ~nil churn; web/TTGO still read it)
+    update_interval: 30s
+    filters:
+      - delta: 3   # WiFi RSSI is noisy + shown as coarse bars -> only push on a real signal change
+  # Diagnostics kept off the SSE/API stream (internal). They are read via /wd/info.json
+  # (assembled on the main loop); id() access is unaffected by internal.
+  - platform: debug
+    free:
+      name: "Heap Free"
+      id: heap_free_s
+      internal: true
+    block:
+      name: "Heap Max Block"   # largest allocatable block -> fragmentation trend (reboot diag)
+      id: heap_block_s
+      internal: true
+    loop_time:
+      name: "Loop Time"
+      id: loop_time_s
+      internal: true
+  # Diagnostics for the demo-reboot investigation: uptime resets to 0 on every reboot, so it pins
+  # WHEN a spontaneous reset happened; pair with the "Reset reason" text_sensor (why) below.
+  - platform: uptime
+    name: "Uptime"
+    id: uptime_s
+    internal: true   # off SSE/API -> /wd/info.json
+    update_interval: 30s
+  # Device-authoritative timers so the web dashboard mirrors the display exactly.
+  - platform: template
+    id: status_elapsed
+    name: "Status elapsed"
+    internal: true   # Phase 2: off SSE/API -> /wd/info.json (web reads it there; TTGO computes its own)
+    unit_of_measurement: "s"
+    accuracy_decimals: 0
+    update_interval: 5s   # web-mirror only (TTGO computes elapsed in the loop) — relaxed 2s->5s to cut SSE load
+    lambda: 'return (millis() - id(status_since_ms)) / 1000.0f;'
+  - platform: template
+    id: ble_age_s
+    name: "BLE age"
+    internal: true   # Phase 2: off SSE/API -> /wd/info.json (still device-authoritative for web offline)
+    unit_of_measurement: "s"
+    accuracy_decimals: 0
+    update_interval: 3s   # web-mirror; 3s keeps up with the 10s/30s thresholds at less SSE churn than 2s
+    lambda: 'return (id(last_packet_ms) == 0) ? -1.0f : (millis() - id(last_packet_ms)) / 1000.0f;'
+  # How long the device has been offline (ESP-authoritative, so TTGO + web agree).
+  # -1 when online. Drives the "Waiting for charger" / offline duration readout.
+  - platform: template
+    id: offline_elapsed
+    name: "Offline elapsed"
+    internal: true   # Phase 2: off SSE/API -> /wd/info.json
+    unit_of_measurement: "s"
+    accuracy_decimals: 0
+    update_interval: 3s   # web-mirror; 3s tracks the 30s offline threshold at less SSE churn than 2s
+    lambda: 'return id(offline_active) ? (millis() - id(offline_since_ms)) / 1000.0f : -1.0f;'
+
+text_sensor:
+  # Diagnostics: WHY the last boot happened (esp_reset_reason at startup) — e.g. "Software reset via
+  # esp_restart" (clean reboot/OTA), "Task watchdog", panic/exception, or "Brownout". Published once at
+  # boot and readable over the API/web entity list, so the demo-reboot soak reveals the cause WITHOUT a
+  # serial cable. Pairs with the "Uptime" sensor (when).
+  - platform: debug
+    reset_reason:
+      name: "Reset reason"
+      id: reset_reason_s
+      internal: true   # off SSE/API -> /wd/info.json
+  # (Firmware for the web About is emitted directly as fwver/fwbuild in the /wd/info.json builder from
+  # ${fw_version} + App.get_compilation_time() — no dedicated text_sensor needed. TTGO shows ${fw_version}.)
+  # Real hostname for the web (published once at boot). App.get_name() carries the mac-suffix,
+  # so the web shows the correct <name>.local (e.g. winterdash-aabbcc.local). TTGO System already does this.
+  - platform: template
+    id: hostname_info
+    name: "Hostname"
+    internal: true   # off SSE/API -> /wd/info.json (published once at boot)
+  # Derived charger status = the SINGLE source of truth for the status word + verdict line. Computed once
+  # in the 250ms render loop and published ON-CHANGE (see the publish block there). NON-internal on
+  # purpose: the web dashboard and HA CONSUME these instead of recomputing the state→word mapping — that
+  # is what removes device↔web parity drift (and gives HA a friendly status entity beside the raw one).
+  - platform: template
+    id: status_word_pub
+    name: "Status"
+    update_interval: never
+  - platform: template
+    id: status_note_pub
+    name: "Status detail"
+    update_interval: never
+  - platform: wifi_info
+    ssid:
+      id: wifi_ssid_txt
+      name: "SSID"
+      internal: true   # off SSE/API -> /wd/info.json (web reads it there; TTGO reads id().state)
+    ip_address:
+      id: wifi_ip_txt
+      name: "IP"        # stays an entity: HA final set includes IP, and the web reads it via SSE
+      entity_category: diagnostic
+  # BLE scan list (JSON) for the pairing UI — Victron first, top 20, pruned at 30s.
+  - platform: template
+    id: ble_scan_json
+    name: "BLE scan"
+    internal: true   # OFF the SSE/API stream (>640B JSON aborted the SSE SerializationBuffer under
+                     # fragmentation). Built here on the main loop; served on demand at /wd/scan.json.
+    update_interval: 5s   # relaxed 2s->5s: JSON list pushed every tick even when idle; 5s still fine for pairing (12s window)
+    # 12s window (was 30s) keeps the in-RAM device table small; ample for pairing
+    lambda: 'return esphome::ble_scan::to_json(millis(), 12000, 20);'
+    on_value:
+      - lambda: 'esphome::web_dashboard::slot_scan.publish(x);'   # tee to the httpd-readable slot
+  # Charger event log (RAM-only): last 8 state-change events, newest-first, as JSON for the
+  # "Charger detail" web card. Fed from the 250ms loop (charge_log::note); resets on reboot.
+  - platform: template
+    id: charger_log_json
+    name: "Charger log"
+    internal: true   # OFF SSE/API — served on demand at /wd/log.json (built here on the main loop).
+    update_interval: 5s   # tiny list; 5s keeps "N ago" fresh without loading the single web conn
+    lambda: |-
+      uint32_t ep = id(sntp_time).now().is_valid() ? (uint32_t) id(sntp_time).now().timestamp : 0;
+      return esphome::charge_log::to_json(millis(), ep);
+    on_value:
+      - lambda: 'esphome::web_dashboard::slot_log.publish(x);'   # tee to the httpd-readable slot
+
+button:
+  - platform: template
+    id: ble_scan_clear
+    name: "BLE scan clear"
+    disabled_by_default: true   # HA: pairing-only action, web-driven (a button streams no state)
+    on_press:
+      - lambda: |-
+          esphome::ble_scan::clear();
+          id(scan_open_until_ms) = millis() + 60000;   // open a 60s scan window
+  # System actions, driven from the TTGO menu AND the web System section. Exposed on the web
+  # API (POST /button/restart/press, /button/factory_reset/press). The dangerous one is gated
+  # in the UI: TTGO = hold S2 5s; web = hold-to-confirm 2s (a raw curl can still hit it, same as
+  # the physical menu — acceptable for a LAN appliance; the UI just prevents an accidental click).
+  - platform: restart
+    id: sys_restart
+    name: "Restart"
+    entity_category: config
+  - platform: factory_reset
+    id: sys_factory_reset
+    name: "Factory reset"
+    disabled_by_default: true   # HA: hidden by default so a remote HA click can't accidentally wipe
+  # Re-run Wi-Fi onboarding: ERASES the saved STA credentials from NVS and reboots into the fallback
+  # AP + captive portal (the branded setup screen). Destructive to the current WiFi link, so the UI
+  # gates it (TTGO = hold S2 3s; web = hold-to-confirm). on_press only sets a flag; the 500ms loop
+  # does the erase+reboot so the NVS write stays off the httpd task. NOTE: the erase (not a RAM-only
+  # clear_sta(), which reloads creds on boot -> silent no-op) is what actually forces onboarding on the
+  # creds-less bin — see wifi_reset.h. Erases WiFi only; the charger keys + settings survive.
+  - platform: template
+    id: sys_wifi_reset
+    name: "Reset WiFi"
+    disabled_by_default: true   # HA: not wanted (web still uses it)
+    on_press:
+      - lambda: 'id(wifi_reset_pending) = true;'
+
+select:
+  # Runtime-only (NOT restored): a mode, not a persisted setting. Always boots Auto
+  # (→ Live if keys configured, else Demo). Applied instantly from the web (not via Save).
+  - platform: template
+    id: device_mode
+    name: "Device mode"
+    entity_category: config
+    optimistic: true
+    restore_value: false
+    options:
+      - "Auto"
+      - "Demo"
+      - "Live"
+    initial_option: "Auto"
+  - platform: template
+    id: temp_unit
+    name: "Temp unit"
+    entity_category: config
+    disabled_by_default: true   # set via web; declutter HA 
+    optimistic: true
+    restore_value: true
+    options:
+      - "C"
+      - "F"
+    initial_option: "C"
+  # Charge profile = the mode set in VictronConnect (not chemistry — the IP65 has none).
+  # Drives the expected-voltage windows + bar axis (scaled by nominal). 6V deferred.
+  - platform: template
+    id: charge_profile
+    name: "Charge profile"
+    entity_category: config
+    disabled_by_default: true   # set via web; declutter HA 
+    optimistic: true
+    restore_value: true
+    options:
+      - "12V Normal"
+      - "12V High"
+      - "12V Li-ion"
+      - "24V Normal"
+      - "24V High"
+      - "24V Li-ion"
+    initial_option: "12V Normal"
+  # Timezone (runtime, NVS) — the baked TZ is the build host's, wrong for a friend in another zone
+  # flashing the generic bin. The 250ms loop maps the label -> POSIX TZ and calls set_timezone()
+  # (newlib needs POSIX, not IANA). Curated list (CET covers Warsaw/Berlin/Paris).
+  - platform: template
+    id: tz_select
+    name: "Timezone"
+    entity_category: config
+    disabled_by_default: true   # set via web; declutter HA 
+    optimistic: true
+    restore_value: true
+    options:
+      - "Europe/Warsaw"
+      - "Europe/London"
+      - "Europe/Lisbon"
+      - "Europe/Athens"
+      - "America/New_York"
+      - "America/Chicago"
+      - "America/Denver"
+      - "America/Los_Angeles"
+      - "UTC"
+    initial_option: "Europe/Warsaw"
+
+  # NOTE: the "Banner preset" picker select moved to packages/banner_preset_{full,minimal}.yaml — a select id
+  # can be defined only once, so its per-board OPTION SET lives in a per-board package (full 10+Custom, or the
+  # 4MB T-Display's Battery+Custom). Every master includes exactly one. The housekeeping lambda below still
+  # owns the board-agnostic banner LOGIC and references only id(banner_preset) + "Battery"/"Custom" (present
+  # in every option set), so it is unaffected by which set a board ships.
+
+# --- Status/link binary sensors (agnostic; btn1/btn2 nav live in input_tdisplay_2btn) ---
+binary_sensor:
+  - platform: status
+    id: ha_connected
+    name: "HA link"
+    internal: true   # Phase 2: off SSE/API -> /wd/info.json (HA knows its own link; web reads the bool there)
+  # Mirrors demo_active to the web dashboard (drives the DEMO badge). Published on
+  # change from the housekeeping interval to avoid SSE spam.
+  - platform: template
+    id: demo_mode
+    name: "Demo mode"
+
+# --- UI status COMPUTE (board-agnostic). Maps charger state -> status word/verdict/flags,
+# publishes status_word_pub/status_note_pub + feeds charge_log, and fills status_compute::status_out()
+# which the display_tdisplay draw lambda reads. NO lv_*. Headless includes core, so it computes+publishes
+# with no display. Runs at ${compute_interval} (1 Hz matches the BLE data rate).
+interval:
+  - interval: ${compute_interval}
+    then:
+      - lambda: |-
+          // ---- Bindkey: apply a bindkey written via POST /wd/bindkey (the entity is internal:, so the web
+          // can't use /text/.../set). make_call updates .state + persists (restore_value); the runtime-keys
+          // block below then pushes it into victron_ble. Done on the main loop, never the httpd task. ----
+          if (esphome::web_dashboard::bindkey_pending.load(std::memory_order_acquire)) {
+            esphome::web_dashboard::bindkey_pending.store(false, std::memory_order_relaxed);
+            id(victron_bindkey).make_call().set_value(std::string(esphome::web_dashboard::bindkey_buf)).perform();
+            memset(esphome::web_dashboard::bindkey_buf, 0, sizeof(esphome::web_dashboard::bindkey_buf));  // wipe the secret from RAM after applying (defense-in-depth)
+          }
+          // ---- Runtime keys: push NVS MAC+bindkey into the victron_ble component
+          // whenever they change (boot included). set_address/set_bindkey just assign members
+          // read on the next advertisement — safe from the main loop, no re-registration. ----
+          {
+            // Compare against cached fields instead of building a joined std::string every tick
+            // (the concat exceeded SSO -> a heap alloc/free at 4Hz; keys change almost never).
+            static std::string applied_mac = "@", applied_key = "@";
+            if (id(victron_mac).state != applied_mac || id(victron_bindkey).state != applied_key) {
+              applied_mac = id(victron_mac).state; applied_key = id(victron_bindkey).state;
+              unsigned m[6];
+              if (id(victron_mac).state.size() == 17 &&
+                  sscanf(id(victron_mac).state.c_str(), "%x:%x:%x:%x:%x:%x",
+                         &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) == 6) {
+                uint64_t addr = 0;
+                for (int j = 0; j < 6; j++) addr = (addr << 8) | (uint8_t) m[j];
+                id(victron_dev).set_address(addr);
+              }
+              const std::string &bk = id(victron_bindkey).state;
+              if (bk.size() == 32) {
+                std::array<uint8_t, 16> key{};
+                bool ok = true;
+                for (int j = 0; j < 16; j++) {
+                  unsigned v;
+                  if (sscanf(bk.c_str() + j * 2, "%2x", &v) != 1) { ok = false; break; }
+                  key[j] = (uint8_t) v;
+                }
+                if (ok) id(victron_dev).set_bindkey(key);
+              }
+            }
+          }
+          id(keys_configured) = !id(victron_mac).state.empty() && !id(victron_bindkey).state.empty();
+          std::string dm = id(device_mode).state;
+          bool demo = (dm == "Demo") || ((dm == "Live") ? false : !id(keys_configured));
+          id(demo_active) = demo;
+          // Demo<->Live mode-change hygiene (BOTH directions): wipe everything that would otherwise
+          // survive the switch and bleed one mode's data into the other (only last_packet_ms Demo->Live
+          // was reset before). Zeroing last_packet_ms forces one "Waiting for charger" tick (the new
+          // producer refreshes within <=1s), so a stale status word never shows once offline lifts.
+          static int8_t prev_demo = -1;          // -1 = first tick: sync only, don't fire hygiene
+          if (prev_demo != -1 && prev_demo != (int8_t) demo) {   // real Demo<->Live switch (both ways)
+            id(last_packet_ms) = 0;              // freshness: mask the hero until real new-mode data
+            id(mode_epoch) += 1;                 // force both producers to re-publish state/error once
+            esphome::charge_log::reset();         // drop the other mode's event history
+            // charger_temp SENTINEL: the Live producer only publishes temp when the packet carries one, and
+            // the IP65 reports temp N/A -> Live NEVER overwrites it, so the OTHER mode's last temp (e.g.
+            // demo's 27C) would freeze into Live. A NaN publish is blocked by the delta filter (NAN>min is
+            // false), but a real sentinel passes: -127C is an obviously-bogus "no reading" marker. Real temp
+            // (if ever sent) overwrites it; otherwise it shows -127 until reboot instead of a fake plausible
+            // value. (Shipped-normal boot->Live never runs this branch -> temp starts unset = "NA".)
+            id(charger_temp).publish_state(-127.0f);
+          }                                       // first tick is skipped so on_boot's "Powered on" survives
+          prev_demo = (int8_t) demo;
+          // ---- timezone (runtime, web-settable) — apply on change from the MAIN LOOP (setenv/
+          //      tzset touches global state; keep it off the httpd task). newlib needs POSIX, not
+          //      IANA, so map the friendly label. First tick applies the restored/boot value. ----
+          {
+            static std::string last_tz = "\x01";   // sentinel -> force apply on the first tick
+            std::string tz = id(tz_select).state;
+            if (tz != last_tz) {
+              last_tz = tz;
+              const char *p = "CET-1CEST,M3.5.0,M10.5.0/3";       // Europe/Warsaw (CET) = default
+              if (tz == "Europe/London") p = "GMT0BST,M3.5.0/1,M10.5.0";
+              else if (tz == "Europe/Lisbon") p = "WET0WEST,M3.5.0/1,M10.5.0";
+              else if (tz == "Europe/Athens") p = "EET-2EEST,M3.5.0/3,M10.5.0/4";
+              else if (tz == "America/New_York") p = "EST5EDT,M3.2.0,M11.1.0";
+              else if (tz == "America/Chicago") p = "CST6CDT,M3.2.0,M11.1.0";
+              else if (tz == "America/Denver") p = "MST7MDT,M3.2.0,M11.1.0";
+              else if (tz == "America/Los_Angeles") p = "PST8PDT,M3.2.0,M11.1.0";
+              else if (tz == "UTC") p = "UTC0";
+              id(sntp_time).set_timezone(p);
+            }
+          }
+          const uint32_t TIMEOUT = ${ble_timeout_s} * 1000UL;
+          uint32_t now = millis();
+          uint32_t age = now - id(last_packet_ms);
+
+          // ---- read last-known sensor values + map device state ----
+          bool have = id(bat_voltage).has_state();
+          float v    = have ? id(bat_voltage).state : 0.0f;
+          float ibat = id(bat_current).has_state() ? id(bat_current).state : 0.0f;
+          float pw   = id(bat_power).has_state()   ? id(bat_power).state   : 0.0f;
+          float temp = id(charger_temp).has_state()? id(charger_temp).state: 0.0f;
+          bool fahr = (id(temp_unit).state == "F");
+          float tdisp = fahr ? (temp * 9.0f / 5.0f + 32.0f) : temp;
+          char tsym = fahr ? 'F' : 'C';
+          // Some chargers (e.g. IP65 12/5) report NO temperature -> victron_ble publishes NaN.
+          // Show "-" instead of "nan°C". One preformatted string reused by hero/detail/fault.
+          bool temp_na = !id(charger_temp).has_state() || std::isnan(id(charger_temp).state);
+          char tstr[16];
+          if (temp_na) snprintf(tstr, sizeof(tstr), "-");
+          else snprintf(tstr, sizeof(tstr), "%.0f\xC2\xB0%c", tdisp, tsym);
+          std::string raw = id(device_state_raw).has_state() ? id(device_state_raw).state : "";
+          std::string err = id(charger_error_raw).has_state() ? id(charger_error_raw).state : "";
+          std::string R = raw;
+          for (auto &c : R) c = toupper((unsigned char)c);
+
+          // ---- charge profile → expected windows (setpoints × nominal), redlines, axis ----
+          // Profile = VictronConnect mode (Normal/High/Li-ion) × nominal (12/24V).
+          // sc feeds the demo so 24V is testable.
+          std::string prof = id(charge_profile).state;
+          float sc = (prof.rfind("24V", 0) == 0) ? 2.0f : 1.0f;
+          id(nominal_scale) = sc;
+          bool li = prof.find("Li-ion") != std::string::npos;
+          bool hi = prof.find("High") != std::string::npos;
+          float abs_sp = (li ? 14.2f : (hi ? 14.7f : 14.4f)) * sc;   // absorption setpoint
+          float flt_sp = 13.8f * sc;                                 // float (lead-acid)
+          float sto_sp = (li ? 13.5f : 13.2f) * sc;                  // storage
+          float red_lo = 10.5f * sc;                                 // low danger
+          float red_hi = (li ? 14.8f : 15.3f) * sc;                  // high danger
+          float TOL = 0.25f * sc;
+
+          const char *word = "IDLE";
+          uint32_t col_hex = 0x888888;
+          const char *icon = "\xF3\xB0\xA4\x84";  // mdi power-sleep (idle)
+          bool show_band = false; float band_lo = 0, band_hi = 0;
+          int scode = 0;  // 0 idle, 1 charging, 2 charged, 3 fault
+          // Equalize (manual, 0x07) + Auto-equalize/Recondition (0xF7) drive the pack to ~16.2-16.5V
+          // ON PURPOSE. For winter storage that high-voltage cycle is UNWANTED, so it gets its OWN
+          // visible state (RECOND, amber + hint) instead of hiding under CHARGING — and its overvoltage
+          // is expected, so the redline-red verdict is suppressed for it (is_recond, below).
+          bool is_recond = (R.find("RECONDITION") != std::string::npos) || (R.find("EQUALIZE") != std::string::npos);
+          // Raw strings are the victron_ble component's DEVICE_STATE labels, uppercased (see R above).
+          if (is_recond) {
+            // "RECOND" not "RECONDITION": status_cluster starts at x=120 and montserrat_16 already
+            // clips/smears past 240px for anything longer than ~"CHARGING" (see status_cluster note).
+            word = "RECOND"; col_hex = 0xf5b942; icon = "\xF3\xB0\x89\x81"; scode = 4;  // mdi flash, amber
+          } else if (R == "BULK" || R == "ABSORPTION" || R == "REPEATED ABSORPTION" || R == "BATTERYSAFE") {
+            // ACTIVE charging. BatterySafe (benign controlled voltage ramp) folds in here by decision.
+            word = "CHARGING"; col_hex = 0xf5b942; icon = "\xF3\xB0\x89\x81"; scode = 1;  // mdi flash
+            if (R == "ABSORPTION" || R == "REPEATED ABSORPTION") { show_band = true; band_lo = abs_sp - TOL; band_hi = abs_sp + TOL; }
+          } else if (R == "FLOAT" || R == "STORAGE" || R == "SUSTAIN") {
+            word = "CHARGED"; col_hex = 0x3ddc84; icon = "\xF3\xB0\x97\xA0"; scode = 2;  // mdi check-circle
+            show_band = true;
+            // Li-ion has no float stage → use the storage window for both. Sustain (Li low-hold) too.
+            float ctr = (R == "STORAGE" || R == "SUSTAIN" || li) ? sto_sp : flt_sp;
+            band_lo = ctr - TOL; band_hi = ctr + TOL;
+          } else if (R == "FAULT") {
+            word = "FAULT"; col_hex = 0xef4444; icon = "\xF3\xB0\x80\xA6"; scode = 3;  // mdi alert
+          }
+          // Off / Low power / Starting-up / Pass Thru / … and any unmapped state fall through to
+          // IDLE (grey) above — the safe default for "charger present but not charging".
+
+          // ---- no-load / no-battery guard (Live + Demo share one rule) ----
+          // A charging (scode 1) or charged/maintenance (scode 2) phase reporting ~0A isn't actually
+          // doing anything: the charger is powered with nothing — or a disconnected battery — on the
+          // terminals (the field "14.4V CHARGING / 13.8V CHARGED on empty terminals" case). It reads
+          // exactly 0.0A (0.1A readout resolution -> <0.05 == "zero"), so downgrade to IDLE and never
+          // falsely claim CHARGING/CHARGED. A real battery, even full on Float, draws a small
+          // maintenance current (>0.05A, field ~0.3A) and stays CHARGED. Guards: only with an actual
+          // current reading (has_state, so a fresh boot's "no reading yet" != zero-load); ~8s debounce
+          // so a lone 0.0 sample near the absorption tail doesn't flip the word. Demo never trips it
+          // (its charge phases hold >=0.3A), so no demo branch is needed.
+          {
+            static uint32_t nl_since = 0;
+            bool zero_load = (scode == 1 || scode == 2 || scode == 4) && id(bat_current).has_state() && fabsf(ibat) < 0.05f;
+            if (zero_load) {
+              if (nl_since == 0) nl_since = now;
+              if (now - nl_since >= 8000) {
+                word = "IDLE"; col_hex = 0x888888; icon = "\xF3\xB0\xA4\x84"; scode = 0; show_band = false;
+              }
+            } else {
+              nl_since = 0;
+            }
+          }
+
+          // ---- status verdict / note: ONE source for the TTGO anomaly line, the web aux line AND the
+          //      published status_note sensor (page-independent — the device only *draws* it on the
+          //      dashboard, but the value is the same everywhere). Priority: high-voltage recond hint >
+          //      over/undervoltage danger > band out-of-window. Fault (scode 3) has its own overlay. ----
+          std::string note;
+          if (scode == 4) {
+            note = "High voltage - not for storage";
+          } else if (scode != 3) {
+            if (have && v > red_hi)                    note = "Overvoltage - check charger";
+            else if (have && v < red_lo)               note = "Undervoltage - check battery";
+            else if (show_band && v < band_lo - 0.05f) note = "Lower than expected";
+            else if (show_band && v > band_hi + 0.05f) note = "Higher than expected";
+          }
+
+          // ---- OFFLINE takeover (BLE stale) ----
+          bool offline = (id(last_packet_ms) == 0) || (age > TIMEOUT);
+          // STEP 1 staleness (see substitutions): dot + BLE bars flip to "no signal" together well
+          // before the STEP 2 offline overlay. Hoisted so the link-dot and the BLE page share it.
+          bool ble_stale = (id(last_packet_ms) == 0) || (age > ${ble_signal_stale_s} * 1000UL);
+
+          // ---- publish the compute result into the shared DTO (the draw lambda reads it) ----
+          auto &o = esphome::status_compute::status_out();
+          o.have = have; o.v = v; o.ibat = ibat; o.pw = pw;
+          strncpy(o.tstr, tstr, sizeof(o.tstr));   // tstr is <=15 chars + NUL; strncpy null-pads the rest
+          o.err = err;
+          o.sc = sc; o.red_lo = red_lo; o.red_hi = red_hi;
+          o.show_band = show_band; o.band_lo = band_lo; o.band_hi = band_hi; o.is_recond = is_recond;
+          o.word = word; o.col_hex = col_hex; o.icon = icon; o.scode = scode;
+          o.note = note; o.offline = offline; o.ble_stale = ble_stale;
+          o.now = now; o.age = age;
+
+          // ---- publish the derived status = ONE source of truth. TTGO renders word/note locally
+          //      (same lambda); the web + HA CONSUME these instead of recomputing (kills device↔web
+          //      drift). On-change ONLY: text_sensor has no delta filter, so a raw 4Hz publish would
+          //      re-bloat the fragile ~58KB SSE link — the exact thing kept off the SSE. Offline -> word
+          //      "OFFLINE" so HA agrees with the display (the web also keeps its own timing overlay). ----
+          {
+            std::string pw = offline ? std::string("OFFLINE") : std::string(word);
+            std::string pn = offline ? std::string("") : note;
+            static std::string lw = "\x01", ln = "\x01";   // impossible seed -> first real value always publishes
+            if (pw != lw) { lw = pw; id(status_word_pub).publish_state(pw); }
+            if (pn != ln) { ln = pn; id(status_note_pub).publish_state(pn); }
+          }
+          // ---- charger event log (RAM-only rolling history; newest-first) ----
+          // Log a fine-grained state change once per transition (charge_log::note dedups by
+          // label). Placed BEFORE the offline `return` below so "No signal" is captured too.
+          {
+            std::string ev;
+            if (!offline) {
+              if (scode == 3) ev = (err.empty() || err == "No error") ? "Fault" : ("Fault: " + err);
+              else if (!raw.empty()) ev = raw;   // Bulk/Absorption/Float/Storage/Off/...
+            } else if (id(last_packet_ms) != 0) {
+              ev = "No signal";                  // lost a signal we had (not the boot ==0 wait)
+            }
+            if (!ev.empty()) {
+              uint32_t ep = id(sntp_time).now().is_valid() ? (uint32_t) id(sntp_time).now().timestamp : 0;
+              esphome::charge_log::note(ev, ep, now);
+            }
+          }
+
+          // ---- offline latch + status/serious-warn (compute-owned; draw reads status_out() + these globals) ----
+          // The offline EARLY-RETURN is display-only (in the draw lambda); publish+log+these latches ALWAYS run
+          // here so headless (no draw) still tracks offline/status. serious_warn rides the DTO and the draw writes
+          // it to the global (keeps serious_warn_active display-owned).
+          if (offline) {
+            if (!id(offline_active)) { id(offline_active) = true; id(offline_since_ms) = now; }
+            o.serious_warn = false;
+          } else {
+            id(offline_active) = false;
+            if (scode != id(status_code)) { id(status_code) = scode; id(status_since_ms) = now; }
+            o.serious_warn = (v > red_hi && !is_recond) || (v < red_lo && have);
+          }
+
+# --- Data-state + compute-seam + system globals (board-agnostic; S4b). UI/nav/backlight/splash
+# globals live in display_tdisplay.yaml. Rule: a global written by core/compute/producer MUST be here so a
+# headless (no-display) build still compiles (R3). ---
+
+  # --- Network self-recovery watchdog ----------------------------------------
+  # Runs at 1 Hz on loopTask (which stays alive during a tcpip wedge). First tick = boot breaker logic;
+  # subsequent ticks = detect sustained heap starvation -> safe_reboot, guarded against reboot-loops.
+  # NOTE: FREE_FLOOR/BLOCK_FLOOR are CONSERVATIVE PLACEHOLDERS (far below the ~35KB/~20.5KB healthy floor
+  # so they cannot false-fire under normal load) — the EFFECTIVE values need the wedge_floor measurement.
+  # This build's job: prove the mechanism is safe + no false-trigger, and log the heap trajectory.
+  - interval: 1s
+    then:
+      - lambda: |-
+          static bool first = true;
+          if (first) {
+            first = false;
+            #ifdef WD_NETB_TASKPROBE
+            // (debug) this lambda runs on loopTask. Log its task name to compare against
+            // JsonSlotGet's handler task (web_dashboard.h) — they MUST differ, else the watchdog
+            // liveness signal is dead (the httpd stamp would freeze WITH loopTask, not independently of it).
+            ESP_LOGI("netB", "netwatch lambda task = '%s'", pcTaskGetName(nullptr));
+            #endif
+            // ---- boot breaker logic (RTC slow memory, netwatch_rtc.h) ----
+            esp_reset_reason_t rr = esp_reset_reason();
+            bool fresh = (netwatch_rtc_magic != NETWATCH_RTC_MAGIC) ||
+                         rr == ESP_RST_POWERON || rr == ESP_RST_BROWNOUT;
+            if (netwatch_rtc_magic != NETWATCH_RTC_MAGIC) {
+              // RTC content invalid = fresh power-on (garbage) -> initialize + re-arm
+              netwatch_rtc_magic = NETWATCH_RTC_MAGIC;
+              netwatch_rtc_recov = 0;
+              netwatch_rtc_marker = 0;
+            } else if (rr == ESP_RST_POWERON || rr == ESP_RST_BROWNOUT) {
+              // physical power event = the user's natural fix -> fresh start, re-arm
+              netwatch_rtc_recov = 0; netwatch_rtc_marker = 0;
+            } else {
+              // warm reset (SW/WDT/panic): keep the count ONLY if WE initiated it (marker==1);
+              // an OTA / user restart is a SW reset without our marker -> fresh start on the new image
+              uint8_t m = netwatch_rtc_marker; netwatch_rtc_marker = 0;
+              // Keep recov ONLY if WE initiated it (marker==1). Watchdog: also DON'T zero on a task-WDT
+              // reboot (rr==ESP_RST_TASK_WDT) — otherwise a 2a event launders a nearly-tripped 2b breaker (2a is
+              // bounded independently by twdt). OTA/user restarts are ESP_RST_SW (marker=0) -> still re-arm.
+              if (m != 1 && rr != ESP_RST_TASK_WDT) netwatch_rtc_recov = 0;
+            }
+            // ---- Instrumentation: capture the wedge, bound the WDT loop ----
+            if (fresh) {
+              netwatch_rtc_last_free = 0; netwatch_rtc_wedge_free = 0;
+              netwatch_rtc_min_free = 0xFFFFFFFFUL; netwatch_rtc_twdt = 0;
+              netwatch_rtc_trigger = 0; netwatch_rtc_lifetime_reboots = 0;  // watchdog: cleared on power-cycle only
+              netwatch_rtc_probe_fires = 0;                                 // Phase-2 flap-cap counter
+            } else if (rr == ESP_RST_TASK_WDT) {
+              // the task-WDT wedge: FREEZE the heap ~<=1s BEFORE the stall (last_free would be overwritten by the
+              // next healthy tick, so snapshot it here) + log it (the measurement we never had) + bound the loop.
+              netwatch_rtc_wedge_free = netwatch_rtc_last_free;
+              if (netwatch_rtc_twdt < 250) netwatch_rtc_twdt++;
+              ESP_LOGE("netwatch", "TASK-WDT reboot #%u -- heap ~1s before wedge = %u B (min-ever %u B)",
+                       (unsigned) netwatch_rtc_twdt, (unsigned) netwatch_rtc_wedge_free,
+                       (unsigned)(netwatch_rtc_min_free == 0xFFFFFFFFUL ? 0 : netwatch_rtc_min_free));
+            }
+            if (netwatch_rtc_twdt >= 5) {          // Layer-C: bound the self-healing-but-UNBOUNDED task-WDT reboot loop
+              id(netwatch_disabled) = true;
+              // netwatch_disabled drives the LCD "NETWORK FAULT" degrade overlay (display_tdisplay netfault_overlay) —
+              // the ONLY recovery instruction once the breaker trips (OTA is unreachable during an active wedge).
+              ESP_LOGE("netwatch", "TWDT-LOOP BOUND (twdt=%u) -> stay up + OTA, no more auto-action",
+                       (unsigned) netwatch_rtc_twdt);
+            } else if (netwatch_rtc_recov >= 3) {  // K=3 SW recoveries -> trip the breaker, stay up + OTA-reachable
+              id(netwatch_disabled) = true;
+              ESP_LOGE("netwatch", "BREAKER TRIPPED (recov=%u) -> watchdog disabled this boot",
+                       (unsigned) netwatch_rtc_recov);
+            } else {
+              ESP_LOGI("netwatch", "boot: recov=%u twdt=%u reset_reason=%d (arms at 120s)",
+                       (unsigned) netwatch_rtc_recov, (unsigned) netwatch_rtc_twdt, (int) rr);
+            }
+            return;                                // never detect on the very first tick
+          }
+          if (id(netwatch_disabled)) return;
+          if (id(netwatch_ota_active)) {   // never reboot mid-OTA; re-baseline the liveness signal so a failed
+            id(netwatch_low_since_ms) = 0; // OTA (>90s, main loop blocked -> net_ok frozen) can't read stale on resume
+            g_net_ok_ms.store(millis(), std::memory_order_relaxed);
+            return;
+          }
+
+          uint32_t up = millis();
+          // been healthy for a long stretch -> clear the loop counters (this defines the breaker "window").
+          // twdt clears too: occasional WDT reboots >300s apart don't accumulate; only a TIGHT loop reaches K.
+          if (up > 300000UL) { netwatch_rtc_recov = 0; netwatch_rtc_twdt = 0; }
+
+          uint32_t freeb = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+          uint32_t maxb  = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+          // cache the current free heap to RTC every tick. On a task-WDT reset this survives and is the
+          // heap ~<=1s BEFORE the wedge (logged at next boot) + tracks the min-ever erosion trajectory.
+          netwatch_rtc_last_free = freeb;
+          if (freeb < netwatch_rtc_min_free) netwatch_rtc_min_free = freeb;
+          #ifdef WD_NETB_TASKPROBE
+          // Optional heap-trajectory log (throttled 5s), off by default; define WD_NETB_TASKPROBE to enable.
+          static uint32_t last_log = 0;
+          if (up - last_log >= 5000UL) {
+            last_log = up;
+            ESP_LOGI("netwatch", "heap free=%u max=%u up=%us armed=%d",
+                     (unsigned) freeb, (unsigned) maxb, (unsigned)(up / 1000UL), up >= 120000UL ? 1 : 0);
+          }
+          #endif
+
+          // ---- Watchdog feed: mirror API inbound liveness into g_net_ok_ms (EVERY tick, before the arm gate) ----
+          // g_net_ok_ms is stamped by the httpd task (web_dashboard.h). Here we also fold in native-API rx
+          // progress (api_traffic.h: max last_traffic_ over clients) so an HA-connected device with NO browser
+          // open still keeps the signal fresh (HA keepalive <=60s) — else a normally-closed browser tab would
+          // read as stale (eval HAZARD A). Advance-only (wrap-safe), never rewind.
+          uint32_t at = ::esphome::netwatch::api_last_traffic_ms();   // 0 if no client / API not compiled in
+          if (at != 0) {
+            uint32_t cur = g_net_ok_ms.load(std::memory_order_relaxed);
+            if ((int32_t)(at - cur) > 0) g_net_ok_ms.store(at, std::memory_order_relaxed);
+          }
+          // ---- Watchdog Phase 2: client-independent tcpip-thread liveness probe ----
+          // Post a probe every ~5s; its callback runs ON the tcpip thread (netwatch_probe.cpp) and stamps
+          // netwatch_probe_ok_ms(). Fold that into g_net_ok_ms (advance-only) so a device with ZERO clients
+          // (no HA, no browser) still keeps the liveness signal fresh -> the watchdog can arm & catch a network-stack wedge.
+          static uint32_t last_probe = 0;
+          if (up - last_probe >= 5000UL) { last_probe = up; ::esphome::netwatch::netwatch_probe_send(); }
+          bool probe_ever = ::esphome::netwatch::netwatch_probe_ever_ok();   // FAIL-SAFE latch: no round-trip ever -> never arms
+          uint32_t pk = ::esphome::netwatch::netwatch_probe_ok_ms();
+          if (pk != 0) {
+            uint32_t cur = g_net_ok_ms.load(std::memory_order_relaxed);
+            if ((int32_t)(pk - cur) > 0) g_net_ok_ms.store(pk, std::memory_order_relaxed);
+          }
+          // A real client connecting clears the flap-cap (the device is demonstrably serving someone, so the
+          // clientless-flap concern is moot -> re-enable the probe arm).
+          if (::esphome::netwatch::api_is_connected() && netwatch_rtc_probe_fires != 0) netwatch_rtc_probe_fires = 0;
+          // (Field diagnosis of the probe/net-liveness state is via /wd/info.json: probe, pfires, trigger, recov,
+          //  netdis — the bench-only serial soak logs were stripped after Phase-2 validation.)
+
+          // arm only after 120s uptime. NOTE: this MUST stay > safe_mode's boot_is_good_after (60s) so a
+          // watchdog reboot never accumulates safe_mode attempts (the two breakers must not race).
+          if (up < 120000UL) return;
+
+          // ---- Watchdog detector: net-stale ----------------------------------------------------
+          // Replaces the retired FREE_FLOOR heap trigger (bench-proved the wedge is heap-agnostic: it wedged at
+          // 24-29KB and IDF minfree hit 668B WITHOUT wedging). The real signal: on a network-stack wedge the httpd task
+          // freezes AND API rx stops -> g_net_ok_ms stops advancing while loopTask keeps ticking (feeding the WDT)
+          // = the 9h hang the task WDT is blind to. (freeb/maxb stay logged above as context only.)
+          // Gate on WiFi UP too (not just api): when the device goes out of WiFi range, the API socket does NOT
+          // error immediately (lwip over a downed netif returns EWOULDBLOCK, so clients_ keeps the dead client
+          // for up to the ~150s keepalive-disconnect). Without this, an out-of-range event would read
+          // client_present=true + net_ok going stale -> one spurious reboot at ~98s. A reboot can't fix "no
+          // WiFi", so we DISARM within seconds of the disconnect instead. wifi is_connected() flips false on the
+          // disconnect event (beacon timeout). (Matches the original eval design: gate on wifi AND api.)
+          bool wifi_up = wifi::global_wifi_component != nullptr && wifi::global_wifi_component->is_connected();
+          bool client_present = wifi_up && ::esphome::netwatch::api_is_connected();   // HA path (Phase 1)
+          // Phase-2 CLIENTLESS arm: the probe must have PROVEN itself at least once (fail-safe latch — a
+          // broken/infeasible probe never arms -> falls back to client-only = status quo, never a false reboot)
+          // AND the flap-cap must not be tripped (bounds slow clientless flapping that K=3 misses).
+          bool probe_present = wifi_up && probe_ever && netwatch_rtc_probe_fires < 6;
+          uint32_t net_ok = g_net_ok_ms.load(std::memory_order_relaxed);
+          // Gate: a client OR the proven probe present, AND the signal stamped at least once (net_ok!=0 — an
+          // unfed 0 must never read as MAX-stale, eval HAZARD A). WiFi-down is a normal handled mode, not a wedge.
+          bool armed_now = (client_present || probe_present) && net_ok != 0;
+          if (!armed_now) { id(netwatch_low_since_ms) = 0; return; }
+
+          const uint32_t STALE_MS = 90000;         // > HA keepalive (60s) worst case
+          const uint32_t HOLD_MS  = 8000;          // sustained (hysteresis vs a one-off glitch at the boundary)
+          // Clamp: the probe callback stamps net_ok on the tcpip thread (prio 18 > loopTask), so it can land a
+          // few ms AFTER `up` was sampled at tick-start -> net_ok momentarily "ahead" of up. Treat that as fresh
+          // (stale 0), not as a ~4.29e9 underflow that would spuriously set low_since.
+          uint32_t stale = ((int32_t)(up - net_ok) > 0) ? (up - net_ok) : 0u;
+          if (stale < STALE_MS) { id(netwatch_low_since_ms) = 0; return; }
+          if (id(netwatch_low_since_ms) == 0) { id(netwatch_low_since_ms) = up; return; }
+          if (up - id(netwatch_low_since_ms) < HOLD_MS) return;
+
+          // net-stale confirmed -> HARD restart (esp_restart). A network-only heal routes through the wedged tcpip
+          // task and App.safe_reboot()'s clean teardown can BLOCK on the LWIP core-lock the dead task holds; a
+          // reboot is ~10s and NVS/banners survive. Persist RTC FIRST (instant, can't block, survives even a
+          // task-WDT reset), then restart.
+          netwatch_rtc_recov = (uint8_t)(netwatch_rtc_recov + 1);
+          netwatch_rtc_marker = 1;
+          if (netwatch_rtc_lifetime_reboots < 0xFFFFFFFFUL) netwatch_rtc_lifetime_reboots++;
+          // trigger=2 = caught via a client (HA) path; trigger=3 = caught via the Phase-2 clientless probe path.
+          // A probe-path fire also feeds the flap-cap (bounds slow clientless flapping that K=3's 300s window misses).
+          bool probe_only = !client_present;
+          netwatch_rtc_trigger = probe_only ? 3 : 2;
+          if (probe_only && netwatch_rtc_probe_fires < 250) netwatch_rtc_probe_fires++;
+          ESP_LOGE("netwatch", "NET-STALE %ums (free=%u max=%u) recov=%u life=%u trig=%u -> esp_restart",
+                   (unsigned) stale, (unsigned) freeb, (unsigned) maxb, (unsigned) netwatch_rtc_recov,
+                   (unsigned) netwatch_rtc_lifetime_reboots, (unsigned) netwatch_rtc_trigger);
+          esp_restart();
+  # Assemble the About/Network read-only info + diagnostics into ONE JSON doc on the MAIN loop
+  # (so the httpd handler never reads live sensor .state cross-task) and publish it to slot_info, served
+  # at /wd/info.json. The browser fetches it on-open (~10s poll) instead of these 8 entities riding SSE.
+  - interval: 5s
+    then:
+      - lambda: |-
+          auto esc = [](const std::string &in) -> std::string {
+            std::string o; o.reserve(in.size());
+            for (char c : in) {
+              if (c == '"' || c == '\\') { o += '\\'; o += c; }
+              else if ((unsigned char) c >= 0x20) o += c;   // drop control chars
+            }
+            return o;
+          };
+          std::string j; j.reserve(320);
+          // firmware as TWO ASCII fields (version + compile time) — no in-string separator, so no
+          // non-ASCII byte (the old " · " joiner) ever rides the JSON. Web composes the display.
+          j += "{\"fwver\":\"${fw_version}\",";
+          j += "\"fwbuild\":\""; j += esc(App.get_compilation_time()); j += "\",";
+          j += "\"host\":\""; j += esc(id(hostname_info).has_state() ? id(hostname_info).state : std::string("")); j += "\",";
+          j += "\"ssid\":\""; j += esc(id(wifi_ssid_txt).has_state() ? id(wifi_ssid_txt).state : std::string("")); j += "\",";
+          j += "\"rst\":\"";  j += esc(id(reset_reason_s).has_state() ? id(reset_reason_s).state : std::string("")); j += "\",";
+          char nb[288];
+          // Slow tier: static + diagnostics + keyset. The frequently-changing live mirrors + uptime moved
+          // to the fast /wd/live.json tier (the 2s interval below). keyset = is a bindkey configured (value never sent).
+          // Stability instrumentation: minfree = this-boot min (IDF), pminfree = min-ever across warm reboots
+          // (erosion), wedge = heap ~1s before the last task-WDT wedge, twdt = task-WDT reboots this window.
+          // Watchdog: trigger = last watchdog-reboot cause (2=net-stale caught), life = watchdog
+          // reboots since power-cycle (flapping observability), recov = breaker count, netdis = breaker tripped now.
+          snprintf(nb, sizeof(nb),
+            "\"heap\":%d,\"heapblk\":%d,\"loop\":%d,\"keyset\":%d,"
+            "\"minfree\":%u,\"pminfree\":%u,\"wedge\":%u,\"twdt\":%u,"
+            "\"trigger\":%u,\"life\":%u,\"recov\":%u,\"netdis\":%u,"
+            "\"probe\":%u,\"pfires\":%u}",
+            (int) (id(heap_free_s).has_state() ? id(heap_free_s).state : 0.0f),
+            (int) (id(heap_block_s).has_state() ? id(heap_block_s).state : 0.0f),
+            (int) (id(loop_time_s).has_state() ? id(loop_time_s).state : 0.0f),
+            id(victron_bindkey).state.empty() ? 0 : 1,
+            (unsigned) esp_get_minimum_free_heap_size(),
+            (unsigned) (netwatch_rtc_min_free == 0xFFFFFFFFUL ? 0 : netwatch_rtc_min_free),
+            (unsigned) netwatch_rtc_wedge_free,   // FROZEN heap at the last WDT wedge (0 = none this power-cycle)
+            (unsigned) netwatch_rtc_twdt,
+            (unsigned) netwatch_rtc_trigger,
+            (unsigned) netwatch_rtc_lifetime_reboots,
+            (unsigned) netwatch_rtc_recov,
+            (unsigned) (id(netwatch_disabled) ? 1 : 0),
+            (unsigned) (::esphome::netwatch::netwatch_probe_ever_ok() ? 1 : 0),   // Phase-2: probe proven?
+            (unsigned) netwatch_rtc_probe_fires);                                 // Phase-2: flap-cap count
+          j += nb;
+          esphome::web_dashboard::slot_info.publish(j);
+  # Fast-live tier: uptime (fresh millis, for the web's restart-detect) + the frequently-changing mirrors.
+  # Built every 2s, polled fast at /wd/live.json -> the SSE-freshness heartbeat + snappy offline detection.
+  - interval: 2s
+    then:
+      - lambda: |-
+          char lb[128];
+          snprintf(lb, sizeof(lb),
+            "{\"uptime\":%d,\"el\":%d,\"age\":%d,\"offel\":%d,\"brssi\":%d,\"ha\":%d}",
+            (int) (millis() / 1000UL),
+            (int) (id(status_elapsed).has_state() ? id(status_elapsed).state : 0.0f),
+            (int) (id(ble_age_s).has_state() ? id(ble_age_s).state : -1.0f),
+            (int) (id(offline_elapsed).has_state() ? id(offline_elapsed).state : -1.0f),
+            (int) (id(victron_rssi).has_state() ? id(victron_rssi).state : -128.0f),
+            id(ha_connected).state ? 1 : 0);
+          esphome::web_dashboard::slot_live.publish(std::string(lb));
+
+  # --- System housekeeping (500ms; board-agnostic; S4b-2b) -------------------------------
+  - interval: 500ms
+    then:
+      - lambda: |-
+          // --- System housekeeping (board-agnostic; S4b-2b). NO lv_*. On core so a headless board (no display)
+          //     still onboards + reboots + publishes demo state. The DISPLAY half (splash/saver/backlight/screen-swap)
+          //     lives in display_tdisplay's 500ms. ---
+          // Wi-Fi re-provision: consume the "Reset WiFi" flag (web / TTGO menu / headless BOOT-hold) -> erase creds
+          // -> reboot into the onboarding AP. Main-loop only (handlers just set the flag); NVS/LVGL-safe.
+          if (id(wifi_reset_pending)) {
+            id(wifi_reset_pending) = false;
+            esphome::wifi_reset::forget_wifi_creds();
+            App.safe_reboot();
+          }
+          // AP-state latch: drive ap_setup_shown from is_ap_active() (the display reacts to this) + schedule the
+          // post-onboard reboot on the AP->STA drop. No lv_* -> headless-safe.
+          bool ap = wifi::global_wifi_component->is_ap_active();
+          if (ap && !id(ap_setup_shown)) {
+            id(ap_setup_shown) = true;
+          } else if (!ap && id(ap_setup_shown)) {
+            id(ap_setup_shown) = false;
+            // Onboarding finished (fallback AP dropped because STA connected). Schedule ONE reboot a few seconds out
+            // to reclaim the ~12KB of Wi-Fi buffers the APSTA->STA transition leaves behind (heap ~23KB -> ~35KB).
+            if (wifi::global_wifi_component->is_connected()) {
+              uint32_t due = millis() + 3000;
+              id(post_onboard_reboot_at) = due ? due : 1;   // 0 reserved as the "none" sentinel
+            }
+          }
+          if (id(post_onboard_reboot_at) &&
+              (int32_t)(millis() - id(post_onboard_reboot_at)) >= 0) {
+            id(post_onboard_reboot_at) = 0;
+            global_preferences->sync();   // defensive flush before the deliberate reboot (creds already synced at save)
+            App.safe_reboot();
+          }
+          // Publish demo state to the web (SSE) only on change. demo_mode is a CORE binary_sensor (web/HA consume it)
+          // -> published here so a headless board keeps it fresh.
+          static int8_t demo_pub = -1;
+          int8_t d = id(demo_active) ? 1 : 0;
+          if (d != demo_pub) { demo_pub = d; id(demo_mode).publish_state(d); }
+          // --- Gallery banner-select intent (BOARD-AGNOSTIC half; moved core<-display_tdisplay, fix/headless-custom-
+          //     banner). The httpd gallery handlers set volatile intents (wd::gallery_pending / _fav_pending, incl.
+          //     GalleryCommit's auto-select); applied HERE from the main loop so a HEADLESS board (no display) can
+          //     select + PERSIST custom banners at all — the previous consumer lived only in display_tdisplay. The
+          //     DISPLAY half (esp_partition_mmap + lv_* render + the gallery_active_slot lifecycle) stays in
+          //     display_tdisplay's draw lambda. NO lv_* here; banner_preset/bnr_sel/bnr_fav are core globals (restore).
+          namespace wd = esphome::web_dashboard;
+          {   // (B) select / delete intent (single atomic word -> SINGLE consumer; do not duplicate this in display)
+            int32_t gp = wd::gallery_pending;
+            if (gp != -1) {
+              wd::gallery_pending = -1;
+              int n = gp & 0xFF;
+              if (gp & 0x100) {                     // DELETE slot n — DATA ONLY. The mmap release + gallery_active_slot=-1
+                                                    // stay in display's (D) (it frees mmap_h after reacting to
+                                                    // banner_preset->Battery). gallery_active_slot is the SOLE guard
+                                                    // against erase-under-mmap on the httpd save path -> never clear it here.
+                const esp_partition_t *part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
+                if (part != nullptr && n >= 0 && n < wd::gallery_slot_cap(part)) {
+                  uint32_t zero = 0;   // program word0 -> 0 (NOR 1->0, no erase); slot reads free
+                  esp_partition_write(part, (size_t) n * wd::SLOT_SPAN, &zero, 4);
+                }
+                if (id(bnr_sel) == n) {             // deleted the selection -> fall back to Battery
+                  id(bnr_sel) = -1;
+                  id(banner_preset).make_call().set_option("Battery").perform();
+                }
+              } else {                              // SELECT slot n
+                id(bnr_sel) = n;
+                id(banner_preset).make_call().set_option("Custom").perform();
+              }
+            }
+          }
+          {   // (C) favorite intent (independent word)
+            int32_t fp = wd::gallery_fav_pending;
+            if (fp != -1) {
+              wd::gallery_fav_pending = -1;
+              int fn = fp & 0xFF; bool on = (fp & 0x100) != 0;
+              uint64_t m = (uint64_t) id(bnr_fav);
+              if (fn >= 0 && fn < wd::gallery_slot_cap()) { if (on) m |= (1ULL << fn); else m &= ~(1ULL << fn); }
+              id(bnr_fav) = m;
+            }
+          }
+          // (self-heal, board-agnostic) selection points at a slot no longer used (deleted elsewhere, or a stale
+          // restored bnr_sel) -> reset to Battery so the web hero can't stick on a dead Custom. Coarse word0 check
+          // (gallery_slot_used bounds-checks slot, so bnr_sel=-1 is safe); display keeps its stricter CRC self-heal.
+          if (id(banner_preset).state == "Custom" && !wd::gallery_slot_used(wd::gallery_part(), id(bnr_sel))) {
+            id(bnr_sel) = -1;
+            id(banner_preset).make_call().set_option("Battery").perform();
+          }
+          // (E) publish selection/favorites for GET /gallery (sel = -1 while a baked preset is live).
+          wd::gallery_sel = (id(banner_preset).state == "Custom") ? id(bnr_sel) : -1;
+          wd::gallery_fav = (uint64_t) id(bnr_fav);
+
+globals:
+    # --- Network self-recovery watchdog ------------------------------------
+    # The tcpip/httpd task can wedge under heap starvation while loopTask (and the LCD) stay alive, so the
+    # stock task_watchdog never fires. This watchdog detects sustained heap starvation
+    # from loopTask and reboots (the ONLY reliable clear — wifi-restart/shedding can't un-wedge a deadlocked
+    # tcpip task), with a reboot-loop breaker. RAM-only working state:
+    # Breaker counters live in RTC slow memory (netwatch_rtc.h), NOT NVS globals — see that header for why
+    # (NVS/globals flush can't commit reliably when the tcpip stack is wedged at reboot time). RAM-only here:
+  - id: netwatch_low_since_ms      # millis() when the starve condition began (0 = not starved). RAM only.
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+  - id: netwatch_disabled          # breaker tripped THIS boot -> watchdog inert. Recomputed each boot. RAM only.
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: netwatch_ota_active        # true while an OTA is in progress -> suppress the watchdog. RAM only.
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: last_packet_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+  # Bumped on every Demo<->Live change. The producers' on-change publish guards compare against it
+  # and force a re-publish of their current state/error once after a switch, so a stale value from the
+  # other mode can't survive just because the new mode's first value happens to equal it.
+  - id: mode_epoch
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+  # BLE scan-list accumulator runs only during a short window opened by the pairing "Scan"
+  # button. 0 = closed. Steady state does no per-advertisement scan-table work (CPU/heap/airtime).
+  - id: scan_open_until_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+  # Gallery selection state (persisted). bnr_sel = selected user slot when banner_preset ==
+  # "Custom" (0..9); bnr_fav = favorites bitmask. Mirrored to web_dashboard volatiles each loop for
+  # GET /gallery. Default 0 so the original single banner (slot 0) keeps showing (migration = no-op).
+  - id: bnr_sel
+    type: int
+    restore_value: yes
+    initial_value: "0"
+  - id: bnr_fav
+    type: uint64_t
+    restore_value: yes
+    initial_value: "0"
+  - id: offline_active
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  # Wi-Fi onboarding (B-WiFi): ap_setup_shown tracks whether the branded setup screen is up
+  # (500ms loop loads it while the fallback AP is active). wifi_reset_pending is set by the web
+  # button / TTGO menu and consumed in the 500ms loop -> clear_sta()+reboot into the AP (keeps
+  # the destructive NVS write off the httpd task, per the web/LVGL thread-safety rule).
+  - id: ap_setup_shown
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: wifi_reset_pending
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  # B-WiFi: scheduled reboot (millis deadline) after a successful onboarding, to reclaim the ~12KB of
+  # Wi-Fi driver buffers the APSTA->STA transition leaves behind (heap ~23KB post-AP vs ~35KB fresh).
+  # 0 = none. Set in the 500ms loop when the fallback AP drops because STA connected.
+  - id: post_onboard_reboot_at
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+  - id: status_code
+    type: int
+    restore_value: no
+    initial_value: "-1"
+  - id: status_since_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+  - id: offline_since_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+  # --- Source-abstraction: which producer feeds the canonical sensors ---
+  # keys_configured is driven later by the MAC/bindkey settings; false = no
+  # charger paired yet, so Auto resolves to Demo. demo_active is recomputed every
+  # refresh tick from device_mode + keys_configured and read by the simulator + badge.
+  - id: keys_configured
+    type: bool
+    restore_value: no
+    initial_value: "false"
+  - id: demo_active
+    type: bool
+    restore_value: no
+    initial_value: "true"
+  # Nominal scale (nominal/12) from the charge profile; the demo multiplies its 12V
+  # voltages by this so a 24V profile is testable against the simulator.
+  - id: nominal_scale
+    type: float
+    restore_value: no
+    initial_value: "1.0"
+
+# --- UI refresh: content (250ms) ---------------------------------------------
+
+# --- Boot (board-agnostic; S4b-2b): register the web dashboard (prio 250) + seed keys/demo + hostname +
+# charge-log baseline (prio -100, NO lv_*). The display splash on_boot(-100) is in display_tdisplay. ---
+esphome:
+  on_boot:
+    - priority: 250   # above web_server (WIFI-1) so our "/" dashboard StaticPage wins in STA
+      then:
+        - lambda: 'esphome::web_dashboard::register_dashboard();'
+    - priority: -100
+      then:
+        - lambda: |-
+            id(hostname_info).publish_state(std::string(App.get_name().c_str()) + ".local");
+            // Charger event log baseline (RAM-only; SNTP not valid yet -> epoch 0, "N ago" only).
+            esphome::charge_log::note("Powered on", 0, millis());
+            // Seed the source mode BEFORE the demo simulator's first tick (on_boot runs before any
+            // interval fires). Otherwise the sim can emit a stray "Bulk" frame + last_packet_ms at boot
+            // -> the hero flashes CHARGING and a bogus charge event is logged before Live resolves.
+            // device_mode is always "Auto" here (restore_value:false) so this collapses to
+            // !keys_configured; the full Demo/Live/Auto resolve stays in the content lambda (mirror of
+            // the keys_configured line there).
+            id(keys_configured) = !id(victron_mac).state.empty() && !id(victron_bindkey).state.empty();
+            id(demo_active) = !id(keys_configured);

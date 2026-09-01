@@ -1,0 +1,97 @@
+# =============================================================================
+# presets_tdisplay_extra.yaml — the 9 NON-Battery on-screen baked banner presets (dash + saver, 18 LVGL
+# images). Merged into display_tdisplay's `image:` node. Included ONLY by boards that bake the full
+# gallery (16MB T-Display). A minimal-baked board (4MB T-Display) omits this package + defines
+# WD_BAKE_MINIMAL, so display_tdisplay keeps only Battery and its preset lookup-chains collapse to it.
+# =============================================================================
+image:
+  - file: images/sedan.webp
+    id: preset_sedan_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 112x52
+  - file: images/suv.webp
+    id: preset_suv_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 112x52
+  - file: images/pickup.webp
+    id: preset_pickup_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 112x52
+  - file: images/van.webp
+    id: preset_van_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 112x52
+  - file: images/classic.webp
+    id: preset_classic_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 112x52
+  - file: images/sports.webp
+    id: preset_sports_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 112x52
+  - file: images/quad.webp
+    id: preset_quad_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 112x52
+  - file: images/motorcycle.webp
+    id: preset_motorcycle_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 112x52
+  - file: images/boat.webp
+    id: preset_boat_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 112x52
+  - file: images/sedan.webp
+    id: preset_sedan_saver_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 216x88
+  - file: images/suv.webp
+    id: preset_suv_saver_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 216x88
+  - file: images/pickup.webp
+    id: preset_pickup_saver_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 216x88
+  - file: images/van.webp
+    id: preset_van_saver_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 216x88
+  - file: images/classic.webp
+    id: preset_classic_saver_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 216x88
+  - file: images/sports.webp
+    id: preset_sports_saver_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 216x88
+  - file: images/quad.webp
+    id: preset_quad_saver_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 216x88
+  - file: images/motorcycle.webp
+    id: preset_motorcycle_saver_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 216x88
+  - file: images/boat.webp
+    id: preset_boat_saver_img
+    type: RGB
+    transparency: alpha_channel
+    resize: 216x88

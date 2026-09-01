@@ -1,0 +1,92 @@
+# =============================================================================
+# LIVE PRODUCER — real Victron "Instant Readout" BLE decode.
+# -----------------------------------------------------------------------------
+# Mirror of mock_data.yaml (the Demo producer): feeds the SAME canonical sensor
+# ids (bat_voltage/current/power, charger_temp, device_state_raw, charger_error_raw)
+# but only when NOT in Demo (i.e. Live). Uses Fabian-Schmidt/esphome-victron_ble.
+#
+# Keys: compiled with a PLACEHOLDER mac/bindkey; the real values are applied at
+# runtime from NVS (victron_mac / victron_bindkey) in the main 250ms interval via
+# set_address()/set_bindkey() (keys applied at runtime, no fork). E2E decode verified when the charger
+# arrives; type names/channels may need a tweak then (verify vs the component).
+# =============================================================================
+external_components:
+  - source: github://Fabian-Schmidt/esphome-victron_ble
+    components: [victron_ble]
+
+victron_ble:
+  - id: victron_dev
+    mac_address: "01:02:03:04:05:06"                  # placeholder — set from NVS at runtime
+    bindkey: "0102030405060708090a0b0c0d0e0f10"       # placeholder — set from NVS at runtime
+
+sensor:
+  - platform: victron_ble
+    victron_ble_id: victron_dev
+    type: BATTERY_VOLTAGE
+    id: vb_voltage
+    internal: true
+    on_value:
+      - lambda: |-
+          if (id(demo_active)) return;                // Live only — Demo producer owns these ids
+          id(last_packet_ms) = millis();              // liveness EVERY packet (cheap, no SSE)
+          // The charger advertises several times/s; publishing (=SSE to the single web conn) on every
+          // packet was the real load. Throttle the canonical publish to ~1.5s (values change slowly);
+          // the TTGO reads .state in its 250ms loop regardless, so it stays fresh.
+          static uint32_t t = 0; uint32_t now = millis();
+          if (now - t < 1500) return;
+          t = now;
+          id(bat_voltage).publish_state(x);
+  - platform: victron_ble
+    victron_ble_id: victron_dev
+    type: BATTERY_CURRENT
+    id: vb_current
+    internal: true
+    on_value:
+      - lambda: |-
+          if (id(demo_active)) return;
+          id(last_packet_ms) = millis();
+          static uint32_t t = 0; uint32_t now = millis();
+          if (now - t < 1500) return;                  // throttle publish to ~1.5s (see voltage note)
+          t = now;
+          id(bat_current).publish_state(x);
+          float v = id(bat_voltage).state;             // charger record has no power field -> V*I
+          if (!std::isnan(v)) id(bat_power).publish_state(v * x);
+  - platform: victron_ble
+    victron_ble_id: victron_dev
+    type: TEMPERATURE
+    id: vb_temp
+    internal: true
+    on_value:
+      - lambda: |-
+          if (id(demo_active)) return;
+          id(last_packet_ms) = millis();
+          static uint32_t t = 0; uint32_t now = millis();
+          if (now - t < 5000) return;                  // temp is static (often N/A) -> publish rarely
+          t = now;
+          id(charger_temp).publish_state(x);
+
+text_sensor:
+  - platform: victron_ble
+    victron_ble_id: victron_dev
+    type: DEVICE_STATE
+    id: vb_state
+    internal: true
+    on_value:
+      - lambda: |-
+          if (id(demo_active)) return;
+          id(last_packet_ms) = millis();
+          static std::string last; static uint32_t ep = 0;
+          bool force = (ep != id(mode_epoch)); ep = id(mode_epoch);   // re-publish once after a mode switch
+          if (force || x != last) { id(device_state_raw).publish_state(x); last = x; }  // on change -> state transitions are instant
+  - platform: victron_ble
+    victron_ble_id: victron_dev
+    type: CHARGER_ERROR
+    id: vb_error
+    internal: true
+    on_value:
+      - lambda: |-
+          if (id(demo_active)) return;
+          id(last_packet_ms) = millis();
+          static std::string last; static uint32_t ep = 0;
+          bool force = (ep != id(mode_epoch)); ep = id(mode_epoch);   // re-publish once after a mode switch
+          if (force || x != last) { id(charger_error_raw).publish_state(x); last = x; }  // on change

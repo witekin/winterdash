@@ -1,0 +1,43 @@
+name: Bug report
+description: Something isn't working right
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        <img src="https://raw.githubusercontent.com/witekin/winterdash/main/.github/winterdash-lockup.png" height="40" alt="WinterDash">
+
+        Thanks for the report — it really helps. Fill in what you can.
+        For questions or ideas (not a bug), please use [Discussions](../../discussions) instead.
+  - type: dropdown
+    id: board
+    attributes:
+      label: Board
+      options:
+        - LilyGO TTGO T-Display 16 MB
+        - LilyGO TTGO T-Display 4 MB
+        - Screenless ESP32 (WROOM-32)
+        - Other / not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Firmware version
+      description: Shown on the device's System / About screen.
+      placeholder: "e.g. 0.1-esp32-tdisplay-16mb"
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+  - type: textarea
+    id: charger
+    attributes:
+      label: Charger (only if the issue is about reading a charger)
+      description: Victron model + firmware version.

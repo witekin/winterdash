@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e0f13">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMTAwIiBoZWlnaHQ9IjExMDAiIHZpZXdCb3g9IjAgMCAxMTAwIDExMDAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iV2ludGVyRGFzaCBzbm93Zmxha2UgY2hhcmdpbmcgY2FibGUgbWFyayI+Cgo8ZGVmcz4KICA8bGluZWFyR3JhZGllbnQgaWQ9ImljZSIgeDE9IjAlIiB5MT0iNSUiIHgyPSI5MiUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0N0QzRjUiLz4KICAgIDxzdG9wIG9mZnNldD0iNDIlIiBzdG9wLWNvbG9yPSIjMjJCN0Y1Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjcyJSIgc3RvcC1jb2xvcj0iIzA3OEZGMiIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTY4RUVBIi8+CiAgPC9saW5lYXJHcmFkaWVudD4KICA8bGluZWFyR3JhZGllbnQgaWQ9InBsdWdEYXJrIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMxODM2NTMiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzA3MUMzMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE1Mi4wMCw0OC4wMCkiPgogIDxwYXRoIGQ9Ik0gMzg3IDAgTCAzNzEgMTIgTCAzNjQgMjcgTCAzNjMgMTUzIEwgMzU3IDE1MCBMIDMwNCAxMDQgTCAyOTMgOTcgTCAyNzcgOTUgTCAyNjMgMTAwIEwgMjU0IDEwOSBMIDI0OSAxMjQgTCAyNTEgMTM3IEwgMjYxIDE1MSBMIDM2NCAyMzggTCAzNjQgMzkwIEwgMzU4IDM5OCBMIDM0NyAzOTkgTCAyMjAgMzI0IEwgMjA3IDIwOSBMIDIwNCAxOTkgTCAxOTUgMTg4IEwgMTg2IDE4MyBMIDE3NCAxODEgTCAxNjIgMTg0IEwgMTUzIDE5MCBMIDE0NSAyMDMgTCAxNDQgMjE3IEwgMTUyIDI3NyBMIDE1MSAyODMgTCAxNDggMjgzIEwgNjQgMjMyIEwgNDggMjI0IEwgMzEgMjIzIEwgMTcgMjI5IEwgNiAyNDIgTCAyIDI1NSBMIDIgMjY0IEwgOCAyNzkgTCAxNiAyODcgTCAxMTAgMzQzIEwgMTA5IDM0NiBMIDM5IDM3NyBMIDMxIDM4NCBMIDI2IDM5NCBMIDI2IDQwOCBMIDI5IDQxNiBMIDM4IDQyNiBMIDQ5IDQzMSBMIDY2IDQzMSBMIDE4OSAzODEgTCAxOTMgMzgxIEwgMzEzIDQ1MSBMIDMxOSA0NTggTCAzMTkgNDY2IEwgMzEyIDQ3NSBMIDE4OSA1NDQgTCAxODMgNTQzIEwgNjYgNDk1IEwgNTIgNDk0IEwgNDEgNDk4IEwgMzEgNTA3IEwgMjYgNTE4IEwgMjYgNTMwIEwgMzEgNTQxIEwgNDQgNTUxIEwgMTEwIDU3OSBMIDExMSA1ODMgTCAxNCA2MzcgTCA2IDY0NSBMIDIgNjU0IEwgMCA2NTUgTCAwIDY3MyBMIDIgNjc0IEwgNiA2ODMgTCAxNSA2OTIgTCAyNSA2OTYgTCAzOCA2OTcgTCA1NCA2OTEgTCAxNDEgNjQyIEwgMTQ4IDY0MCBMIDE0OSA2NDQgTCAxMzcgNzAzIEwgMTM4IDcxNSBMIDE0MiA3MjMgTCAxNTAgNzMxIEwgMTYwIDczNSBMIDE3NiA3MzQgTCAxODkgNzI1IEwgMTk2IDcxMyBMIDIxOCA1OTggTCAzNTAgNTIyIEwgMzU3IDUxOSBMIDM2MyA1MjAgTCAzNjYgNTI0IEwgMzY1IDY2NyBMIDM2MCA2OTEgTCAzNTQgNzAxIEwgMzQxIDcxNCBMIDMzMCA3MjEgTCAyNDkgNzYwIEwgMjIwIDc3OCBMIDIwNSA3OTAgTCAxODQgODEzIEwgMTY2IDg0NSBMIDE1OCA4NzggTCAxNTggOTAxIEwgMTYyIDkyNSBMIDE3NCA5NTUgTCAxOTIgOTc3IEwgMjEwIDk5MCBMIDIyMCA5OTUgTCAyNDMgMTAwMSBMIDI0NCAxMDAzIEwgMjgwIDEwMDMgTCAyODEgMTAwMSBMIDI5OSA5OTggTCAzMjcgOTg3IEwgMzY3IDk2MiBMIDQwOCA5MzIgTCA0MzAgOTIwIEwgNDQ3IDkxNSBMIDQ1MCA5MTkgTCA0NjAgOTI1IEwgNDkxIDkzNSBMIDUxNyA5NTkgTCA1NTAgOTc4IEwgNTg5IDk5MyBMIDYxNCA5OTkgTCA2MjkgOTk5IEwgNjQ0IDk5MiBMIDY2MyA5NzkgTCA2ODIgOTYzIEwgNjk2IDk0OCBMIDcwOSA5MzAgTCA3MTQgOTIwIEwgNzIyIDg5MSBMIDcyMiA4NzAgTCA3MTggODYwIEwgNzEzIDg1NCBMIDY5NiA4NDUgTCA2NjEgODMzIEwgNjUzIDgyNSBMIDU4OCA4MTMgTCA1NTIgODExIEwgNTM3IDgxNSBMIDUyMyA4MjIgTCA0OTAgODMwIEwgNDU3IDg0NSBMIDQ1MCA4NTMgTCA0NDUgODY0IEwgNDIyIDg2OSBMIDM5OCA4NzkgTCAzNjYgODk5IEwgMzQ0IDkxNiBMIDMxMCA5MzggTCAyNzkgOTUwIEwgMjUxIDk1MSBMIDIzMCA5NDMgTCAyMTYgOTI4IEwgMjA5IDkxMSBMIDIwOCA4ODUgTCAyMTEgODczIEwgMjIxIDg1MyBMIDIzOCA4MzQgTCAyNTUgODIxIEwgMjg3IDgwNCBMIDM0NyA3ODEgTCAzNzcgNzY1IEwgMzkyIDc1NCBMIDQwNyA3MzkgTCA0MTcgNzI1IEwgNDI5IDY5NyBMIDQzMyA2NzQgTCA0MzMgNTIzIEwgNDM3IDUyMCBMIDQ0MyA1MjAgTCA1NzcgNTk3IEwgNTk2IDcxMiBMIDYwMyA3MjUgTCA2MTYgNzM0IEwgNjM0IDczNSBMIDY0MyA3MzEgTCA2NTIgNzIyIEwgNjU2IDcxMiBMIDY1NiA3MDEgTCA2NDYgNjQ3IEwgNjQ3IDY0MCBMIDY2NiA2NDkgTCA3NDMgNjkzIEwgNzU1IDY5NyBMIDc2NiA2OTcgTCA3NzkgNjkyIEwgNzg5IDY4MyBMIDc5MyA2NzMgTCA3OTUgNjcyIEwgNzk1IDY1NSBMIDc5MyA2NTQgTCA3OTAgNjQ2IEwgNzgxIDYzNyBMIDY4NSA1ODMgTCA2ODYgNTc5IEwgNzQ5IDU1MiBMIDc2MyA1NDMgTCA3NjkgNTMyIEwgNzcwIDUyMSBMIDc2NSA1MDggTCA3NTYgNDk5IEwgNzQyIDQ5NCBMIDcyOSA0OTUgTCA2MTEgNTQ0IEwgNjA2IDU0NCBMIDQ4MyA0NzQgTCA0NzggNDY3IEwgNDc4IDQ1OCBMIDQ4NCA0NTEgTCA2MDQgMzgxIEwgNjA4IDM4MSBMIDczMCA0MzEgTCA3NDEgNDMyIEwgNzUwIDQzMCBMIDc1NyA0MjYgTCA3NjYgNDE2IEwgNzcwIDQwNCBMIDc2OSAzOTMgTCA3NjMgMzgyIEwgNzUzIDM3NSBMIDY4NiAzNDYgTCA2ODUgMzQzIEwgNzc1IDI5MCBMIDc4NiAyODEgTCA3OTIgMjcxIEwgNzkzIDI2NSBMIDc5NSAyNjQgTCA3OTUgMjUzIEwgNzkzIDI1MiBMIDc4OCAyMzggTCA3NzggMjI4IEwgNzY1IDIyMyBMIDc1MSAyMjMgTCA3NDAgMjI3IEwgNjUwIDI4MiBMIDY0NSAyODMgTCA2NDQgMjc1IEwgNjUyIDIxOSBMIDY1MSAyMDIgTCA2NDcgMTk0IEwgNjQxIDE4OCBMIDYzMiAxODMgTCA2MjQgMTgxIEwgNjEwIDE4MyBMIDU5NyAxOTIgTCA1OTAgMjA1IEwgNTc2IDMyNCBMIDQ1MiAzOTggTCA0MzkgMzk4IEwgNDMzIDM5MCBMIDQzMyAyMzcgTCA1MTggMTY2IEwgNTQyIDE0NCBMIDU0NyAxMzMgTCA1NDcgMTE5IEwgNTQzIDEwOSBMIDUzNCAxMDAgTCA1MjEgOTUgTCA1MDcgOTYgTCA0OTggMTAwIEwgNDQxIDE0OSBMIDQzNCAxNTMgTCA0MzMgMjcgTCA0MjQgMTAgTCA0MTAgMCBaIiBmaWxsPSJ1cmwoI2ljZSkiLz4KICA8cGF0aCBkPSJNIDcwNCA4NjAgTCA2NTUgODQ2IEwgNjMyIDg0NyBMIDYyMyA4NTEgTCA2MTcgODU3IEwgNjExIDg2OCBMIDYwMSA4OTcgTCA1OTggOTExIEwgNTk4IDkyNSBMIDYwNyA5NjMgTCA2MTMgOTc3IEwgNjIwIDk4NCBMIDYyNSA5ODYgTCA2MzMgOTg2IEwgNjQ2IDk4MCBMIDY3NiA5NTcgTCA2OTggOTMyIEwgNzEwIDkwOSBMIDcxNCA4OTAgTCA3MTQgODczIEwgNzEwIDg2NSBaIiBmaWxsPSJ1cmwoI3BsdWdEYXJrKSIgb3BhY2l0eT0iMSIvPgo8cGF0aCBkPSJNIDUwOCA4ODIgTCA1MDQgODkyIEwgNTA2IDkxNyBMIDUxMSA5MzggTCA1MjIgOTYwIEwgNTIwIDk2MSBMIDUxNiA5NTggTCA1MTcgOTU2IEwgNTE2IDk1OCBMIDUxMiA5NTUgTCA1MjggOTY2IEwgNTU0IDk4MCBMIDU5MSA5OTMgTCA1ODAgOTg1IEwgNTgxIDk4MyBMIDU4MyA5ODUgTCA1ODAgOTc4IEwgNTc4IDk4MSBMIDU3MyA5NzIgTCA1NjAgOTE1IEwgNTU1IDkwMCBMIDU0OCA4OTMgTCA1MTYgODgxIFoiIGZpbGw9IiMxNzM2NTMiIG9wYWNpdHk9IjAuOTUiLz4KPHBhdGggZD0iTSA1MjIgODIyIEwgNTEwIDgyNCBMIDQ3OSA4MzQgTCA0NjIgODQyIEwgNDUyIDg1MCBMIDQ0NSA4NjYgTCA0NDIgODg3IEwgNDQzIDkwNSBMIDQ1MSA5MjAgTCA0NjAgOTI1IEwgNDkzIDkzNyBMIDQ4NiA5MjEgTCA0ODQgOTA2IEwgNDg1IDg4NyBMIDQ4OCA4NzIgTCA0OTUgODUzIEwgNTA0IDgzOCBaIiBmaWxsPSIjMjc0NzYyIiBvcGFjaXR5PSIwLjkiLz4KCiAgPGNpcmNsZSBjeD0iNjQ4LjAzIiBjeT0iODc2LjM0IiByPSIxMC4wMCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2ODUuNzEiIGN5PSI4ODUuODMiIHI9IjkuMzciIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iI0Q4REVFNSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPGNpcmNsZSBjeD0iNjIzLjU0IiBjeT0iOTExLjc1IiByPSIxMC40OSIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2NjIuMzIiIGN5PSI5MTcuMTAiIHI9IjEwLjE2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNEOERFRTUiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxjaXJjbGUgY3g9IjYzNC45OCIgY3k9Ijk1MC40NyIgcj0iOS44MiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8L2c+Cjwvc3ZnPgo=">
+<title>WinterDash Banner Converter</title>
+<style>
+  :root{
+    --bg:#0e0f13; --panel:#16181d; --panel2:#1c1f26; --line:#2a2e36;
+    --text:#e8e8e8; --muted:#8b9099; --faint:#5c626c; --blue:#38bdf8; --green:#3ddc84; --amber:#f5b942; --red:#ef5350;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased;padding:22px 16px 60px;display:flex;justify-content:center}
+  .app{width:100%;max-width:720px;display:flex;flex-direction:column;gap:18px}
+  .back{align-self:flex-start;color:var(--muted);text-decoration:none;font-size:13px;font-weight:600;
+        border:1px solid var(--line);border-radius:8px;padding:6px 12px;margin-bottom:-8px}
+  .back:hover{color:var(--text);border-color:var(--muted)}
+  h1{font-size:20px;font-weight:800;margin:0;letter-spacing:.01em}
+  .apphead{display:flex;flex-direction:column;gap:5px;margin:0}
+  .apphead h1{display:flex;align-items:center;gap:10px;font-size:25px;font-weight:800;margin:0;letter-spacing:.01em}
+  .apphead h1 .mark{height:1.15em;width:auto}
+  .wm{font-weight:800;letter-spacing:.01em}
+  .wm .w1{color:#eaf4ff}
+  .wm .w2{color:var(--blue)}
+  .toolname{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-left:2px}
+  .sub{color:var(--muted);font-size:13px;margin-top:-10px;line-height:1.5}
+  .sub code{background:var(--panel2);padding:1px 5px;border-radius:4px;font-size:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .card h2{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 12px}
+
+  /* ---- single WYSIWYG surface = the device dashboard banner (dark); subject composed on top ---- */
+  .stage{position:relative;width:100%;aspect-ratio:240/58;border-radius:10px;overflow:hidden;
+         border:1px solid var(--line);background:linear-gradient(180deg,#1c1f26,#101217)}  /* transparent (bg removed) shows this through, exactly like the device */
+  #view{position:absolute;inset:0;width:100%;height:100%;image-rendering:auto}              /* backing store is 3× the frame → crisp at any zoom */
+  .chrome{position:absolute;inset:0;pointer-events:none;font-family:var(--sans)}
+  .cluster{position:absolute;top:6%;right:2.5%;display:flex;align-items:center;gap:7px}
+  .cluster svg{width:min(3.2vw,22px);height:min(3.2vw,22px);display:block}
+  .cluster .clk{color:#c4c8cf;font-weight:700;font-size:min(3.4vw,22px);letter-spacing:.02em}
+  .status{position:absolute;left:50%;bottom:12%;display:flex;align-items:center;gap:min(1.2vw,8px)}  /* device status_cluster x120 = 50% */
+  .status svg{width:min(4.6vw,32px);height:min(4.6vw,32px);color:var(--amber)}
+  .status .w{color:var(--amber);font-weight:800;font-size:min(4.6vw,32px);letter-spacing:.02em}
+  .safe{position:absolute;top:0;bottom:0;left:0;width:50%;border-right:1px dashed rgba(56,189,248,.35)}
+  .safe span{position:absolute;left:5px;top:3px;font-size:min(1.7vw,11px);font-weight:600;color:rgba(56,189,248,.55)}
+  .ring{position:absolute;border:1px solid rgba(255,255,255,.9);border-radius:50%;pointer-events:none;
+        display:none;transform:translate(-50%,-50%);box-shadow:0 0 0 1px rgba(0,0,0,.6),inset 0 0 0 1px rgba(0,0,0,.4)}
+  .stage{cursor:pointer}
+  .stage.hasimg{cursor:grab}
+  .stage.erase{cursor:none}
+  .stage.over{outline:2px solid var(--blue);outline-offset:-2px}
+  /* prompt/work-area only over the left safe area (not the status zone) */
+  .prompt{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+          background:rgba(14,15,19,.55);color:var(--muted);font-size:min(2.2vw,14px);text-align:center;pointer-events:none;padding:0 8px}
+  .prompt b{color:var(--blue)}
+  .prompt .fn{font-size:min(2vw,12px);color:var(--faint)}
+  .linkb{background:none;border:0;color:var(--blue);font:inherit;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
+
+  /* ---- dropzone ---- */
+  .drop{border:1.5px dashed var(--line);border-radius:12px;padding:22px 16px;text-align:center;
+        color:var(--muted);cursor:pointer;transition:border-color .15s,background .15s;user-select:none}
+  .drop:hover{border-color:var(--muted)}
+  .drop.over{border-color:var(--blue);background:rgba(56,189,248,.07);color:var(--text)}
+  .drop b{color:var(--blue)}
+  .drop .fn{display:block;margin-top:6px;font-size:12.5px;color:var(--faint)}
+  .drop.bad{border-color:var(--red);color:var(--red)}
+
+  .hint{color:var(--faint);font-size:12px;margin-top:10px;line-height:1.5}
+  .row{display:flex;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+  .row label{font-size:13px;color:var(--muted);min-width:74px}
+  input[type=range]{flex:1;min-width:120px;accent-color:var(--blue)}
+  input[type=text],select{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+       color:var(--text);font:inherit;font-size:14px;padding:7px 10px}
+  input[type=text]{flex:1;min-width:120px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{background:transparent;border:0;color:var(--muted);font:inherit;font-size:13px;font-weight:600;padding:6px 12px;cursor:pointer}
+  .seg button+button{border-left:1px solid var(--line)}
+  .seg button.on{background:var(--blue);color:#04121c}
+  .val{font-size:13px;color:var(--text);font-weight:600;font-variant-numeric:tabular-nums;min-width:48px;text-align:right}
+  /* two-column slider grid (compact) */
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:11px 22px;margin-top:14px}
+  .sl{display:flex;align-items:center;gap:9px}
+  .sl .lab{font-size:13px;color:var(--muted);min-width:58px;white-space:nowrap}
+  .sl input[type=range]{flex:1;min-width:60px;accent-color:var(--blue)}
+  @media(max-width:560px){.grid2{grid-template-columns:1fr}}
+  /* erase toolbar under the preview */
+  .etool{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+  .etool .lab{min-width:0;color:var(--muted);font-size:13px}
+  .sl2{display:flex;align-items:center;gap:7px;flex:1;min-width:150px}
+  .sl2 input[type=range]{flex:1;min-width:60px;accent-color:var(--blue)}
+  .sl2 .val{min-width:40px}
+  .chk{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);cursor:pointer}
+  .chk input{accent-color:var(--blue);width:16px;height:16px}
+  .btnrow{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .btn{background:var(--blue);color:#04121c;border:0;border-radius:9px;font:inherit;font-weight:700;font-size:14px;padding:10px 20px;cursor:pointer}
+  .btn:disabled{background:var(--panel2);color:var(--faint);cursor:default}
+  .ghost{background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:9px;font:inherit;font-weight:600;font-size:13px;padding:8px 14px;cursor:pointer}
+  .meta{color:var(--faint);font-size:12.5px;font-variant-numeric:tabular-nums}
+  .meta b{color:var(--muted);font-weight:600}
+  .foot{color:var(--faint);font-size:11.5px;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="app">
+  <a class="back" href="/">← Back to dashboard</a>
+  <div class="apphead">
+    <h1><img class="mark" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMTAwIiBoZWlnaHQ9IjExMDAiIHZpZXdCb3g9IjAgMCAxMTAwIDExMDAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iV2ludGVyRGFzaCBzbm93Zmxha2UgY2hhcmdpbmcgY2FibGUgbWFyayI+Cgo8ZGVmcz4KICA8bGluZWFyR3JhZGllbnQgaWQ9ImljZSIgeDE9IjAlIiB5MT0iNSUiIHgyPSI5MiUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0N0QzRjUiLz4KICAgIDxzdG9wIG9mZnNldD0iNDIlIiBzdG9wLWNvbG9yPSIjMjJCN0Y1Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjcyJSIgc3RvcC1jb2xvcj0iIzA3OEZGMiIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTY4RUVBIi8+CiAgPC9saW5lYXJHcmFkaWVudD4KICA8bGluZWFyR3JhZGllbnQgaWQ9InBsdWdEYXJrIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMxODM2NTMiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzA3MUMzMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE1Mi4wMCw0OC4wMCkiPgogIDxwYXRoIGQ9Ik0gMzg3IDAgTCAzNzEgMTIgTCAzNjQgMjcgTCAzNjMgMTUzIEwgMzU3IDE1MCBMIDMwNCAxMDQgTCAyOTMgOTcgTCAyNzcgOTUgTCAyNjMgMTAwIEwgMjU0IDEwOSBMIDI0OSAxMjQgTCAyNTEgMTM3IEwgMjYxIDE1MSBMIDM2NCAyMzggTCAzNjQgMzkwIEwgMzU4IDM5OCBMIDM0NyAzOTkgTCAyMjAgMzI0IEwgMjA3IDIwOSBMIDIwNCAxOTkgTCAxOTUgMTg4IEwgMTg2IDE4MyBMIDE3NCAxODEgTCAxNjIgMTg0IEwgMTUzIDE5MCBMIDE0NSAyMDMgTCAxNDQgMjE3IEwgMTUyIDI3NyBMIDE1MSAyODMgTCAxNDggMjgzIEwgNjQgMjMyIEwgNDggMjI0IEwgMzEgMjIzIEwgMTcgMjI5IEwgNiAyNDIgTCAyIDI1NSBMIDIgMjY0IEwgOCAyNzkgTCAxNiAyODcgTCAxMTAgMzQzIEwgMTA5IDM0NiBMIDM5IDM3NyBMIDMxIDM4NCBMIDI2IDM5NCBMIDI2IDQwOCBMIDI5IDQxNiBMIDM4IDQyNiBMIDQ5IDQzMSBMIDY2IDQzMSBMIDE4OSAzODEgTCAxOTMgMzgxIEwgMzEzIDQ1MSBMIDMxOSA0NTggTCAzMTkgNDY2IEwgMzEyIDQ3NSBMIDE4OSA1NDQgTCAxODMgNTQzIEwgNjYgNDk1IEwgNTIgNDk0IEwgNDEgNDk4IEwgMzEgNTA3IEwgMjYgNTE4IEwgMjYgNTMwIEwgMzEgNTQxIEwgNDQgNTUxIEwgMTEwIDU3OSBMIDExMSA1ODMgTCAxNCA2MzcgTCA2IDY0NSBMIDIgNjU0IEwgMCA2NTUgTCAwIDY3MyBMIDIgNjc0IEwgNiA2ODMgTCAxNSA2OTIgTCAyNSA2OTYgTCAzOCA2OTcgTCA1NCA2OTEgTCAxNDEgNjQyIEwgMTQ4IDY0MCBMIDE0OSA2NDQgTCAxMzcgNzAzIEwgMTM4IDcxNSBMIDE0MiA3MjMgTCAxNTAgNzMxIEwgMTYwIDczNSBMIDE3NiA3MzQgTCAxODkgNzI1IEwgMTk2IDcxMyBMIDIxOCA1OTggTCAzNTAgNTIyIEwgMzU3IDUxOSBMIDM2MyA1MjAgTCAzNjYgNTI0IEwgMzY1IDY2NyBMIDM2MCA2OTEgTCAzNTQgNzAxIEwgMzQxIDcxNCBMIDMzMCA3MjEgTCAyNDkgNzYwIEwgMjIwIDc3OCBMIDIwNSA3OTAgTCAxODQgODEzIEwgMTY2IDg0NSBMIDE1OCA4NzggTCAxNTggOTAxIEwgMTYyIDkyNSBMIDE3NCA5NTUgTCAxOTIgOTc3IEwgMjEwIDk5MCBMIDIyMCA5OTUgTCAyNDMgMTAwMSBMIDI0NCAxMDAzIEwgMjgwIDEwMDMgTCAyODEgMTAwMSBMIDI5OSA5OTggTCAzMjcgOTg3IEwgMzY3IDk2MiBMIDQwOCA5MzIgTCA0MzAgOTIwIEwgNDQ3IDkxNSBMIDQ1MCA5MTkgTCA0NjAgOTI1IEwgNDkxIDkzNSBMIDUxNyA5NTkgTCA1NTAgOTc4IEwgNTg5IDk5MyBMIDYxNCA5OTkgTCA2MjkgOTk5IEwgNjQ0IDk5MiBMIDY2MyA5NzkgTCA2ODIgOTYzIEwgNjk2IDk0OCBMIDcwOSA5MzAgTCA3MTQgOTIwIEwgNzIyIDg5MSBMIDcyMiA4NzAgTCA3MTggODYwIEwgNzEzIDg1NCBMIDY5NiA4NDUgTCA2NjEgODMzIEwgNjUzIDgyNSBMIDU4OCA4MTMgTCA1NTIgODExIEwgNTM3IDgxNSBMIDUyMyA4MjIgTCA0OTAgODMwIEwgNDU3IDg0NSBMIDQ1MCA4NTMgTCA0NDUgODY0IEwgNDIyIDg2OSBMIDM5OCA4NzkgTCAzNjYgODk5IEwgMzQ0IDkxNiBMIDMxMCA5MzggTCAyNzkgOTUwIEwgMjUxIDk1MSBMIDIzMCA5NDMgTCAyMTYgOTI4IEwgMjA5IDkxMSBMIDIwOCA4ODUgTCAyMTEgODczIEwgMjIxIDg1MyBMIDIzOCA4MzQgTCAyNTUgODIxIEwgMjg3IDgwNCBMIDM0NyA3ODEgTCAzNzcgNzY1IEwgMzkyIDc1NCBMIDQwNyA3MzkgTCA0MTcgNzI1IEwgNDI5IDY5NyBMIDQzMyA2NzQgTCA0MzMgNTIzIEwgNDM3IDUyMCBMIDQ0MyA1MjAgTCA1NzcgNTk3IEwgNTk2IDcxMiBMIDYwMyA3MjUgTCA2MTYgNzM0IEwgNjM0IDczNSBMIDY0MyA3MzEgTCA2NTIgNzIyIEwgNjU2IDcxMiBMIDY1NiA3MDEgTCA2NDYgNjQ3IEwgNjQ3IDY0MCBMIDY2NiA2NDkgTCA3NDMgNjkzIEwgNzU1IDY5NyBMIDc2NiA2OTcgTCA3NzkgNjkyIEwgNzg5IDY4MyBMIDc5MyA2NzMgTCA3OTUgNjcyIEwgNzk1IDY1NSBMIDc5MyA2NTQgTCA3OTAgNjQ2IEwgNzgxIDYzNyBMIDY4NSA1ODMgTCA2ODYgNTc5IEwgNzQ5IDU1MiBMIDc2MyA1NDMgTCA3NjkgNTMyIEwgNzcwIDUyMSBMIDc2NSA1MDggTCA3NTYgNDk5IEwgNzQyIDQ5NCBMIDcyOSA0OTUgTCA2MTEgNTQ0IEwgNjA2IDU0NCBMIDQ4MyA0NzQgTCA0NzggNDY3IEwgNDc4IDQ1OCBMIDQ4NCA0NTEgTCA2MDQgMzgxIEwgNjA4IDM4MSBMIDczMCA0MzEgTCA3NDEgNDMyIEwgNzUwIDQzMCBMIDc1NyA0MjYgTCA3NjYgNDE2IEwgNzcwIDQwNCBMIDc2OSAzOTMgTCA3NjMgMzgyIEwgNzUzIDM3NSBMIDY4NiAzNDYgTCA2ODUgMzQzIEwgNzc1IDI5MCBMIDc4NiAyODEgTCA3OTIgMjcxIEwgNzkzIDI2NSBMIDc5NSAyNjQgTCA3OTUgMjUzIEwgNzkzIDI1MiBMIDc4OCAyMzggTCA3NzggMjI4IEwgNzY1IDIyMyBMIDc1MSAyMjMgTCA3NDAgMjI3IEwgNjUwIDI4MiBMIDY0NSAyODMgTCA2NDQgMjc1IEwgNjUyIDIxOSBMIDY1MSAyMDIgTCA2NDcgMTk0IEwgNjQxIDE4OCBMIDYzMiAxODMgTCA2MjQgMTgxIEwgNjEwIDE4MyBMIDU5NyAxOTIgTCA1OTAgMjA1IEwgNTc2IDMyNCBMIDQ1MiAzOTggTCA0MzkgMzk4IEwgNDMzIDM5MCBMIDQzMyAyMzcgTCA1MTggMTY2IEwgNTQyIDE0NCBMIDU0NyAxMzMgTCA1NDcgMTE5IEwgNTQzIDEwOSBMIDUzNCAxMDAgTCA1MjEgOTUgTCA1MDcgOTYgTCA0OTggMTAwIEwgNDQxIDE0OSBMIDQzNCAxNTMgTCA0MzMgMjcgTCA0MjQgMTAgTCA0MTAgMCBaIiBmaWxsPSJ1cmwoI2ljZSkiLz4KICA8cGF0aCBkPSJNIDcwNCA4NjAgTCA2NTUgODQ2IEwgNjMyIDg0NyBMIDYyMyA4NTEgTCA2MTcgODU3IEwgNjExIDg2OCBMIDYwMSA4OTcgTCA1OTggOTExIEwgNTk4IDkyNSBMIDYwNyA5NjMgTCA2MTMgOTc3IEwgNjIwIDk4NCBMIDYyNSA5ODYgTCA2MzMgOTg2IEwgNjQ2IDk4MCBMIDY3NiA5NTcgTCA2OTggOTMyIEwgNzEwIDkwOSBMIDcxNCA4OTAgTCA3MTQgODczIEwgNzEwIDg2NSBaIiBmaWxsPSJ1cmwoI3BsdWdEYXJrKSIgb3BhY2l0eT0iMSIvPgo8cGF0aCBkPSJNIDUwOCA4ODIgTCA1MDQgODkyIEwgNTA2IDkxNyBMIDUxMSA5MzggTCA1MjIgOTYwIEwgNTIwIDk2MSBMIDUxNiA5NTggTCA1MTcgOTU2IEwgNTE2IDk1OCBMIDUxMiA5NTUgTCA1MjggOTY2IEwgNTU0IDk4MCBMIDU5MSA5OTMgTCA1ODAgOTg1IEwgNTgxIDk4MyBMIDU4MyA5ODUgTCA1ODAgOTc4IEwgNTc4IDk4MSBMIDU3MyA5NzIgTCA1NjAgOTE1IEwgNTU1IDkwMCBMIDU0OCA4OTMgTCA1MTYgODgxIFoiIGZpbGw9IiMxNzM2NTMiIG9wYWNpdHk9IjAuOTUiLz4KPHBhdGggZD0iTSA1MjIgODIyIEwgNTEwIDgyNCBMIDQ3OSA4MzQgTCA0NjIgODQyIEwgNDUyIDg1MCBMIDQ0NSA4NjYgTCA0NDIgODg3IEwgNDQzIDkwNSBMIDQ1MSA5MjAgTCA0NjAgOTI1IEwgNDkzIDkzNyBMIDQ4NiA5MjEgTCA0ODQgOTA2IEwgNDg1IDg4NyBMIDQ4OCA4NzIgTCA0OTUgODUzIEwgNTA0IDgzOCBaIiBmaWxsPSIjMjc0NzYyIiBvcGFjaXR5PSIwLjkiLz4KCiAgPGNpcmNsZSBjeD0iNjQ4LjAzIiBjeT0iODc2LjM0IiByPSIxMC4wMCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2ODUuNzEiIGN5PSI4ODUuODMiIHI9IjkuMzciIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iI0Q4REVFNSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPGNpcmNsZSBjeD0iNjIzLjU0IiBjeT0iOTExLjc1IiByPSIxMC40OSIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2NjIuMzIiIGN5PSI5MTcuMTAiIHI9IjEwLjE2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNEOERFRTUiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxjaXJjbGUgY3g9IjYzNC45OCIgY3k9Ijk1MC40NyIgcj0iOS44MiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8L2c+Cjwvc3ZnPgo=" alt=""><span class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></span></h1>
+    <div class="toolname">Banner Converter</div>
+  </div>
+  <div class="sub">Turn a photo into a device banner. <b>Drop an image, remove the background</b>, and
+    it's saved as a clean <b>cut-out</b>. The preview mocks the <b>device dashboard</b> so you see
+    exactly how it lands — WinterDash sizes + places it for you (dashboard + screensaver).</div>
+
+  <div class="card">
+    <h2>1 · Image</h2>
+    <!-- SINGLE WYSIWYG surface = the device dashboard banner. Compose + erase HERE; what you see is
+ what gets processed. Transparent (background removed) shows the dark dashboard through, exactly
+ like the device. Autocrop happens only at save. -->
+    <div class="stage" id="stage">
+      <canvas id="view"></canvas>
+      <div class="chrome">
+        <div class="safe"><span>car field</span></div>
+        <div class="cluster">
+          <svg viewBox="0 0 24 24" fill="#38bdf8"><path d="M14.88,16.29L13,18.17V14.41M13,5.83L14.88,7.71L13,9.58M17.71,7.71L12,2H11V9.58L6.41,5L5,6.41L10.59,12L5,17.58L6.41,19L11,14.41V22H12L17.71,16.29L13.41,12L17.71,7.71Z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#3ddc84"><path d="M12,3C7.79,3 3.7,4.41 0.38,7C4.41,12.06 7.89,16.37 12,21.5C16.08,16.42 20.24,11.24 23.65,7C20.32,4.41 16.22,3 12,3Z"/></svg>
+          <span class="clk">09:25</span>
+        </div>
+        <div class="status">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7,2V13H10V22L17,10H13L17,2H7Z"/></svg>
+          <span class="w">CHARGING</span>
+        </div>
+      </div>
+      <div class="ring" id="ring"></div>
+      <div class="prompt" id="prompt"><span><b>Drag &amp; drop</b> an image, or <b>click</b> to choose</span><span class="fn">PNG · JPG · WebP</span></div>
+    </div>
+    <div class="hint" style="margin-top:8px">This is the <b>device dashboard</b>. Compose the subject in the <b>car field</b> (left half). In <b>View</b> drag to reposition; zoom with <b>Scale</b> to crop a detail (frame edges clip). <b>Remove background</b> and the dashboard shows through — just like the device, which then trims + sizes it for you.</div>
+    <input type="file" id="file" accept="image/png,image/jpeg,image/webp" hidden>
+    <div class="hint" id="hint"><span id="fn">Drop or click the banner to add an image.</span> <button class="linkb" id="replace" hidden>Replace image</button></div>
+    <!-- background removal (magenta key lives here — it's a bg tool, not an adjustment) -->
+    <div class="etool">
+      <button class="btn" id="rmbg" style="padding:8px 14px;font-size:13px">Remove background</button>
+      <span class="sl2"><span class="lab">Tolerance</span><input type="range" id="tol" min="5" max="140" value="45"><span class="val" id="tolV">45</span></span>
+      <button class="ghost" id="resetbg">Reset</button>
+      <label class="chk"><input type="checkbox" id="chroma"> magenta</label>
+    </div>
+    <div class="hint">One tap removes a fairly even background (sampled from the corners) — raise/lower <b>Tolerance</b> to taste. Already have a transparent PNG? Skip it. <b>magenta</b> keys out a magenta studio backdrop. Then tidy with <b>Erase</b>.</div>
+    <div class="etool">
+      <span class="lab">Edit</span>
+      <div class="seg" id="mode"><button data-v="move" class="on">View</button><button data-v="erase">Erase</button></div>
+      <span class="sl2"><span class="lab">Brush</span><input type="range" id="brush" min="4" max="60" value="20"><span class="val" id="brushV">20</span></span>
+      <span class="sl2"><span class="lab">Soft</span><input type="range" id="soft" min="0" max="100" value="60"><span class="val" id="softV">60%</span></span>
+      <button class="ghost" id="clearErase">Clear</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>2 · Adjust</h2>
+    <div class="row"><label>Scale</label><input type="range" id="scale" min="20" max="700" value="100"><span class="val" id="scaleV">100%</span>
+      <button class="ghost" id="reset" style="margin-left:auto">Reset</button></div>
+    <div class="grid2">
+      <div class="sl"><span class="lab">Offset X</span><input type="range" id="offx" min="-140" max="140" value="0"><span class="val" id="offxV">0</span></div>
+      <div class="sl"><span class="lab">Offset Y</span><input type="range" id="offy" min="-60" max="60" value="0"><span class="val" id="offyV">0</span></div>
+      <div class="sl"><span class="lab">Rotate</span><input type="range" id="rot" min="-45" max="45" value="0"><span class="val" id="rotV">0°</span></div>
+      <div class="sl"><span class="lab">Tilt</span><input type="range" id="tilt" min="-50" max="50" value="0"><span class="val" id="tiltV">0</span></div>
+    </div>
+    <div class="hint">Scale/position/rotate/tilt inside the crop frame (or drag on the crop above). Zoom past 100% to crop a detail — the frame clips. Clean cut-out or cropped rectangle: WinterDash autocrops + sizes it.</div>
+    <div class="etool">
+      <span class="lab">Underglow</span>
+      <span class="sl2"><span class="lab">Glow</span><input type="range" id="glow" min="0" max="100" value="0"><span class="val" id="glowV">0%</span></span>
+      <span class="sl2"><span class="lab">Rim</span><input type="range" id="gspread" min="10" max="100" value="40"><span class="val" id="gspreadV">40</span></span>
+      <label class="chk"><input type="checkbox" id="gauto" checked> auto colour</label>
+      <input type="color" id="gcol" value="#38bdf8" disabled style="width:40px;height:30px;padding:2px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;cursor:pointer">
+    </div>
+    <div class="hint">A thin <b>rim</b> that lifts a dark subject off the dark dashboard, <b>baked into the banner</b> — subtle separation, not a big halo, so the vehicle stays full-size. <b>auto colour</b> takes a brightened tint of the subject; uncheck to pick your own. <b>Rim</b> sets its thickness.</div>
+  </div>
+
+  <div class="card">
+    <h2>3 · Metadata</h2>
+    <div class="row"><label>Name</label><input type="text" id="name" maxlength="31" placeholder="e.g. My Car"></div>
+    <div class="row"><label>Category</label>
+      <select id="cat"><option value="1">Car</option><option value="2">Motorcycle</option><option value="3">Boat</option><option value="4">Battery</option><option value="0">Other</option></select>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="btnrow">
+      <button class="btn" id="save" disabled>Save to gallery</button>
+      <button class="btn" id="dl" disabled>Download WebP</button>
+      <a class="ghost" href="/" style="text-decoration:none">← Back to dashboard</a>
+      <span class="meta" id="meta"></span>
+    </div>
+    <div class="hint" id="cutNote" style="display:none;color:var(--amber);margin-top:8px"></div>
+    <div class="hint" style="margin-top:12px"><b>Save to gallery</b> adds the banner to WinterDash and switches to it (works when this page is opened from the device, e.g. <code>winterdash-a1b2c3.local/convert</code>). <b>Download WebP</b> saves a portable image you can re-drop here later or use on another device. The device blob is generated automatically.</div>
+  </div>
+
+  <div class="foot">WinterDash · banner blob v2 (WDB1 · CRC32) · independent open-source, not affiliated with Victron Energy.</div>
+</div>
+
+<script>
+  const W=240, H=58, DEG=Math.PI/180;   // WxH = the working frame; output is autocropped, device places it
+  const $=id=>document.getElementById(id);
+  const PV=3;                                    // preview supersample: backing store = 3× the frame → crisp when CSS-upscaled (fixes soft/blocky zoom)
+  const view=$('view'), vctx=view.getContext('2d'), stage=$('stage'), ring=$('ring');
+  view.width=W*PV; view.height=H*PV;             // high-DPI preview; CSS still lays it out at the frame's aspect
+  const off=document.createElement('canvas'); off.width=W; off.height=H; const octx=off.getContext('2d'); // 1× frame — feeds the cut-out guard + autocrop/export
+  const el=document.createElement('canvas'); el.width=W; el.height=H; const ectx=el.getContext('2d'); // eraser mask (frame coords)
+  let img=null, srcImg=null, mode='move', hasAlpha=false, erased=false, galleryFull=false;
+  // Board-adaptive cut-out sizes (v2a): the device tells us its dash/saver .wdb targets via /gallery board:{}.
+  // Fallback to the TTGO literals if the field is absent (old firmware). Hero/thumb stay fixed (web-shared assets).
+  let boardDash=[112,50], boardSaver=[224,92];
+
+  function setSeg(el,v){[...el.children].forEach(b=>{if(b.dataset.v)b.classList.toggle('on',b.dataset.v===v);});}
+  $('mode').addEventListener('click',e=>{if(e.target.dataset.v){mode=e.target.dataset.v;setSeg($('mode'),mode);stage.classList.toggle('erase',mode==='erase');ring.style.display='none';}});
+  ['brush','soft'].forEach(id=>$(id).addEventListener('input',labels));
+  $('clearErase').addEventListener('click',()=>{ectx.clearRect(0,0,W,H);erased=false;render();});
+  ['scale','rot','tilt','offx','offy','glow','gspread'].forEach(id=>$(id).addEventListener('input',()=>{labels();render();}));
+  $('gcol').addEventListener('input',render);
+  $('gauto').addEventListener('change',()=>{$('gcol').disabled=$('gauto').checked;render();});
+  $('chroma').addEventListener('change',render);
+  $('name').addEventListener('input',meta);
+  $('reset').addEventListener('click',()=>{['rot','tilt','offx','offy'].forEach(id=>$(id).value=0);$('scale').value=100;labels();render();});
+  $('rmbg').addEventListener('click',removeBg);
+  $('resetbg').addEventListener('click',resetBg);
+  $('tol').addEventListener('input',()=>{$('tolV').textContent=$('tol').value;});
+  $('tol').addEventListener('change',()=>{if(img&&img!==srcImg)removeBg();});   // re-key on release if bg already removed
+
+  function labels(){
+    $('scaleV').textContent=$('scale').value+'%';
+    $('rotV').textContent=$('rot').value+'°';
+    $('tiltV').textContent=$('tilt').value;
+    $('offxV').textContent=$('offx').value;
+    $('offyV').textContent=$('offy').value;
+    $('brushV').textContent=$('brush').value;
+    $('softV').textContent=$('soft').value+'%';
+    $('glowV').textContent=$('glow').value+'%';
+    $('gspreadV').textContent=$('gspread').value;
+  }
+
+  // ---- file intake: dropzone + click + drag/drop, image-only ----
+  // File intake: the PREVIEW itself is the drop target (drop = add/replace) and, while empty,
+  // click-to-choose. Once loaded, a "Replace image" link under it picks a new file.
+  $('file').addEventListener('change',e=>{if(e.target.files[0])load(e.target.files[0]);});
+  $('replace').addEventListener('click',ev=>{ev.stopPropagation();$('file').click();});
+  stage.addEventListener('click',()=>{if(!img)$('file').click();});
+  ;['dragenter','dragover'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();stage.classList.add('over');}));
+  stage.addEventListener('dragleave',e=>{e.preventDefault();stage.classList.remove('over');});
+  stage.addEventListener('drop',e=>{e.preventDefault();stage.classList.remove('over');const f=e.dataTransfer.files[0];if(f)load(f);});
+  function load(f){
+    if(!/^image\/(png|jpeg|webp)$/.test(f.type)){$('fn').textContent='Unsupported — use PNG, JPG or WebP';
+      setTimeout(()=>{if(!img)$('fn').textContent='Drop or click the banner to add an image.';},2200);return;}
+    const im=new Image();
+    im.onload=()=>{srcImg=im;img=im;ectx.clearRect(0,0,W,H);erased=false;hasAlpha=alphaFraction(im)>0.01;   // reward an already-transparent PNG
+      $('prompt').style.display='none';$('replace').hidden=false;stage.classList.add('hasimg');
+      $('fn').textContent=f.name;if(!$('name').value)$('name').value=f.name.replace(/\.[^.]+$/,'').slice(0,31);
+      render();meta();};   // Save/DL gated by the cut-out guard in render(), not here
+    im.src=URL.createObjectURL(f);
+  }
+
+  // Preview interaction: Move = drag to reposition · Erase = soft brush rubs out background.
+  let dragging=false,dsx=0,dsy=0,box=0,boy=0,lastEX=null,lastEY=null;
+  function dab(x,y){erased=true;const br=(+$('brush').value)/2, soft=(+$('soft').value)/100;
+    const g=ectx.createRadialGradient(x,y,Math.max(0,br*(1-soft)),x,y,Math.max(0.5,br));
+    g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(1,'rgba(255,255,255,0)');
+    ectx.fillStyle=g;ectx.beginPath();ectx.arc(x,y,br,0,7);ectx.fill();}
+  function eraseAt(e,cont){
+    const r=view.getBoundingClientRect(), s=W/r.width, x=(e.clientX-r.left)*s, y=(e.clientY-r.top)*s;
+    if(cont&&lastEX!=null){                     // interpolate a line of dabs so drags are continuous
+      const dx=x-lastEX,dy=y-lastEY,dist=Math.hypot(dx,dy),step=Math.max(1,(+$('brush').value)/4);
+      for(let d=step;d<dist;d+=step)dab(lastEX+dx*d/dist,lastEY+dy*d/dist);
+    }
+    dab(x,y);lastEX=x;lastEY=y;render();
+  }
+  stage.addEventListener('pointerdown',e=>{if(!img)return;e.preventDefault();dragging=true;
+    try{stage.setPointerCapture(e.pointerId);}catch(_){}   // ignore InvalidStateError for inactive pointers — must not abort erase-on-click
+    if(mode==='erase'){lastEX=null;eraseAt(e,false);return;}
+    dsx=e.clientX;dsy=e.clientY;box=+$('offx').value;boy=+$('offy').value;});   // View: start a reposition drag
+  stage.addEventListener('pointermove',e=>{
+    if(mode==='erase'){
+      const sr=stage.getBoundingClientRect(), vr=view.getBoundingClientRect(), disp=(+$('brush').value)*(vr.width/W);
+      ring.style.display='block';ring.style.left=(e.clientX-sr.left)+'px';ring.style.top=(e.clientY-sr.top)+'px';ring.style.width=disp+'px';ring.style.height=disp+'px';
+      if(dragging&&img&&e.buttons)eraseAt(e,true);   // erase only while a button is held (no hover-erase)
+      return;
+    }
+    if(!dragging||!e.buttons)return;                  // View: drag to reposition within the crop
+    const s=W/view.getBoundingClientRect().width;
+    $('offx').value=Math.max(-140,Math.min(140,Math.round(box+(e.clientX-dsx)*s)));
+    $('offy').value=Math.max(-60,Math.min(60,Math.round(boy+(e.clientY-dsy)*s)));labels();render();
+  });
+  ;['pointerup','pointercancel'].forEach(ev=>stage.addEventListener(ev,()=>{dragging=false;lastEX=null;}));
+  stage.addEventListener('pointerleave',()=>{ring.style.display='none';});
+
+  // Shared paint: draw the transformed + background-removed SUBJECT onto `ctx` at `sc`× the WxH
+  // working frame. NO safe-area clip (the export is autocropped and the device places the cut-out),
+  // so the subject can use the full frame. Used by BOTH the preview and the hi-res export -> they
+  // can never drift apart.
+  function paint(ctx, sc){
+    const w=W*sc, h=H*sc;
+    ctx.clearRect(0,0,w,h);
+    if(!img) return;
+    const scale=(+$('scale').value)/100, rot=(+$('rot').value)*DEG, tilt=(+$('tilt').value)/100;
+    const ox=(+$('offx').value)*sc, oy=(+$('offy').value)*sc;   // compose within the crop frame
+    const base=Math.min(W/img.width, H/img.height);   // contain the whole image; Scale multiplies
+    const dw=img.width*base*scale*sc, dh=img.height*base*scale*sc, cx=w/2+ox, cy=h/2+oy;
+    ctx.save();
+    ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+    ctx.translate(cx,cy); ctx.rotate(rot); ctx.transform(1,0,tilt,1,0,0);   // shear = "tilt"
+    ctx.drawImage(img,-dw/2,-dh/2,dw,dh);
+    ctx.restore();
+    if($('chroma').checked) keyOut(ctx,w,h);
+    // subtract the soft eraser mask last (scaled), so its feathered edge stays soft
+    ctx.save(); ctx.globalCompositeOperation='destination-out'; ctx.drawImage(el,0,0,W,H,0,0,w,h); ctx.restore();
+  }
+  // Single WYSIWYG surface: paint the composed subject straight onto the visible high-DPI canvas.
+  // Transparent areas (background removed / erased) let the dark device banner show through — exactly
+  // what the device does. Autocrop is NOT applied here; it happens only at save, so drag/scale stay
+  // meaningful and the brush maps 1:1. A 1× copy (octx) feeds the cut-out guard + the export.
+  function render(){
+    const sp=document.createElement('canvas'); sp.width=W*PV; sp.height=H*PV;
+    paint(sp.getContext('2d'),PV);                   // subject only, transparent
+    vctx.clearRect(0,0,sp.width,sp.height); vctx.drawImage(withGlow(sp),0,0);   // + underglow → WYSIWYG device surface
+    paint(octx,1);                                   // 1× subject-only copy for the guard (glow must not gate Save)
+    guardCutout(); meta();
+  }
+
+  // Underglow: a thin coloured RIM that lifts a dark subject off the dark dashboard (concept: subtle
+  // separation, NOT a big halo — a wide halo would force padding and shrink the vehicle). Build the
+  // subject's silhouette, tint it (auto = a BRIGHTENED tint of the subject's own colour, or a manual
+  // pick), blur it TIGHTLY, lay it behind the crisp subject → the edge peeks out as a rim. Returns the
+  // source unchanged when Glow=0. Same fn for preview + export so they match.
+  function hexToRgb(h){const m=/^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h);return m?{r:parseInt(m[1],16),g:parseInt(m[2],16),b:parseInt(m[3],16)}:{r:56,g:189,b:248};}
+  function glowColor(cv){
+    const w=48,h=Math.max(1,Math.round(48*cv.height/cv.width));
+    const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(cv,0,0,w,h);
+    const d=x.getImageData(0,0,w,h).data;let r=0,g=0,b=0,n=0;
+    for(let i=0;i<d.length;i+=4)if(d[i+3]>128){r+=d[i];g+=d[i+1];b+=d[i+2];n++;}
+    if(!n)return{r:56,g:189,b:248};
+    r/=n;g/=n;b/=n;const L=0.3*r+0.59*g+0.11*b,k=1.6;   // boost saturation so the rim reads as colour, not grey
+    r=L+(r-L)*k; g=L+(g-L)*k; b=L+(b-L)*k;
+    // LIFT to a bright rim (never darken): a DARK subject needs a LIGHT edge to separate from the dark
+    // dashboard. Scale the hue up so its brightest channel ~= 210, preserving the colour.
+    const mx=Math.max(r,g,b,1), s=Math.max(1,210/mx); r*=s; g*=s; b*=s;
+    const cl=v=>Math.round(Math.min(255,Math.max(0,v)));
+    return{r:cl(r),g:cl(g),b:cl(b)};
+  }
+  function withGlow(sub, spreadPx){
+    const gi=(+$('glow').value)/100; if(gi<=0) return sub;
+    const w=sub.width,h=sub.height;
+    const spread = spreadPx!=null ? spreadPx : Math.max(1,(+$('gspread').value)/100*h*0.05);  // TIGHT rim (~few px); explicit px for export
+    const col=$('gauto').checked?glowColor(sub):hexToRgb($('gcol').value);
+    const sil=document.createElement('canvas');sil.width=w;sil.height=h;const sx=sil.getContext('2d');
+    sx.drawImage(sub,0,0);sx.globalCompositeOperation='source-in';sx.fillStyle=`rgb(${col.r},${col.g},${col.b})`;sx.fillRect(0,0,w,h);  // silhouette in glow colour
+    const out=document.createElement('canvas');out.width=w;out.height=h;const ox=out.getContext('2d');
+    ox.globalAlpha=Math.min(1,gi*1.2);ox.filter=`blur(${spread}px)`;ox.drawImage(sil,0,0);ox.drawImage(sil,0,0);  // two passes deepen the core
+    ox.filter='none';ox.globalAlpha=1;ox.drawImage(sub,0,0);        // crisp subject on top
+    return out;
+  }
+
+  // Guard: a banner must be a real CUT-OUT, not a rectangular photo. Frame margins are always
+  // transparent (contained image in a wide frame), so we DON'T trust preview transparency; instead
+  // we require the user actually touched the background — bgTouched = the source has alpha (removeBg
+  // ran, or a transparent PNG was dropped) OR the eraser was used. Plus something opaque to save.
+  function alphaFraction(image){
+    const w=64, h=Math.max(1,Math.round(64*image.height/image.width));
+    const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');
+    x.drawImage(image,0,0,w,h);const d=x.getImageData(0,0,w,h).data;let t=0;
+    for(let i=3;i<d.length;i+=4)if(d[i]<250)t++;return t/(w*h);
+  }
+  function guardCutout(){
+    const save=$('save'), dl=$('dl'), note=$('cutNote');
+    const FULL='Storage full — delete a banner on the dashboard first.';
+    if(!img){ save.disabled=true; dl.disabled=true;
+      if(note){ note.textContent=galleryFull?FULL:''; note.style.display=galleryFull?'block':'none'; } return; }
+    dl.disabled=false;
+    const d=octx.getImageData(0,0,W,H).data; let op=0;
+    for(let i=3;i<d.length;i+=4) if(d[i]>200) op++;
+    // F3/F4: keeping a background is the user's call, not ours — Save is enabled whenever there's a
+    // subject. The "still has a background" line is now an informational HINT, not a blocker, and the
+    // magenta key-out counts as touched (it removes the bg live but never set hasAlpha → used to block).
+    const bgTouched = hasAlpha || erased || $('chroma').checked;
+    let ok=true, msg='';
+    if(op < W*H*0.004){ ok=false; msg='Nothing to save yet — add or adjust the image.'; }
+    else if(!bgTouched){ msg='Tip: this still has its background — “Remove background”, magenta, or the eraser cuts it out. Or save it as-is.'; }
+    if(galleryFull){ ok=false; msg=FULL; }   // device storage full — compose/download still work, but not Save
+    save.disabled=!ok;
+    if(note){ note.textContent=msg; note.style.display=msg?'block':'none'; }
+  }
+
+  // One-tap background removal: edge-seeded flood-fill. Sample the 4 corners as the bg reference,
+  // then flood-fill from the borders removing pixels within `tol` colour distance — so interior
+  // regions that happen to match the bg (a window, a gap) SURVIVE. Produces a transparent PNG we
+  // adopt as the working image; Reset restores the original. Runs on a ≤1024px copy for speed.
+  function removeBg(){
+    if(!srcImg) return;
+    const tol=+$('tol').value, maxD=1024, k=Math.min(1,maxD/Math.max(srcImg.width,srcImg.height));
+    const w=Math.max(1,Math.round(srcImg.width*k)), h=Math.max(1,Math.round(srcImg.height*k));
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.imageSmoothingQuality='high';x.drawImage(srcImg,0,0,w,h);
+    const imd=x.getImageData(0,0,w,h),p=imd.data;
+    let br=0,bg=0,bb=0;const cor=[[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
+    cor.forEach(([cx,cy])=>{const i=(cy*w+cx)*4;br+=p[i];bg+=p[i+1];bb+=p[i+2];});br/=4;bg/=4;bb/=4;
+    const t2=tol*tol*3;
+    const near=i=>{const dr=p[i]-br,dg=p[i+1]-bg,db=p[i+2]-bb;return dr*dr+dg*dg+db*db<=t2;};
+    const seen=new Uint8Array(w*h), st=[];
+    const push=(xx,yy)=>{const idx=yy*w+xx;if(!seen[idx]&&near(idx*4)){seen[idx]=1;st.push(idx);}};
+    for(let xx=0;xx<w;xx++){push(xx,0);push(xx,h-1);}
+    for(let yy=0;yy<h;yy++){push(0,yy);push(w-1,yy);}
+    while(st.length){const idx=st.pop();p[idx*4+3]=0;const xx=idx%w,yy=(idx/w)|0;
+      if(xx>0)push(xx-1,yy);if(xx<w-1)push(xx+1,yy);if(yy>0)push(xx,yy-1);if(yy<h-1)push(xx,yy+1);}
+    x.putImageData(imd,0,0);
+    const out=new Image();out.onload=()=>{img=out;hasAlpha=true;render();meta();};out.src=c.toDataURL('image/png');
+  }
+  function resetBg(){ if(srcImg){ img=srcImg; ectx.clearRect(0,0,W,H); erased=false; hasAlpha=alphaFraction(srcImg)>0.01; render(); meta(); } }
+
+  // Magenta key with despill + feather: m = min(r,b)-g (how much BOTH R and B exceed G), so pure
+  // reds/blues are KEPT — only true magenta is removed. Feather alpha over m∈[15,60], pull R/B to G.
+  function keyOut(ctx,w,h){
+    const d=ctx.getImageData(0,0,w,h),p=d.data;
+    for(let i=0;i<p.length;i+=4){
+      const r=p[i],g=p[i+1],b=p[i+2],m=Math.min(r,b)-g;
+      if(m>15){ p[i+3]=Math.round(p[i+3]*(1-Math.min(1,(m-15)/45))); p[i]=Math.max(g,r-m); p[i+2]=Math.max(g,b-m); }
+    }
+    ctx.putImageData(d,0,0);
+  }
+
+  function meta(){ if(!img){$('meta').textContent='';return;} $('meta').innerHTML='cut-out · name '+($('name').value||'').length+'/31'; }
+
+  // CRC32 (IEEE) over the pixel bytes — stored in the .wdb v2 header so the device can reject a
+  // corrupt/truncated blob before rendering it. crc==0 is treated as "legacy/absent" (v1).
+  const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+  function crc32(u8,s,e){let c=0xFFFFFFFF;for(let i=s;i<e;i++)c=CRC_T[(c^u8[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+
+  // Build an RGB565A8 .wdb (v2 + CRC) from ANY canvas (custom banners are now tight cut-outs, so the
+  // device blob's w×h = the canvas, not a fixed 240×58). Name/category go in the header.
+  function wdbFromCanvas(cv, name, cat){
+    const w=cv.width, h=cv.height, n=w*h;
+    const d=cv.getContext('2d').getImageData(0,0,w,h).data;
+    const buf=new ArrayBuffer(48+n*3), dv=new DataView(buf), u8=new Uint8Array(buf);
+    u8[0]=0x57;u8[1]=0x44;u8[2]=0x42;u8[3]=0x31;                 // "WDB1"
+    dv.setUint8(4,2);dv.setUint8(5,1);                           // version=2 (crc32), format=RGB565A8
+    dv.setUint16(6,w,true);dv.setUint16(8,h,true);
+    dv.setUint8(10,(cat|0)&0xFF);dv.setUint8(11,0);
+    const nm=(name||'').replace(/[^\x20-\x7e]/g,'').slice(0,31);for(let i=0;i<nm.length;i++)u8[16+i]=nm.charCodeAt(i)&0xFF;  // ASCII-only -> WYSIWYG
+    const o565=48,oA=48+n*2;
+    // 4×4 Bayer ordered dither before truncating to 5/6/5 bits → smooth gradients (esp. the underglow),
+    // no banding, at zero device cost. Threshold ∈ [-0.5,0.5) × the quantisation step per channel.
+    const BAYER=[0,8,2,10,12,4,14,6,3,11,1,9,15,7,13,5];
+    const cl=v=>v<0?0:v>255?255:v;
+    for(let i=0,px=0;px<n;px++,i+=4){
+      const t=(BAYER[((px/w|0)&3)*4+((px%w)&3)]/16)-0.5;
+      const r=cl(d[i]+t*8.226), g=cl(d[i+1]+t*4.048), b=cl(d[i+2]+t*8.226);
+      dv.setUint16(o565+px*2,((r&0xF8)<<8)|((g&0xFC)<<3)|(b>>3),true);u8[oA+px]=d[i+3];
+    }
+    dv.setUint32(12,crc32(u8,48,48+n*3),true);                   // reserved[4] -> CRC32 of the pixels
+    return new Blob([buf],{type:'application/octet-stream'});
+  }
+  // Autocrop a canvas to its subject's alpha bounding box -> a tight canvas (the whole point of the
+  // cut-out format). Returns the source unchanged if it's empty/fully opaque.
+  function autocrop(cv){
+    const w=cv.width,h=cv.height,d=cv.getContext('2d').getImageData(0,0,w,h).data;
+    let minx=w,miny=h,maxx=-1,maxy=-1;
+    for(let y=0;y<h;y++)for(let px=0;px<w;px++){if(d[(y*w+px)*4+3]>16){if(px<minx)minx=px;if(px>maxx)maxx=px;if(y<miny)miny=y;if(y>maxy)maxy=y;}}
+    if(maxx<minx||maxy<miny)return cv;
+    const cw=maxx-minx+1,ch=maxy-miny+1,c=document.createElement('canvas');c.width=cw;c.height=ch;
+    c.getContext('2d').drawImage(cv,minx,miny,cw,ch,0,0,cw,ch);return c;
+  }
+  // Contain-fit a canvas into <=maxW x maxH (aspect preserved, no upscale past the source).
+  function fitCv(src,maxW,maxH){
+    const s=Math.min(maxW/src.width,maxH/src.height,1);
+    const w=Math.max(1,Math.round(src.width*s)),h=Math.max(1,Math.round(src.height*s));
+    const c=document.createElement('canvas');c.width=w;c.height=h;
+    const x=c.getContext('2d');x.imageSmoothingEnabled=true;x.drawImage(src,0,0,w,h);return c;
+  }
+
+  // Crisp export render: the SAME shared paint() at `sc`× (no separate pipeline -> preview == export).
+  function renderHi(sc){
+    const c=document.createElement('canvas'); c.width=W*sc; c.height=H*sc;
+    paint(c.getContext('2d'), sc);
+    return c;
+  }
+  const blobOf=(cv,q)=>new Promise(r=>cv.toBlob(r,'image/webp',q));
+  // The subject as a tight cut-out canvas (crisp render -> autocrop). Everything else is a fitCv() of it.
+  // The subject as a tight cut-out. With glow ON, autocrop the BARE subject first, then composite the
+  // glow on a PADDED canvas so the halo has full room on every side (never clipped by the 240×58 frame
+  // — F1/F2), then trim back to where the halo fades out. Preview still shows glow inside the frame.
+  function subjectCanvas(){
+    const tight=autocrop(renderHi(4));                          // bare subject, tight bbox
+    if((+$('glow').value)/100<=0) return tight;
+    const spread=Math.max(1,(+$('gspread').value)/100*tight.height*0.05);   // TIGHT rim
+    const pad=Math.ceil(spread*1.6);                            // tiny margin (rim only) → vehicle stays ~full size
+    const pc=document.createElement('canvas'); pc.width=tight.width+pad*2; pc.height=tight.height+pad*2;
+    pc.getContext('2d').drawImage(tight,pad,pad);
+    return autocrop(withGlow(pc, spread));                      // rim with just enough room → trim back
+  }
+
+  // Download = a portable WebP of the subject cut-out (re-droppable here / usable on another device).
+  $('dl').addEventListener('click',async()=>{if(!img)return;const full=await blobOf(fitCv(subjectCanvas(),480,178),0.82);const a=document.createElement('a');a.href=URL.createObjectURL(full);a.download=(($('name').value||'banner').replace(/[^a-z0-9_-]+/gi,'_').toLowerCase())+'.webp';a.click();});
+
+  // Save to gallery: SERVER-AUTHORITATIVE, commit-LAST. Custom banners are tight cut-outs baked at
+  // TWO device sizes (dash + saver — the device never scales) + hero/thumb WebP. Order: id-less
+  // /gallery/dash (server allocs the slot + leaves it UNCOMMITTED) -> saver?id -> hero?id ->
+  // thumb?id -> commit?id (atomic go-live) -> select?id. Any failure before commit = free slot.
+  async function saveToGallery(){
+    if(!img)return; const st=$('save'); if(!st)return; const old=st.textContent; st.disabled=true; st.textContent='Saving…';
+    try{
+      const name=$('name').value||'', cat=+$('cat').value;
+      const sub=subjectCanvas();
+      const dashBlob=wdbFromCanvas(fitCv(sub,boardDash[0],boardDash[1]),name,cat);   // dashboard car-field size (board-adaptive)
+      const saverBlob=wdbFromCanvas(fitCv(sub,boardSaver[0],boardSaver[1]),name,cat); // screensaver size (board-adaptive; device static_asserts it fits R_SAVER)
+      let hero=await blobOf(fitCv(sub,480,178),0.82);
+      for(let q=0.82; hero.size>63000 && q>0.4; q-=0.15){ hero=await blobOf(fitCv(sub,480,178),q); }
+      if(hero.size>63000) throw new Error('image too large');
+      const thumb=await blobOf(fitCv(sub,120,90),0.75);
+      const put=(url,blob,fn)=>{const fd=new FormData();fd.append('f',blob,fn);return fetch(url,{method:'POST',body:fd});};
+      const r0=await put('/gallery/dash',dashBlob,'d.wdb');     // id-less: server allocates
+      if(r0.status===409){ galleryFull=true; guardCutout(); st.textContent='Gallery full — delete one'; setTimeout(()=>{st.textContent=old;st.disabled=false;},2800); return; }
+      if(!r0.ok) throw new Error('dash '+r0.status);
+      const id=(await r0.json()).id;
+      let r=await put('/gallery/saver?id='+id,saverBlob,'s.wdb'); if(!r.ok) throw new Error('saver '+r.status);
+      r=await put('/gallery/hero?id='+id,hero,'h.webp');         if(!r.ok) throw new Error('hero '+r.status);
+      r=await put('/gallery/thumb?id='+id,thumb,'t.webp');       if(!r.ok) throw new Error('thumb '+r.status);
+      r=await fetch('/gallery/commit?id='+id,{method:'POST'});   if(!r.ok) throw new Error('commit '+r.status);
+      await fetch('/gallery/select?id='+id,{method:'POST'});     // make the new banner live immediately
+      st.textContent='Saved ✓';
+      setTimeout(()=>{ location.href='/?banner='+id; }, 700);
+      return;
+    }catch(e){ st.textContent='Failed'; }
+    setTimeout(()=>{st.textContent=old||'Save to gallery';st.disabled=false;},2400);
+  }
+  { const sb=$('save'); if(sb) sb.addEventListener('click',saveToGallery); }
+
+  labels();render();
+  // Up-front storage guard: ask the device whether the gallery is full BEFORE composing, so Save is blocked
+  // up-front with a clear message instead of failing at save time. next_free==-1 => full (partition-cap-aware).
+  fetch('/gallery').then(r=>r.ok?r.json():null).then(j=>{ if(j){ galleryFull=(j.next_free===-1);
+    if(j.board){ const ok2=a=>Array.isArray(a)&&a.length===2&&a[0]>0&&a[1]>0;
+      if(ok2(j.board.dash)) boardDash=j.board.dash; if(ok2(j.board.saver)) boardSaver=j.board.saver; }
+    guardCutout(); } }).catch(()=>{});
+</script>
+</body>
+</html>

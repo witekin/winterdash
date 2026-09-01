@@ -1,0 +1,61 @@
+# Deploy the static site (landing + web flasher) to GitHub Pages.
+# Pages ROOT = site/ (keeps the flasher's relative ../firmware and ../assets paths valid).
+# Pulls the latest per-board bins from the Releases into site/firmware/ so versions.json urls
+# are SAME-ORIGIN (no CORS), regenerates versions.json, then deploys.
+#
+# IMPORTANT before enabling: pin every action to a full-length commit SHA (repo requires it).
+# Validated end-to-end at release #1 (needs a published release for real bins).
+name: pages
+
+on:
+  release:
+    types: [published]                 # a new firmware release -> refresh bins + manifest
+  push:
+    branches: [main]                   # site / registry edits -> redeploy
+    paths: ['site/**', '.github/scripts/gen_versions_json.py', '.github/scripts/pull_latest_bins.py']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Copy each board's newest factory.bin from Releases INTO site/firmware/ (same-origin).
+      - name: Pull latest release bins
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python .github/scripts/pull_latest_bins.py --dest site/firmware
+
+      - name: Regenerate versions.json (same-origin urls)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          python .github/scripts/gen_versions_json.py
+          --registry site/boards.json
+          --out site/firmware/versions.json
+          --url-prefix ../firmware
+
+      # Upload ONLY site/ as the Pages artifact -> served at the project root.
+      # .esphome/ is not under site/, so it can never leak here.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

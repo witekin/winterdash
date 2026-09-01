@@ -1,0 +1,20 @@
+{
+  "_note": "Board manifest — the flasher fetches this to build the board+version pickers. `photo` and `url` are paths the page uses as-is. In a released build the CI regenerates this from the GitHub Releases (each board's factory.bin as a Release asset, versions newest-first); this checked-in copy is a placeholder for local preview.",
+  "boards": {
+    "esp32-tdisplay-16mb": {
+      "label": "LilyGO TTGO T-Display — 16 MB",
+      "photo": "../assets/board-tdisplay.webp",
+      "versions": [ { "version": "from CI (not in local preview)", "url": null } ]
+    },
+    "esp32-tdisplay-4mb": {
+      "label": "LilyGO TTGO T-Display — 4 MB",
+      "photo": "../assets/board-tdisplay.webp",
+      "versions": [ { "version": "from CI (not in local preview)", "url": null } ]
+    },
+    "esp32-wroom32": {
+      "label": "Screenless ESP32 (WROOM-32)",
+      "photo": "../assets/board-wroom32.webp",
+      "versions": [ { "version": "dev-local-test", "url": "../firmware/esp32-wroom32.factory.bin" } ]
+    }
+  }
+}

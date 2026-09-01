@@ -1,0 +1,113 @@
+# =============================================================================
+# board_esp32_tdisplay_16mb.yaml — LilyGO TTGO T-Display HARDWARE layer
+# -----------------------------------------------------------------------------
+# Everything physical + chip-specific to the TTGO T-Display (ESP32, no-PSRAM,
+# 16MB): the esp32 platform (board/flash/partitions/esp-idf pin + the DRAM heap
+# sdkconfig trims), the SPI bus, the backlight PWM output, and the backlight light
+# component. A different board (headless, CYD) swaps THIS file; core.yaml and the
+# board master stay the same.
+#
+# CRITICAL (R4/R5): the esp32: block here must reproduce the pre-split platform
+# EXACTLY (board, flash_size, partitions_esp32_tdisplay_16mb.csv, framework version pin, the four
+# sdkconfig trims) — these are the WDT/heap-crash fixes + the 16MB partition table
+# that OTA can't rewrite. Do not "tidy" the values; they are research-verified.
+#
+# PER-BOARD, NOT SHARED: flash_size + `partitions: partitions_esp32_tdisplay_16mb.csv` describe THIS
+# board's 16MB chip. A different board (CYD = 4MB, headless = whatever it ships)
+# has different flash and MUST supply its own partition table (e.g. its own
+# board_esp32_cyd.yaml pointing at partitions_esp32_cyd.csv) — never inherit this one. That is
+# exactly why the esp32: block is board-scoped and not in core.yaml.
+#
+# The DISPLAY driver (mipi_spi), images, fonts, LVGL tree and draw code live in
+# display_tdisplay.yaml — this file is only the buses/power/board.
+# =============================================================================
+
+# --- Per-board banner cut-out sizes (v2a) — the converter's fitCv targets = what lands in R_DASH/R_SAVER.
+# SINGLE SOURCE: these feed BOTH the /gallery board:{} field (via the build_flags below → the SHARED
+# image-tool.html converter fits to THIS board's sizes) AND the WDB_* region-fit static_asserts in
+# web_dashboard.h. A different board (CYD) overrides these; web_dashboard.h #errors if a board omits them.
+# These are the CONVERTER dims (what's written), not the baked-preset resize (display_tdisplay.yaml keeps its own).
+substitutions:
+  banner_dash_w: "112"
+  banner_dash_h: "50"
+  banner_saver_w: "224"
+  banner_saver_h: "92"
+
+esphome:
+  platformio_options:
+    build_flags:
+      - "-DWD_DASH_W=${banner_dash_w}"
+      - "-DWD_DASH_H=${banner_dash_h}"
+      - "-DWD_SAVER_W=${banner_saver_w}"
+      - "-DWD_SAVER_H=${banner_saver_h}"
+      # Compat lock: TTGO ships field-saved banners -> its v3 slot geometry MUST stay 256KB
+      # (default 64KB .wdb align + 64KB webp caps). If a dim change ever moves it, the build fails instead
+      # of silently misaligning field banners on the next OTA. Bump ONLY with a planned wipe.
+      - "-DWD_EXPECT_SLOT_SPAN=0x40000"
+
+esp32:
+  board: esp32dev
+  flash_size: 16MB               # real chip is 16MB (default board def assumes 4MB)
+  partitions: partitions_esp32_tdisplay_16mb.csv  # custom table: 3MB app slots + ~9.9MB storage. Board-named.
+  framework:
+    type: esp-idf
+    # Pin the esp-idf toolchain explicitly for reproducible builds — don't let an ESPHome upgrade
+    # silently move the underlying framework. "5.5.4" is exactly what ESPHome 2026.4.0 recommends today
+    # (ESP_IDF_FRAMEWORK_VERSION_LOOKUP["recommended"] -> 5.5.4 -> platform-espressif32 55.3.38), so this is a
+    # provable no-op on the current pin; it becomes a real guard the moment the ESPHome pin changes. Bump this
+    # together with the ESPHome pin, behind the upgrade gate + an OTA re-test.
+    version: "5.5.4"
+    # DRAM heap relief — the reboot root cause is a heap-budget crunch: an active web SSE
+    # client + a full-screen LVGL redraw coincide, WiFi transiently grabs tens of KB of dynamic buffers,
+    # LVGL can't get its ~16KB contiguous DMA draw buffer -> loopTask stalls in SW render -> task_wdt.
+    # These four are the RESEARCH-VERIFIED (ESP-IDF 5.5 Kconfig, primary-source) conservative trims for a
+    # LOW-THROUGHPUT dashboard that only PASSIVE-SCANS BLE (never connects). ~1.6KB per WiFi buffer.
+    # - DYNAMIC_TX 32->12 : the main fix — SSE flush is outbound (TX); caps WiFi's peak heap grab in the
+    # crash window. OTA-SAFE (OTA is inbound, doesn't use TX).
+    # - STATIC_RX 10->6 : ~6.4KB permanent DMA-capable DRAM back (raises the free-heap floor; min 2).
+    # - DYNAMIC_RX 32->16 : caps inbound peak. This is the OTA-SENSITIVE one (OTA is inbound RX) -> after
+    # flashing, OTA-over-WiFi is explicitly re-tested; bump back up if OTA suffers.
+    # - BLE_MAX_CONN 3->1 : ~2KB controller DRAM; we only scan, never open a GATT connection (zero risk).
+    # Do NOT trim WIFI_IRAM_OPT/RX_IRAM_OPT (frees IRAM, not DRAM, and freed IRAM is not DMA-capable so it
+    # can't back the LVGL buffer) or CACHE_TX (PSRAM-only).
+    sdkconfig_options:
+      CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM: "4"     # 10 -> 6 -> 4 (+~3.2KB permanent DMA floor,
+                                                    # widens the net-watchdog threshold band; OTA-safe floor, min 2)
+      CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM: "12"   # 32 -> 12 (main crash-window fix, OTA-safe)
+      CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM: "16"   # 32 -> 16 (OTA-sensitive — re-test OTA after)
+      # (CONFIG_BTDM_CTRL_BLE_MAX_CONN moved to core.yaml `esp32_ble: max_connections: 1`,
+      # so BOTH the controller AND host ACL contexts are floored consistently, no ESPHome auto-write conflict.)
+      # BLE memory opt. #3: the controller scan dup-list is DEAD MEMORY — ESPHome
+      # scans with duplicate-filter DISABLED (we NEED every repeated charger advert), so the 100-entry default
+      # cache is never used. Floor it -> ~1KB DRAM back, zero risk to reception. OTA-safe.
+      CONFIG_BTDM_SCAN_DUPL_CACHE_SIZE: "10"         # 100 -> 10 (dead list; dedup is disabled at scan level)
+      # #2 GATT-off REJECTED : ESPHome 2026.4.0 `esp32_ble/ble.cpp:222` (ble_setup_) UNCONDITIONALLY
+      # calls esp_ble_gattc_register_callback, so CONFIG_BT_GATTC_ENABLE:"n" fails to link ("undefined reference").
+      # GATT stays enabled. GATTS-off alone
+      # is also a broken combo (IDF #17724). No GATT-off flash win available on ESPHome.
+
+spi:
+  clk_pin: 18
+  mosi_pin: 19
+
+output:
+  - platform: ledc
+    pin: 4
+    id: backlight_output
+    frequency: 1000Hz
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    id: backlight
+    name: "Backlight"
+    internal: true   # on-device backlight only (driven by lambdas); never read/written by the web.
+                     # Hiding it drops one entity from the SSE/API burst; id(backlight) stays usable.
+    # ALWAYS_OFF (not ALWAYS_ON): the light component's restore runs in its OWN setup(), BEFORE on_boot.
+    # With ALWAYS_ON the backlight lit during boot and revealed the LCD's RETAINED previous frame (e.g.
+    # the screensaver) until on_boot could load the splash -> a flash of the old screen on every reset.
+    # OFF keeps the panel dark through boot; on_boot(-100) draws page_splash (lv_refr_now) THEN turns the
+    # backlight on -> the splash appears from black, no retained-frame flash. on_boot ALWAYS runs, so the
+    # backlight always comes on. Do NOT revert to ALWAYS_ON without re-solving the boot-flash.
+    restore_mode: ALWAYS_OFF
+    default_transition_length: 120ms

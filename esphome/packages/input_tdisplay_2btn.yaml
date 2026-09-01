@@ -1,0 +1,126 @@
+# =============================================================================
+# input_tdisplay_2btn.yaml — TTGO two-button navigation input
+# -----------------------------------------------------------------------------
+# The two physical buttons on the TTGO T-Display (GPIO0 = S1/next, GPIO35 =
+# S2/select) and their nav lambdas: page cycling, screensaver two-step wake,
+# System-menu highlight + hold-to-confirm (Reboot/Reset WiFi/Factory reset).
+#
+# Board-pluggable input: the nav *state* lives in board-agnostic globals
+# (current_page, in_menu, menu_sel, s2_hold_ms, saver_active, backlight_dim) and
+# the *effect* is lv_scr_load / render_sys_menu (in display_tdisplay). A headless board
+# omits this file (system actions stay reachable via the button: entities in core
+# over web/HA); a CYD board swaps it for input_touch.yaml.
+#
+# Depends on display_tdisplay ids (page_*, backlight, render_sys_menu) via global id()
+# — so a board that includes input_tdisplay_2btn must also include display_tdisplay.
+# =============================================================================
+
+binary_sensor:
+  - platform: gpio
+    id: btn1
+    pin:
+      number: 0
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 30ms
+    on_press:
+      - lambda: |-
+          id(last_activity_ms) = millis();
+          if (id(splash_active)) return;   // boot splash owns the screen; swallow nav until handoff
+          // Wi-Fi setup screen (fallback AP): swallow all nav so the friend can't leave the QR/steps.
+          if (id(ap_setup_shown)) return;
+          // Screensaver two-step wake: a press on a DIMMED saver only brightens and STAYS on the
+          // saver; the next press leaves for the dashboard. No auto-jump/linger.
+          if (id(saver_active)) {
+            if (id(backlight_dim)) {
+              id(backlight_dim) = false;
+              id(backlight).turn_on().set_brightness(id(backlight_level).state / 100.0f).perform();
+            } else {
+              id(saver_active) = false; id(current_page) = 0;
+              lv_scr_load(id(page_dashboard)->obj);
+            }
+            return;
+          }
+          bool was_dim = id(backlight_dim);
+          // Wake-swallow: a press on a dimmed screen only wakes, it doesn't navigate (B-nav).
+          if (was_dim) {
+            id(backlight_dim) = false;
+            id(backlight).turn_on().set_brightness(id(backlight_level).state / 100.0f).perform();
+            return;
+          }
+          // In the System menu, S1 moves the highlight (Reboot -> Reset WiFi -> Factory reset -> Back -> ...).
+          if (id(in_menu)) {
+            id(s2_hold_ms) = 0;   // moving off a hold row cancels its hold (both 1 & 2 are hold rows now,
+                                  // so a stale hold must never carry over and fire the newly-selected action)
+            id(menu_sel) = (id(menu_sel) + 1) % 4;
+            id(render_sys_menu).execute();
+            return;
+          }
+          id(current_page) = (id(current_page) + 1) % 6;   // Last Events (3rd) + System (6th); page_setup is
+          lv_obj_t *scr = id(page_dashboard)->obj;         // NOT in the cycle — it's an AP-mode takeover only.
+          if (id(current_page) == 1) scr = id(page_detail)->obj;
+          else if (id(current_page) == 2) scr = id(page_charlog)->obj;   // Last Events sits right after Charger detail
+          else if (id(current_page) == 3) scr = id(page_ble)->obj;
+          else if (id(current_page) == 4) scr = id(page_network)->obj;
+          else if (id(current_page) == 5) scr = id(page_system)->obj;
+          lv_scr_load(scr);
+  - platform: gpio
+    id: btn2
+    pin:
+      number: 35
+      mode:
+        input: true
+      inverted: true
+    filters:
+      - delayed_on: 30ms
+    on_press:
+      - lambda: |-
+          // B-nav: S2 no longer toggles dim (backlight is purely inactivity-driven now).
+          // Wake-swallow, then S2 = "enter/select".
+          id(last_activity_ms) = millis();
+          if (id(splash_active)) return;   // boot splash owns the screen; swallow select until handoff
+          // Wi-Fi setup screen (fallback AP): swallow all nav/select.
+          if (id(ap_setup_shown)) return;
+          // Screensaver two-step wake (same as S1): dimmed -> brighten and stay; bright -> dashboard.
+          if (id(saver_active)) {
+            if (id(backlight_dim)) {
+              id(backlight_dim) = false;
+              id(backlight).turn_on().set_brightness(id(backlight_level).state / 100.0f).perform();
+            } else {
+              id(saver_active) = false; id(current_page) = 0;
+              lv_scr_load(id(page_dashboard)->obj);
+            }
+            return;
+          }
+          bool was_dim = id(backlight_dim);
+          if (was_dim) {
+            id(backlight_dim) = false;
+            id(backlight).turn_on().set_brightness(id(backlight_level).state / 100.0f).perform();
+            return;
+          }
+          if (!id(in_menu)) {
+            // Enter the actions menu only from the System screen (page 5).
+            if (id(current_page) == 5) { id(in_menu) = true; id(menu_sel) = 0; id(render_sys_menu).execute(); }
+            return;
+          }
+          int sel = id(menu_sel);
+          if (sel == 0 || sel == 1 || sel == 2) {   // Reboot (2s) / Reset WiFi (3s) / Factory reset (5s) —
+            id(s2_hold_ms) = millis();              // all HOLD rows now (Reboot too — a short press was too
+            id(render_sys_menu).execute();          // easy to trigger by accident). The 200ms interval fires
+          } else {                              // Back (header) — exit the menu
+            id(in_menu) = false;
+            id(s2_hold_ms) = 0;
+            id(render_sys_menu).execute();
+          }
+    on_release:
+      - lambda: |-
+          // Releasing S2 before the hold completes cancels it (the 200ms interval fires the action
+          // at the target and clears s2_hold_ms itself, so this only handles the cancel). All three hold
+          // rows (Reboot=0, Reset WiFi=1, Factory reset=2) are cancellable.
+          if (id(in_menu) && (id(menu_sel) == 0 || id(menu_sel) == 1 || id(menu_sel) == 2) && id(s2_hold_ms) > 0) {
+            id(s2_hold_ms) = 0;
+            id(render_sys_menu).execute();
+          }

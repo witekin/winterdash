@@ -1,0 +1,107 @@
+# Official firmware build — on a version tag (v0.1, v0.2, …).
+# Builds each shipping board's firmware.factory.bin with the PINNED ESPHome, baking the
+# DOCUMENTED DEFAULT OTA password (vars.OFFICIAL_OTA_PASSWORD) so non-technical users can
+# OTA-update later without compiling. Attaches the bins to the GitHub Release. CYD is
+# intentionally NOT in the matrix (compile-only / NOT READY).
+#
+# IMPORTANT before enabling: this repo requires actions pinned to a full-length commit SHA.
+# Replace every `uses: org/action@vN` below with `uses: org/action@<40-hex-sha>  # vN`.
+# Validated end-to-end at release #1.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write            # create the Release + upload assets
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false       # one board failing must not hide the others
+      matrix:
+        include:
+          - { id: esp32-tdisplay-16mb, yaml: esphome/esp32-tdisplay-16mb.yaml }
+          - { id: esp32-tdisplay-4mb,  yaml: esphome/esp32-tdisplay-4mb.yaml }
+          - { id: esp32-wroom32,       yaml: esphome/esp32-wroom32.yaml }
+          # NO cyd — compile-only / NOT READY (manifest private:, new-board checklist).
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: ver
+        run: echo "v=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"   # v0.1 -> 0.1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip                       # caches ~/.cache/pip only — never .esphome/
+
+      - name: Install pinned ESPHome
+        run: pip install -r requirements.txt
+
+      # Cache the big PlatformIO toolchain. OPSEC: cache ONLY ~/.platformio, never
+      # esphome/.esphome/ (its build/idedata/storage can hold onboarded state).
+      - name: Cache PlatformIO
+        uses: actions/cache@v4
+        with:
+          path: ~/.platformio
+          key: pio-${{ runner.os }}-${{ hashFiles('requirements.txt') }}-${{ matrix.id }}
+
+      # The build resolves exactly ONE !secret: ota_password (Wi-Fi is creds-less). Bake the
+      # DOCUMENTED DEFAULT (a repo VARIABLE, published on the wiki — not a secret). The dev
+      # ota_password stays private and differs.
+      - name: Synthesize secrets.yaml (official default OTA password)
+        env:
+          OFFICIAL_OTA: ${{ vars.OFFICIAL_OTA_PASSWORD }}
+        run: |
+          test -n "$OFFICIAL_OTA" || { echo "::error::OFFICIAL_OTA_PASSWORD variable not set"; exit 1; }
+          cp esphome/secrets.yaml.example esphome/secrets.yaml
+          sed -i "s|^ota_password:.*|ota_password: \"${OFFICIAL_OTA}\"|" esphome/secrets.yaml
+
+      # -s fw_version overrides the master's substitution (shown on the System/About screen).
+      - name: Compile ${{ matrix.id }}
+        run: esphome -s fw_version "${{ steps.ver.outputs.v }}-${{ matrix.id }}" compile "${{ matrix.yaml }}"
+
+      # device name is "winterdash" on every board -> deterministic path; find is the safety net.
+      - id: bin
+        name: Collect + rename factory bin
+        run: |
+          SRC=$(find esphome/.esphome/build -name firmware.factory.bin | head -n1)
+          test -n "$SRC" || { echo "::error::factory bin not found"; exit 1; }
+          OUT="${{ matrix.id }}-${{ steps.ver.outputs.v }}.factory.bin"
+          mkdir -p dist && cp "$SRC" "dist/$OUT"
+          echo "path=dist/$OUT" >> "$GITHUB_OUTPUT"
+
+      # Defense-in-depth: a generic hygiene scan of the source + the built bin (author-identity
+      # scrub is the dev-side export gate's job, which ran before this snapshot).
+      - name: CI hygiene scan
+        run: python .github/scripts/ci_scan.py "${{ steps.bin.outputs.path }}"
+
+      # Hand off ONLY the renamed bin — never .esphome/.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fw-${{ matrix.id }}
+          path: ${{ steps.bin.outputs.path }}
+          retention-days: 7
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: _dl
+          pattern: 'fw-*'
+          merge-multiple: true
+
+      - name: Attach firmware to the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: _dl/*.factory.bin
+          fail_on_unmatched_files: true

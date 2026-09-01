@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0e0f13">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMTAwIiBoZWlnaHQ9IjExMDAiIHZpZXdCb3g9IjAgMCAxMTAwIDExMDAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iV2ludGVyRGFzaCBzbm93Zmxha2UgY2hhcmdpbmcgY2FibGUgbWFyayI+Cgo8ZGVmcz4KICA8bGluZWFyR3JhZGllbnQgaWQ9ImljZSIgeDE9IjAlIiB5MT0iNSUiIHgyPSI5MiUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0N0QzRjUiLz4KICAgIDxzdG9wIG9mZnNldD0iNDIlIiBzdG9wLWNvbG9yPSIjMjJCN0Y1Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjcyJSIgc3RvcC1jb2xvcj0iIzA3OEZGMiIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTY4RUVBIi8+CiAgPC9saW5lYXJHcmFkaWVudD4KICA8bGluZWFyR3JhZGllbnQgaWQ9InBsdWdEYXJrIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMxODM2NTMiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzA3MUMzMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE1Mi4wMCw0OC4wMCkiPgogIDxwYXRoIGQ9Ik0gMzg3IDAgTCAzNzEgMTIgTCAzNjQgMjcgTCAzNjMgMTUzIEwgMzU3IDE1MCBMIDMwNCAxMDQgTCAyOTMgOTcgTCAyNzcgOTUgTCAyNjMgMTAwIEwgMjU0IDEwOSBMIDI0OSAxMjQgTCAyNTEgMTM3IEwgMjYxIDE1MSBMIDM2NCAyMzggTCAzNjQgMzkwIEwgMzU4IDM5OCBMIDM0NyAzOTkgTCAyMjAgMzI0IEwgMjA3IDIwOSBMIDIwNCAxOTkgTCAxOTUgMTg4IEwgMTg2IDE4MyBMIDE3NCAxODEgTCAxNjIgMTg0IEwgMTUzIDE5MCBMIDE0NSAyMDMgTCAxNDQgMjE3IEwgMTUyIDI3NyBMIDE1MSAyODMgTCAxNDggMjgzIEwgNjQgMjMyIEwgNDggMjI0IEwgMzEgMjIzIEwgMTcgMjI5IEwgNiAyNDIgTCAyIDI1NSBMIDIgMjY0IEwgOCAyNzkgTCAxNiAyODcgTCAxMTAgMzQzIEwgMTA5IDM0NiBMIDM5IDM3NyBMIDMxIDM4NCBMIDI2IDM5NCBMIDI2IDQwOCBMIDI5IDQxNiBMIDM4IDQyNiBMIDQ5IDQzMSBMIDY2IDQzMSBMIDE4OSAzODEgTCAxOTMgMzgxIEwgMzEzIDQ1MSBMIDMxOSA0NTggTCAzMTkgNDY2IEwgMzEyIDQ3NSBMIDE4OSA1NDQgTCAxODMgNTQzIEwgNjYgNDk1IEwgNTIgNDk0IEwgNDEgNDk4IEwgMzEgNTA3IEwgMjYgNTE4IEwgMjYgNTMwIEwgMzEgNTQxIEwgNDQgNTUxIEwgMTEwIDU3OSBMIDExMSA1ODMgTCAxNCA2MzcgTCA2IDY0NSBMIDIgNjU0IEwgMCA2NTUgTCAwIDY3MyBMIDIgNjc0IEwgNiA2ODMgTCAxNSA2OTIgTCAyNSA2OTYgTCAzOCA2OTcgTCA1NCA2OTEgTCAxNDEgNjQyIEwgMTQ4IDY0MCBMIDE0OSA2NDQgTCAxMzcgNzAzIEwgMTM4IDcxNSBMIDE0MiA3MjMgTCAxNTAgNzMxIEwgMTYwIDczNSBMIDE3NiA3MzQgTCAxODkgNzI1IEwgMTk2IDcxMyBMIDIxOCA1OTggTCAzNTAgNTIyIEwgMzU3IDUxOSBMIDM2MyA1MjAgTCAzNjYgNTI0IEwgMzY1IDY2NyBMIDM2MCA2OTEgTCAzNTQgNzAxIEwgMzQxIDcxNCBMIDMzMCA3MjEgTCAyNDkgNzYwIEwgMjIwIDc3OCBMIDIwNSA3OTAgTCAxODQgODEzIEwgMTY2IDg0NSBMIDE1OCA4NzggTCAxNTggOTAxIEwgMTYyIDkyNSBMIDE3NCA5NTUgTCAxOTIgOTc3IEwgMjEwIDk5MCBMIDIyMCA5OTUgTCAyNDMgMTAwMSBMIDI0NCAxMDAzIEwgMjgwIDEwMDMgTCAyODEgMTAwMSBMIDI5OSA5OTggTCAzMjcgOTg3IEwgMzY3IDk2MiBMIDQwOCA5MzIgTCA0MzAgOTIwIEwgNDQ3IDkxNSBMIDQ1MCA5MTkgTCA0NjAgOTI1IEwgNDkxIDkzNSBMIDUxNyA5NTkgTCA1NTAgOTc4IEwgNTg5IDk5MyBMIDYxNCA5OTkgTCA2MjkgOTk5IEwgNjQ0IDk5MiBMIDY2MyA5NzkgTCA2ODIgOTYzIEwgNjk2IDk0OCBMIDcwOSA5MzAgTCA3MTQgOTIwIEwgNzIyIDg5MSBMIDcyMiA4NzAgTCA3MTggODYwIEwgNzEzIDg1NCBMIDY5NiA4NDUgTCA2NjEgODMzIEwgNjUzIDgyNSBMIDU4OCA4MTMgTCA1NTIgODExIEwgNTM3IDgxNSBMIDUyMyA4MjIgTCA0OTAgODMwIEwgNDU3IDg0NSBMIDQ1MCA4NTMgTCA0NDUgODY0IEwgNDIyIDg2OSBMIDM5OCA4NzkgTCAzNjYgODk5IEwgMzQ0IDkxNiBMIDMxMCA5MzggTCAyNzkgOTUwIEwgMjUxIDk1MSBMIDIzMCA5NDMgTCAyMTYgOTI4IEwgMjA5IDkxMSBMIDIwOCA4ODUgTCAyMTEgODczIEwgMjIxIDg1MyBMIDIzOCA4MzQgTCAyNTUgODIxIEwgMjg3IDgwNCBMIDM0NyA3ODEgTCAzNzcgNzY1IEwgMzkyIDc1NCBMIDQwNyA3MzkgTCA0MTcgNzI1IEwgNDI5IDY5NyBMIDQzMyA2NzQgTCA0MzMgNTIzIEwgNDM3IDUyMCBMIDQ0MyA1MjAgTCA1NzcgNTk3IEwgNTk2IDcxMiBMIDYwMyA3MjUgTCA2MTYgNzM0IEwgNjM0IDczNSBMIDY0MyA3MzEgTCA2NTIgNzIyIEwgNjU2IDcxMiBMIDY1NiA3MDEgTCA2NDYgNjQ3IEwgNjQ3IDY0MCBMIDY2NiA2NDkgTCA3NDMgNjkzIEwgNzU1IDY5NyBMIDc2NiA2OTcgTCA3NzkgNjkyIEwgNzg5IDY4MyBMIDc5MyA2NzMgTCA3OTUgNjcyIEwgNzk1IDY1NSBMIDc5MyA2NTQgTCA3OTAgNjQ2IEwgNzgxIDYzNyBMIDY4NSA1ODMgTCA2ODYgNTc5IEwgNzQ5IDU1MiBMIDc2MyA1NDMgTCA3NjkgNTMyIEwgNzcwIDUyMSBMIDc2NSA1MDggTCA3NTYgNDk5IEwgNzQyIDQ5NCBMIDcyOSA0OTUgTCA2MTEgNTQ0IEwgNjA2IDU0NCBMIDQ4MyA0NzQgTCA0NzggNDY3IEwgNDc4IDQ1OCBMIDQ4NCA0NTEgTCA2MDQgMzgxIEwgNjA4IDM4MSBMIDczMCA0MzEgTCA3NDEgNDMyIEwgNzUwIDQzMCBMIDc1NyA0MjYgTCA3NjYgNDE2IEwgNzcwIDQwNCBMIDc2OSAzOTMgTCA3NjMgMzgyIEwgNzUzIDM3NSBMIDY4NiAzNDYgTCA2ODUgMzQzIEwgNzc1IDI5MCBMIDc4NiAyODEgTCA3OTIgMjcxIEwgNzkzIDI2NSBMIDc5NSAyNjQgTCA3OTUgMjUzIEwgNzkzIDI1MiBMIDc4OCAyMzggTCA3NzggMjI4IEwgNzY1IDIyMyBMIDc1MSAyMjMgTCA3NDAgMjI3IEwgNjUwIDI4MiBMIDY0NSAyODMgTCA2NDQgMjc1IEwgNjUyIDIxOSBMIDY1MSAyMDIgTCA2NDcgMTk0IEwgNjQxIDE4OCBMIDYzMiAxODMgTCA2MjQgMTgxIEwgNjEwIDE4MyBMIDU5NyAxOTIgTCA1OTAgMjA1IEwgNTc2IDMyNCBMIDQ1MiAzOTggTCA0MzkgMzk4IEwgNDMzIDM5MCBMIDQzMyAyMzcgTCA1MTggMTY2IEwgNTQyIDE0NCBMIDU0NyAxMzMgTCA1NDcgMTE5IEwgNTQzIDEwOSBMIDUzNCAxMDAgTCA1MjEgOTUgTCA1MDcgOTYgTCA0OTggMTAwIEwgNDQxIDE0OSBMIDQzNCAxNTMgTCA0MzMgMjcgTCA0MjQgMTAgTCA0MTAgMCBaIiBmaWxsPSJ1cmwoI2ljZSkiLz4KICA8cGF0aCBkPSJNIDcwNCA4NjAgTCA2NTUgODQ2IEwgNjMyIDg0NyBMIDYyMyA4NTEgTCA2MTcgODU3IEwgNjExIDg2OCBMIDYwMSA4OTcgTCA1OTggOTExIEwgNTk4IDkyNSBMIDYwNyA5NjMgTCA2MTMgOTc3IEwgNjIwIDk4NCBMIDYyNSA5ODYgTCA2MzMgOTg2IEwgNjQ2IDk4MCBMIDY3NiA5NTcgTCA2OTggOTMyIEwgNzEwIDkwOSBMIDcxNCA4OTAgTCA3MTQgODczIEwgNzEwIDg2NSBaIiBmaWxsPSJ1cmwoI3BsdWdEYXJrKSIgb3BhY2l0eT0iMSIvPgo8cGF0aCBkPSJNIDUwOCA4ODIgTCA1MDQgODkyIEwgNTA2IDkxNyBMIDUxMSA5MzggTCA1MjIgOTYwIEwgNTIwIDk2MSBMIDUxNiA5NTggTCA1MTcgOTU2IEwgNTE2IDk1OCBMIDUxMiA5NTUgTCA1MjggOTY2IEwgNTU0IDk4MCBMIDU5MSA5OTMgTCA1ODAgOTg1IEwgNTgxIDk4MyBMIDU4MyA5ODUgTCA1ODAgOTc4IEwgNTc4IDk4MSBMIDU3MyA5NzIgTCA1NjAgOTE1IEwgNTU1IDkwMCBMIDU0OCA4OTMgTCA1MTYgODgxIFoiIGZpbGw9IiMxNzM2NTMiIG9wYWNpdHk9IjAuOTUiLz4KPHBhdGggZD0iTSA1MjIgODIyIEwgNTEwIDgyNCBMIDQ3OSA4MzQgTCA0NjIgODQyIEwgNDUyIDg1MCBMIDQ0NSA4NjYgTCA0NDIgODg3IEwgNDQzIDkwNSBMIDQ1MSA5MjAgTCA0NjAgOTI1IEwgNDkzIDkzNyBMIDQ4NiA5MjEgTCA0ODQgOTA2IEwgNDg1IDg4NyBMIDQ4OCA4NzIgTCA0OTUgODUzIEwgNTA0IDgzOCBaIiBmaWxsPSIjMjc0NzYyIiBvcGFjaXR5PSIwLjkiLz4KCiAgPGNpcmNsZSBjeD0iNjQ4LjAzIiBjeT0iODc2LjM0IiByPSIxMC4wMCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2ODUuNzEiIGN5PSI4ODUuODMiIHI9IjkuMzciIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iI0Q4REVFNSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPGNpcmNsZSBjeD0iNjIzLjU0IiBjeT0iOTExLjc1IiByPSIxMC40OSIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2NjIuMzIiIGN5PSI5MTcuMTAiIHI9IjEwLjE2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNEOERFRTUiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxjaXJjbGUgY3g9IjYzNC45OCIgY3k9Ijk1MC40NyIgcj0iOS44MiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8L2c+Cjwvc3ZnPgo=">
+<title>WinterDash Installer</title>
+<script src="../assets/md5.min.js"></script>
+<style>
+  :root{
+    --bg:#0e0f13; --panel:#16181d; --panel2:#1c1f26; --line:#2a2e36;
+    --text:#e8e8e8; --muted:#8b9099; --faint:#5c626c;
+    --green:#3ddc84; --amber:#f5b942; --red:#ef5350; --blue:#38bdf8;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);
+       -webkit-font-smoothing:antialiased;padding:22px 14px 48px;display:flex;justify-content:center}
+  .app{width:100%;max-width:460px;display:flex;flex-direction:column;gap:14px}
+  #app{display:flex;flex-direction:column;gap:14px}   /* the hero/controls/log cards need the same gap as .app */
+  svg.ic{width:1em;height:1em;fill:currentColor;display:block;flex:none}
+  a{color:var(--blue)}
+
+  /* header wordmark */
+  .head{display:flex;align-items:baseline;gap:10px;padding:2px 2px 0}
+  .wm{font-weight:800;font-size:22px;line-height:1;letter-spacing:.01em}
+  .wm .w1{color:#eaf4ff} .wm .w2{color:var(--blue)}
+  .head .sub{color:var(--muted);font-size:13px;font-weight:600}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+
+  /* ---------- HERO (mirrors the WinterDash dashboard hero) ---------- */
+  .screen{padding:0}
+  .banner{position:relative;height:118px;background:linear-gradient(180deg,#1c1f26 0%,#101217 100%);
+          border-bottom:1px solid var(--line)}
+  /* hero image slot = the LEFT 50% of the banner; the logo (no board) and the board photo both center here */
+  .heroimg{position:absolute;left:0;top:0;width:50%;height:100%;display:flex;align-items:center;justify-content:center;padding:12px 10px}
+  .heroimg img{max-height:94px;max-width:100%;width:auto;height:auto;object-fit:contain;filter:drop-shadow(0 4px 10px rgba(0,0,0,.45))}
+  .heroimg img.qr{background:#fff;padding:5px;border-radius:7px;filter:none;image-rendering:pixelated}   /* QR needs a white quiet-zone + crisp edges to scan */
+  .cluster{position:absolute;top:11px;right:14px;display:flex;align-items:center;gap:9px}
+  .cluster .conn{color:var(--faint);transition:color .2s} .cluster .conn.on{color:var(--blue)}
+  .cluster svg.ic{width:17px;height:17px}
+  .clock{font-size:16px;font-weight:600;color:#c4c8cf;font-variant-numeric:tabular-nums}
+  .status{position:absolute;right:18px;bottom:15px;display:flex;align-items:center;gap:9px;font-weight:800;color:var(--muted)}
+  .status svg.ic{width:25px;height:25px}
+  .status .word{font-size:24px;letter-spacing:.02em}
+  .status.blink{animation:blink 1.1s steps(2,start) infinite}
+  @keyframes blink{50%{opacity:.4}}
+  @media (prefers-reduced-motion:reduce){.status.blink{animation:none}}
+  @media (max-width:480px){ .status{left:auto;right:14px} .status .word{font-size:19px} .status svg.ic{width:21px;height:21px} .car{max-height:70px;max-width:46%} }
+
+  .zone{position:relative;padding:16px 18px 15px}
+  .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+  .big{display:flex;align-items:baseline;gap:5px;line-height:1}
+  .big .num{font-size:46px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+  .big .num.ph{font-size:34px;font-weight:700;color:var(--faint)}
+  .big .unit{font-size:18px;color:var(--faint);font-weight:600}
+  .aux{text-align:right;font-size:13px;line-height:1.4;color:var(--faint);height:40px;overflow:hidden;padding-top:3px;max-width:66%}
+  .aux b{color:var(--muted);font-weight:600}
+  /* one reserved bottom slot: the progress bar (flashing) OR the green next-step address (done) — never grows the hero */
+  .foot{position:relative;height:18px;margin:13px 0 2px;display:flex;align-items:center}
+  .bar{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);height:12px;border-radius:6px;background:#1b1e25;overflow:hidden;visibility:hidden}
+  .bar i{position:absolute;left:0;top:0;height:100%;width:0;background:var(--blue);transition:width .2s}
+  .nextstep{width:100%;text-align:center;font-size:13.5px;font-weight:700;color:var(--green)}
+  .nextstep b{color:var(--green)}
+
+  /* ---------- controls ---------- */
+  .ctl{padding:16px 18px}
+  label{display:block;color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;margin:0 0 6px}
+  label+select{margin-bottom:14px}
+  select{width:100%;font:inherit;padding:11px 12px;border-radius:10px;border:1px solid var(--line);
+         background:var(--panel2);color:var(--text)}
+  .btns{display:flex;justify-content:flex-end;margin-top:4px}   /* single action button, fixed on the right — no layout jump as it changes */
+  button{font:inherit;font-weight:700;padding:11px 18px;border-radius:10px;border:1px solid var(--line);
+         background:var(--panel2);color:var(--text);cursor:pointer}
+  button.primary{background:var(--blue);color:#04121c;border-color:var(--blue)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .help{font-size:13px;line-height:1.5;color:var(--muted);margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+  .help ul{margin:8px 0 0;padding-left:20px} .help li{margin:3px 0}
+
+  /* unsupported-browser gate */
+  .gate{padding:18px} .gate .t{font-weight:700;color:var(--amber);margin-bottom:8px}
+  .gate .d{color:var(--muted);font-size:14px;line-height:1.5}
+
+  /* collapsible log */
+  details.log{padding:0}
+  details.log>summary{list-style:none;cursor:pointer;padding:13px 18px;font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--panel2);
+    display:flex;align-items:center;justify-content:space-between}
+  details.log>summary::-webkit-details-marker{display:none}
+  details.log>summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--faint);
+    border-bottom:2px solid var(--faint);transform:rotate(-45deg);transition:transform .15s}
+  details.log[open]>summary{border-bottom:1px solid var(--line)}
+  details.log[open]>summary::after{transform:rotate(45deg)}
+  pre{white-space:pre-wrap;font-size:12px;color:var(--faint);margin:0;padding:12px 18px;max-height:200px;overflow:auto;
+      font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+  /* About / footer — mirrors the device dashboard's About block */
+  .about{padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+  .about .brand{display:flex;align-items:center;gap:11px}
+  .about .brand .bm{width:40px;height:40px;flex:none;display:block}
+  .about .wm{font-size:23px;line-height:1}
+  .about .disclaimer{font-size:11.5px;line-height:1.5;color:var(--faint)}
+  .about .links{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .about a.lnk{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 11px;border:1px solid var(--line);
+    border-radius:8px;font-weight:600;text-decoration:none;color:var(--muted)}
+  .about a.lnk:hover{color:var(--text);border-color:var(--muted)}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="head"><span class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></span><span class="sub">Installer</span></div>
+
+  <!-- Browser gate: Web Serial is Chromium-desktop only -->
+  <div id="gate" class="card gate hidden">
+    <div class="t">This installer needs a computer with Chrome or Edge.</div>
+    <div class="d">Web-based flashing uses a browser feature (Web&nbsp;Serial) that phones, tablets, Safari and
+    Firefox don't have. Open this page on a Windows / Mac / Linux computer in <b>Chrome</b> or <b>Edge</b> — or
+    flash manually (see the wiki).</div>
+  </div>
+
+  <div id="app" class="hidden">
+    <!-- HERO card -->
+    <div class="card screen">
+      <div class="banner">
+        <div class="heroimg">
+          <img id="herologo" src="../assets/hero-winterdash.webp" alt="WinterDash">
+          <img id="boardimg" class="hidden" alt="">
+          <img id="qrimg" class="qr hidden" src="../assets/wifi-setup-qr.png" alt="Scan to join WinterDashAP">
+        </div>
+        <div class="cluster"><span id="conn" class="conn"><svg class="ic" viewBox="0 0 24 24"><path id="connp" d=""/></svg></span><span id="clk" class="clock">--:--</span></div>
+        <div id="status" class="status"><svg class="ic" viewBox="0 0 24 24"><path id="statp" d=""/></svg><span id="word" class="word">SELECT BOARD</span></div>
+      </div>
+      <div class="zone">
+        <div class="hero">
+          <div class="big"><span id="num" class="num ph">—</span><span id="unit" class="unit hidden">%</span></div>
+          <div id="aux" class="aux">Plug your board into a USB port, then press Connect.</div>
+        </div>
+        <div class="foot">
+          <div class="bar" id="bar"><i id="barfill"></i></div>
+          <div class="nextstep hidden" id="nextstep"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- controls -->
+    <div class="card ctl">
+      <label for="board">Board</label>
+      <select id="board"></select>
+      <label for="ver">Version</label>
+      <select id="ver"></select>
+      <div class="btns">
+        <button id="action" class="primary">Connect</button>
+      </div>
+      <div id="help" class="help hidden">
+        Didn't see your board in the list, or it won't connect? You probably need the USB driver:
+        <ul>
+          <li><a href="https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers" target="_blank" rel="noopener">CP210x driver</a> — Silicon Labs (most TTGO / CP2102 boards)</li>
+          <li><a href="https://www.wch-ic.com/downloads/CH341SER_EXE.html" target="_blank" rel="noopener">CH340 / CH341 driver</a> — many generic ESP32 dev boards</li>
+        </ul>
+        Install it, unplug and replug the board, then Connect again. Make sure the USB cable is a <b>data</b> cable,
+        not charge-only.
+      </div>
+    </div>
+
+    <!-- collapsible log -->
+    <details class="card log"><summary>Technical details</summary><pre id="log"></pre></details>
+
+    <!-- About / footer (mirrors the device dashboard) -->
+    <div class="card about">
+      <div class="disclaimer">Independent open-source project — not affiliated with, endorsed by, or sponsored by Victron Energy. “Victron” and “Blue Smart” are trademarks of Victron Energy B.V., used only to describe compatibility.</div>
+      <div class="links">
+        <a class="lnk" href="https://github.com/witekin/winterdash" target="_blank" rel="noopener noreferrer">GitHub</a>
+        <a class="lnk" href="https://github.com/witekin/winterdash/wiki" target="_blank" rel="noopener noreferrer">Docs / Wiki</a>
+        <a class="lnk" href="https://esphome.io" target="_blank" rel="noopener noreferrer">Powered by ESPHome</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { ESPLoader, Transport } from '../assets/esptool-bundle.js';
+
+// MDI 24x24 icon paths (reused from the device dashboard for one-ecosystem consistency)
+const IC = {
+  usb:  "M15,7V11H16V13H13V5H15L12,1L9,5H11V13H8V10.93C8.7,10.56 9.2,9.83 9.2,9C9.2,7.8 8.2,6.8 7,6.8C5.8,6.8 4.8,7.8 4.8,9C4.8,9.83 5.3,10.56 6,10.93V13C6,14.11 6.89,15 8,15H11V18.05C10.29,18.41 9.8,19.15 9.8,20C9.8,21.21 10.79,22.2 12,22.2C13.21,22.2 14.2,21.21 14.2,20C14.2,19.15 13.71,18.41 13,18.05V15H16C17.11,15 18,14.11 18,13V11H19V7H15Z",
+  flash:"M7,2V13H10V22L17,10H13L17,2H7Z",
+  check:"M12 2C6.5 2 2 6.5 2 12S6.5 22 12 22 22 17.5 22 12 17.5 2 12 2M10 17L5 12L6.41 10.59L10 14.17L17.59 6.58L19 8L10 17Z",
+  alert:"M13 14H11V9H13M13 18H11V16H13M1 21H23L12 2L1 21Z",
+  sleep:"M18.73,18C15.4,21.69 9.71,22 6,18.64C2.33,15.31 2.04,9.62 5.37,5.93C6.9,4.25 9,3.2 11.27,3C7.96,6.7 8.27,12.39 12,15.71C13.63,17.19 15.78,18 18,18C18.25,18 18.5,18 18.73,18Z",
+  wifi: "M12,21L15.6,16.2C14.6,15.45 13.35,15 12,15C10.65,15 9.4,15.45 8.4,16.2L12,21M12,3C7.95,3 4.21,4.34 1.2,6.6L3,9C5.5,7.12 8.62,6 12,6C15.38,6 18.5,7.12 21,9L22.8,6.6C19.79,4.34 16.05,3 12,3M12,9C9.3,9 6.81,9.89 4.8,11.4L6.6,13.8C8.1,12.67 9.97,12 12,12C14.03,12 15.9,12.67 17.4,13.8L19.2,11.4C17.19,9.89 14.7,9 12,9Z",
+};
+const COL = { grey:'var(--muted)', blue:'var(--blue)', green:'var(--green)', amber:'var(--amber)', red:'var(--red)' };
+const FALLBACK = '../assets/board-fallback.webp';   // shown when a manifest board has no photo, or its photo fails to load
+
+// The board list (id -> {label, photo, versions[]}) is DATA, not code: it comes from the manifest
+// firmware/versions.json, fetched in initApp. The release CI regenerates that file (same shape) from release #1.
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+function log(s){ logEl.textContent += s + "\n"; logEl.scrollTop = logEl.scrollHeight; }
+const espTerminal = { clean(){}, writeLine(d){ log(d); }, write(d){ logEl.textContent += d; } };
+
+// --- hero setters ---
+function setConn(on){ $('connp').setAttribute('d', IC.usb); $('conn').classList.toggle('on', !!on); }
+function setState(word, icon, col, {blink=false}={}){
+  $('word').textContent = word;
+  $('statp').setAttribute('d', IC[icon] || '');
+  $('status').style.color = col;
+  $('status').classList.toggle('blink', blink);
+}
+function setBig(text, {ph=false, unit=null, col=null}={}){
+  const n=$('num'); n.textContent=text; n.classList.toggle('ph', ph); n.style.color = col || '';
+  $('unit').classList.toggle('hidden', !unit); if(unit) $('unit').textContent = unit;
+}
+function setAux(html){ $('aux').innerHTML = html; }
+function showBar(on){ $('bar').style.visibility = on ? 'visible' : 'hidden'; }   /* reserve space always -> no jump */
+function setBar(pct){ $('barfill').style.width = Math.max(0,Math.min(100,pct)) + '%'; }
+function show(id,on){ $(id).classList.toggle('hidden', !on); }
+
+// clock (decorative — mirrors the dashboard top-bar chrome)
+function tick(){ const d=new Date(); $('clk').textContent = String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+setInterval(tick, 15000); tick();
+
+// initial hero
+setConn(false);
+setState('SELECT BOARD','',COL.grey);
+
+if (!('serial' in navigator)) { show('gate', true); }
+else { show('app', true); initApp(); }
+
+async function initApp(){
+  let BOARDS;
+  try {
+    const m = await (await fetch('../firmware/versions.json', {cache:'no-store'})).json();
+    BOARDS = m.boards;
+    if (!BOARDS || !Object.keys(BOARDS).length) throw new Error('empty manifest');
+  } catch(e){
+    log('manifest load error: '+(e&&e.message));
+    setState('OFFLINE','alert',COL.red);
+    setAux('Couldn’t load the board list.<br>Reload, or flash manually (see the wiki).');
+    return;
+  }
+  const boardSel=$('board'), verSel=$('ver');
+  boardSel.add(new Option('Select your board…',''));                       // placeholder — nothing pre-picked
+  for (const [id,b] of Object.entries(BOARDS)) boardSel.add(new Option(b.label, id));
+  boardSel.value='';
+  // ONE action button, always present + right-aligned; only its label/enabled/handler change (no page jump).
+  const actBtn=$('action');
+  function setAction(label, enabled, fn){ actBtn.textContent=label; actBtn.disabled=!enabled; actBtn.onclick = enabled?fn:null; }
+  function fillBoard(){
+    showBar(false); setBar(0); show('nextstep',false); show('qrimg',false);   // clear any prior progress / next-step / QR (e.g. re-pick after DONE)
+    const id = boardSel.value;
+    if (!id){                                                              // START state: pick a board first
+      show('boardimg',false); show('herologo',true);
+      setConn(false); setState('SELECT BOARD','',COL.grey);
+      setBig('—',{ph:true}); setAux('Pick your board to begin.');
+      verSel.innerHTML='<option>—</option>'; verSel.disabled=true;   // placeholder keeps the select's height constant (no jump)
+      setAction('Connect', false, null); show('help',false);   // no board -> greyed, non-clickable
+      return;
+    }
+    const b = BOARDS[id];                                                  // board chosen -> ready to connect
+    show('herologo',false);
+    const bi=$('boardimg'); bi.onerror=()=>{ bi.onerror=null; bi.src=FALLBACK; }; bi.src = b.photo || FALLBACK;   // fallback on missing/404 photo
+    show('boardimg',true);
+    setConn(false); setState('CONNECT USB','usb',COL.grey);
+    setBig('—',{ph:true}); setAux('Plug in the board, then press Connect.');
+    verSel.disabled=false; verSel.innerHTML='';
+    b.versions.forEach((v,i)=> verSel.add(new Option(i===0 ? v.version+(v.url?' (latest)':''):v.version, i)));
+    setAction('Connect', true, connect); show('help',false);
+  }
+  boardSel.onchange = fillBoard; fillBoard();
+
+  let transport=null, esploader=null;
+
+  async function connect(){
+    show('help',false); setAction('Connect', false, null);   // greyed while connecting
+    setState('CONNECTING','usb',COL.blue,{blink:true});
+    setAux('Pick your board from the list your browser shows.');
+    let port;
+    try { port = await navigator.serial.requestPort({}); }
+    catch(e){
+      setState('NO BOARD','usb',COL.grey);
+      setAux('If your board isn’t in the list, you probably need its USB driver.');
+      setAction('Connect', true, connect); show('help',true); return;
+    }
+    try {
+      transport = new Transport(port, true);
+      esploader = new ESPLoader({ transport, baudrate:115200, terminal:espTerminal, debugLogging:false });
+      const info = port.getInfo ? port.getInfo() : {};
+      log('port VID/PID: '+(info.usbVendorId?.toString(16))+'/'+(info.usbProductId?.toString(16)));
+      const chip = await esploader.main();
+      setConn(true);
+      setState('CONNECTED','check',COL.green);
+      setBig('—',{ph:true});
+      setAux('<b>'+chip+'</b><br>Ready to install.');
+      setAction('Install', true, flash);
+      boardSel.disabled=true; verSel.disabled=true;
+    } catch(e){
+      log('connect error: '+(e&&e.message));
+      setState('NO LINK','alert',COL.red);
+      setAux('Try a different USB <b>data</b> cable, another port, or install the driver.');
+      setAction('Try again', true, connect); show('help',true);
+      boardSel.disabled=false; verSel.disabled=false;
+      try { await transport?.disconnect(); } catch(_){}
+    }
+  }
+
+  async function flash(){
+    const b = BOARDS[boardSel.value]; const v = b.versions[+verSel.value];
+    if (!v.url){   // T-Display bins come from the release CI — not in this local preview
+      setState('CONNECTED','check',COL.green);
+      setAux('This board’s firmware is built by the release CI — not available in this local preview. Pick the screenless board to test.');
+      setAction('Install', true, flash); return;
+    }
+    setAction('Install', false, null);   // greyed while flashing
+    setState('FLASHING','flash',COL.amber,{blink:true});
+    setBig('0',{unit:'%',col:'var(--amber)'});
+    setAux('Keep the cable plugged in.<br>About a minute.');
+    show('nextstep',false); showBar(true); setBar(0);
+    try {
+      log('fetching '+v.url);
+      const resp = await fetch(v.url); if(!resp.ok) throw new Error('download failed: '+resp.status);
+      const data = new Uint8Array(await resp.arrayBuffer());
+      log('image bytes: '+data.length);
+      await esploader.writeFlash({
+        fileArray:[{ data, address:0x0 }],
+        eraseAll:true, compress:true,                 // clean slate — the flasher is first-install/recovery
+        flashMode:'keep', flashFreq:'keep', flashSize:'keep',
+        reportProgress:(i,written,total)=>{ const p=(written/total)*100; setBar(p); setBig(String(Math.round(p)),{unit:'%',col:'var(--amber)'}); },
+        calculateMD5Hash:(image)=>md5(image),
+      });
+      await esploader.after();
+      setBig('100',{unit:'%',col:'var(--green)'});
+      show('boardimg',false); show('herologo',false); show('qrimg',true);   // swap the board photo for the WinterDashAP join QR
+      setState('CONFIGURE WIFI','wifi',COL.green);
+      setAux('Unplug &amp; replug to power, then scan to join <b>WinterDashAP</b>.');
+      showBar(false);                                                     // done -> the bar's slot now shows the address
+      $('nextstep').innerHTML='then open <b>http://192.168.4.1</b> in a browser';
+      show('nextstep',true);
+      setAction('Done', false, null);   // terminal: you must unplug now — an active "flash another" contradicts the flow
+      boardSel.disabled=false; verSel.disabled=false;   // to flash another board, pick one again (restarts the flow)
+    } catch(e){
+      log('flash error: '+(e&&e.message));
+      setState('FAILED','alert',COL.red); setBig('—',{ph:true}); showBar(false);
+      setAux('That didn’t finish. Unplug the board, plug it back in, and try again.');
+      setAction('Try again', true, connect);
+      boardSel.disabled=false; verSel.disabled=false;
+    } finally {
+      try { await transport?.disconnect(); } catch(_){}
+      setConn(false);
+    }
+  }
+}
+</script>
+</body>
+</html>
