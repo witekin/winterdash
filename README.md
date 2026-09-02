@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://github.com/witekin/winterdash/releases"><img src="https://img.shields.io/github/v/release/witekin/winterdash?color=38bdf8&label=release" alt="Latest release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/witekin/winterdash?color=2f855a" alt="License: GPL-3.0"></a>
-  <img src="https://img.shields.io/badge/Powered%20by-ESPHome-000?logo=esphome&logoColor=fff" alt="Powered by ESPHome">
+  <a href="https://esphome.io"><img src="https://img.shields.io/badge/Powered%20by-ESPHome-000?logo=esphome&logoColor=fff" alt="Powered by ESPHome"></a>
 </p>
 
 <p align="center"><em>Know what your Victron Blue Smart charger is doing — at a glance, all winter.</em></p>
