@@ -1,11 +1,24 @@
-<h1 align="center">WinterDash</h1>
-<p align="center"><em>Know what your Victron Blue Smart charger is doing — at a glance, all winter.</em></p>
 <p align="center">
-  <a href="https://witekin.github.io/winterdash/">🌐&nbsp;Website</a> ·
-  <a href="https://witekin.github.io/winterdash/flash/">⚡&nbsp;Flash a board</a> ·
-  <a href="https://github.com/witekin/winterdash/wiki">📖&nbsp;Wiki</a> ·
-  <a href="LICENSE">GPL-3.0</a>
+  <img src=".github/winterdash-header.png" alt="WinterDash" width="400">
 </p>
+
+<p align="center">
+  <a href="https://github.com/witekin/winterdash/releases"><img src="https://img.shields.io/github/v/release/witekin/winterdash?color=38bdf8&label=release" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/witekin/winterdash?color=2f855a" alt="License: GPL-3.0"></a>
+  <img src="https://img.shields.io/badge/Powered%20by-ESPHome-000?logo=esphome&logoColor=fff" alt="Powered by ESPHome">
+</p>
+
+<p align="center"><em>Know what your Victron Blue Smart charger is doing — at a glance, all winter.</em></p>
+
+---
+
+<p align="center">
+  <a href="https://witekin.github.io/winterdash/"><img src="https://img.shields.io/badge/Website-30363d?style=for-the-badge" alt="Website"></a>
+  <a href="https://witekin.github.io/winterdash/flash/"><img src="https://img.shields.io/badge/Flash_a_board-38bdf8?style=for-the-badge&labelColor=38bdf8" alt="Flash a board"></a>
+  <a href="https://github.com/witekin/winterdash/wiki"><img src="https://img.shields.io/badge/Wiki-30363d?style=for-the-badge" alt="Wiki"></a>
+</p>
+
+---
 
 <p align="center">
   <img src="site/assets/demo-hero.gif" alt="WinterDash dashboard in demo mode — a live charge cycle with the voltage climbing" width="620">
