@@ -131,10 +131,10 @@
 
       <details class="adv">
         <summary>Advanced</summary>
-        <form class="ota" method="post" action="/update" enctype="multipart/form-data">
+        <form class="ota" id="otaform" method="post" action="/update" enctype="multipart/form-data">
           <label for="fw">Update firmware from a .bin file</label>
           <input id="fw" type="file" name="file" accept=".bin,application/octet-stream">
-          <button class="btn ghost" type="submit">Update firmware</button>
+          <button class="btn ghost" id="otabtn" type="submit">Update firmware</button>
         </form>
       </details>
     </div>
@@ -208,6 +208,15 @@
     fetch('/wifisave?ssid='+encodeURIComponent(ssid)+'&psk='+encodeURIComponent(psk)).catch(()=>{});
     setTimeout(()=>document.body.classList.add('saved'), 400);
   };
+
+  // OTA upload is a native form POST to /update (served by ota.web_server). The upload takes a few
+  // seconds; grey the button on submit so it can't be clicked again mid-flash (the device replaces
+  // this page with the platform's own "Update Successful!" response when it finishes).
+  document.getElementById('otaform').addEventListener('submit', function(e){
+    if (!document.getElementById('fw').files.length) { e.preventDefault(); return; }  // no file -> don't submit
+    const b = document.getElementById('otabtn');
+    b.disabled = true; b.textContent = 'Updating… keep it powered';
+  });
 </script>
 </body>
 </html>
