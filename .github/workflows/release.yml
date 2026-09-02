@@ -1,8 +1,11 @@
 # Official firmware build — on a version tag (v0.1, v0.2, …).
-# Builds each shipping board's firmware.factory.bin with the PINNED ESPHome, baking the
-# DOCUMENTED DEFAULT OTA password (vars.OFFICIAL_OTA_PASSWORD) so non-technical users can
-# OTA-update later without compiling. Attaches the bins to the GitHub Release. CYD is
-# intentionally NOT in the matrix (compile-only / NOT READY).
+# Builds each shipping board's firmware with the PINNED ESPHome, baking the DOCUMENTED DEFAULT
+# OTA password (vars.OFFICIAL_OTA_PASSWORD) so non-technical users can update later without
+# compiling. Attaches TWO images per board to the GitHub Release:
+#   • <board>-<ver>.factory.bin — full image for a fresh USB flash (installer / esptool, @ 0x0)
+#   • <board>-<ver>.ota.bin     — app-only image for an over-the-air update (device update form /
+#                                 `esphome run`). The factory.bin is NOT OTA-uploadable.
+# CYD is intentionally NOT in the matrix (compile-only / NOT READY).
 #
 # Actions use major-version tags (@vN) from trusted publishers; Dependabot alerts cover them. Pin to
 # full commit SHAs if you want stricter supply-chain hardening. Validated end-to-end at release #1.
@@ -68,25 +71,35 @@ jobs:
         run: esphome -s fw_version "${{ steps.ver.outputs.v }}-${{ matrix.id }}" compile "${{ matrix.yaml }}"
 
       # device name is "winterdash" on every board -> deterministic path; find is the safety net.
+      # Collect BOTH images: the factory.bin (fresh USB flash @ 0x0) and the ota.bin (app-only,
+      # for an over-the-air update — the factory.bin can't be OTA'd).
       - id: bin
-        name: Collect + rename factory bin
+        name: Collect + rename firmware images (factory + OTA)
         run: |
-          SRC=$(find esphome/.esphome/build -name firmware.factory.bin | head -n1)
-          test -n "$SRC" || { echo "::error::factory bin not found"; exit 1; }
-          OUT="${{ matrix.id }}-${{ steps.ver.outputs.v }}.factory.bin"
-          mkdir -p dist && cp "$SRC" "dist/$OUT"
-          echo "path=dist/$OUT" >> "$GITHUB_OUTPUT"
+          mkdir -p dist
+          FAC=$(find esphome/.esphome/build -name firmware.factory.bin | head -n1)
+          test -n "$FAC" || { echo "::error::factory bin not found"; exit 1; }
+          FAC_OUT="${{ matrix.id }}-${{ steps.ver.outputs.v }}.factory.bin"
+          cp "$FAC" "dist/$FAC_OUT"
+          # ESPHome emits the OTA update image as firmware.ota.bin (older toolchains: firmware.bin).
+          OTA=$(find esphome/.esphome/build -name firmware.ota.bin | head -n1)
+          test -n "$OTA" || OTA=$(find esphome/.esphome/build -name firmware.bin | head -n1)
+          test -n "$OTA" || { echo "::error::OTA bin not found"; exit 1; }
+          OTA_OUT="${{ matrix.id }}-${{ steps.ver.outputs.v }}.ota.bin"
+          cp "$OTA" "dist/$OTA_OUT"
+          echo "path=dist/$FAC_OUT" >> "$GITHUB_OUTPUT"
+          echo "otapath=dist/$OTA_OUT" >> "$GITHUB_OUTPUT"
 
       # Defense-in-depth: a generic hygiene scan of the source + the built bin (author-identity
       # scrub is the dev-side export gate's job, which ran before this snapshot).
       - name: CI hygiene scan
-        run: python .github/scripts/ci_scan.py "${{ steps.bin.outputs.path }}"
+        run: python .github/scripts/ci_scan.py "${{ steps.bin.outputs.path }}" "${{ steps.bin.outputs.otapath }}"
 
-      # Hand off ONLY the renamed bin — never .esphome/.
+      # Hand off ONLY the renamed bins (factory + ota) — never .esphome/.
       - uses: actions/upload-artifact@v7
         with:
           name: fw-${{ matrix.id }}
-          path: ${{ steps.bin.outputs.path }}
+          path: dist/
           retention-days: 7
 
   release:
@@ -102,5 +115,7 @@ jobs:
       - name: Attach firmware to the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: _dl/*.factory.bin
+          files: |
+            _dl/*.factory.bin
+            _dl/*.ota.bin
           fail_on_unmatched_files: true
