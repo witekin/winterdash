@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/winterdash-header.png" alt="WinterDash" width="400">
+  <a href="https://witekin.github.io/winterdash/"><img src=".github/winterdash-header.png" alt="WinterDash" width="400"></a>
 </p>
 
 <p align="center">
