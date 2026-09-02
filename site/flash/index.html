@@ -28,10 +28,8 @@
   .wm .w1{color:#eaf4ff} .wm .w2{color:var(--blue)}
   .head .sub{color:var(--muted);font-size:13px;font-weight:600}
   /* one-line product sentence + expectations, for people who land here directly */
-  .intro{color:var(--muted);font-size:13.5px;line-height:1.55;padding:0 2px;margin:-2px 0 0}
-  .intro b{color:var(--text);font-weight:600}
-  .intro .lnks{display:flex;flex-wrap:wrap;gap:5px 14px;margin-top:9px;font-size:13px}
-  .intro .lnks a{font-weight:600}
+  .about .intro{color:var(--muted);font-size:13.5px;line-height:1.55;margin:0}
+  .about .intro b{color:var(--text);font-weight:600}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
 
@@ -98,8 +96,6 @@
     border-bottom:2px solid var(--faint);transform:rotate(-45deg);transition:transform .15s}
   details.log[open]>summary{border-bottom:1px solid var(--line)}
   details.log[open]>summary::after{transform:rotate(45deg)}
-  .loghelp{padding:13px 18px;font-size:13px;line-height:1.5;color:var(--muted);border-bottom:1px solid var(--line)}
-  .loghelp b{color:var(--text)} .loghelp ul{margin:8px 0 0;padding-left:20px} .loghelp li{margin:3px 0}
   pre{white-space:pre-wrap;font-size:12px;color:var(--faint);margin:0;padding:12px 18px;max-height:200px;overflow:auto;
       font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
   /* About / footer — mirrors the device dashboard's About block */
@@ -118,16 +114,6 @@
 <body>
 <div class="app">
   <h1 class="head"><span class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></span><span class="sub">Installer</span></h1>
-  <p class="intro"><b>WinterDash</b> is open-source firmware that reads a <b>Victron Blue&nbsp;Smart</b> charger over
-    Bluetooth and shows it on a little screen, a web page, and Home&nbsp;Assistant. This page flashes it onto an ESP32
-    board — <b>about a minute</b>, nothing to install on your computer. When it finishes, the board makes its own
-    <b>WinterDashAP</b> Wi-Fi network you finish setup from on your phone.
-    <span class="lnks">
-      <a href="https://github.com/witekin/winterdash/wiki/What-is-WinterDash" target="_blank" rel="noopener">What is WinterDash?</a>
-      <a href="https://github.com/witekin/winterdash/wiki/Install-and-update" target="_blank" rel="noopener">Full setup guide</a>
-      <a href="https://github.com/witekin/winterdash/wiki/Supported-chargers-and-boards" target="_blank" rel="noopener">Supported boards</a>
-    </span>
-  </p>
 
   <!-- Browser gate: Web Serial is Chromium-desktop only -->
   <div id="gate" class="card gate hidden">
@@ -181,25 +167,18 @@
       </div>
     </div>
 
-    <!-- collapsible help + log: a stuck user opens this first, so it carries the driver links (the #help
-         block above shows the same links contextually on a failed connect) plus the raw flashing log. -->
-    <details class="card log"><summary>Help &amp; logs — board not showing up?</summary>
-      <div class="loghelp">
-        Most "no board" / won't-connect problems are the <b>USB driver</b> or a <b>charge-only cable</b>. Install
-        your board's driver, use a <b>data</b> USB cable, then unplug/replug and Connect again:
-        <ul>
-          <li><a href="https://www.silabs.com/developer-tools/usb-to-uart-bridge-vcp-drivers" target="_blank" rel="noopener">CP210x driver</a> — Silicon Labs (most TTGO / CP2102 boards)</li>
-          <li><a href="https://www.wch-ic.com/downloads/CH341SER_EXE.html" target="_blank" rel="noopener">CH340 / CH341 driver</a> — many generic ESP32 dev boards</li>
-        </ul>
-        Still stuck? See the <a href="https://github.com/witekin/winterdash/wiki/Install-and-update#flash-the-board" target="_blank" rel="noopener">full flashing guide</a>. The log below helps when reporting an issue.
-      </div>
-      <pre id="log"></pre>
-    </details>
+    <!-- collapsible flashing log (driver help lives in #help above, shown contextually on a failed connect) -->
+    <details class="card log"><summary>Flashing log</summary><pre id="log"></pre></details>
 
     <!-- About / footer (mirrors the device dashboard) -->
     <div class="card about">
+      <p class="intro"><b>WinterDash</b> is open-source firmware that reads a <b>Victron Blue&nbsp;Smart</b> charger over
+        Bluetooth and shows it on a little screen, a web page, and Home&nbsp;Assistant. This page flashes it onto an ESP32
+        board — <b>about a minute</b>, nothing to install on your computer. When it finishes, the board makes its own
+        <b>WinterDashAP</b> Wi-Fi network you finish setup from on your phone.</p>
       <div class="disclaimer">Independent open-source project — not affiliated with, endorsed by, or sponsored by Victron Energy. “Victron” and “Blue Smart” are trademarks of Victron Energy B.V., used only to describe compatibility.</div>
       <div class="links">
+        <a class="lnk" href="https://github.com/witekin/winterdash/wiki/What-is-WinterDash" target="_blank" rel="noopener noreferrer">What is WinterDash?</a>
         <a class="lnk" href="https://github.com/witekin/winterdash" target="_blank" rel="noopener noreferrer">GitHub</a>
         <a class="lnk" href="https://github.com/witekin/winterdash/wiki/Install-and-update#first-time-setup" target="_blank" rel="noopener noreferrer">Setup &amp; pairing</a>
         <a class="lnk" href="https://github.com/witekin/winterdash/wiki/Supported-chargers-and-boards" target="_blank" rel="noopener noreferrer">Supported hardware</a>
