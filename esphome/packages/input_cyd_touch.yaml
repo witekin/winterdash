@@ -1,0 +1,116 @@
+# =============================================================================
+# input_cyd_touch.yaml — CYD (ESP32-2432S028R) resistive-touch navigation input
+# -----------------------------------------------------------------------------
+# The CYD's counterpart to input_tdisplay_2btn.yaml. Where the TTGO has two physical buttons (S1=next / S2=
+# select), the CYD has an XPT2046 resistive touch panel on its OWN SPI bus (touch_bus: CLK 25 / MOSI 32 /
+# MISO 39, CS 33, IRQ 36 — see board_esp32_cyd.yaml). Nav is HW-verified on the board (a superset of the TTGO's
+# S1=next / S2=select — touch is bidirectional).
+#
+# MAPPING (implemented + tuned on the dev unit):
+#   • tap on a DIMMED screen        -> WAKE only (swallow — don't also navigate)   [the B-nav wake-swallow rule]
+#   • splash / AP-setup own screen  -> swallow (until the boot splash hands off)
+#   • LEFT half  (x < 160)          -> PREVIOUS page          (full 0..5 cycle)
+#   • RIGHT half (x >= 160)         -> NEXT page
+#   • System page, bottom-center    -> open the ACTIONS menu (Reboot / Reset-WiFi / Factory / Back), then a
+#                                      HOLD over a Y-band confirms — hit-test in display_cyd.yaml.
+# Every touch also ESP_LOGI's the RAW + calibrated coords. NOTE (per-unit robustness, still open for shipping):
+# the `calibration:` values + the actions-menu Y-bands were tuned to THIS unit; a different CYD panel may need
+# re-calibration — read the logged RAW values on 1st boot and drop them into the `calibration:` block below.
+#
+# Depends on the lean display_cyd globals: current_page, last_activity_ms, backlight_dim, splash_active, and the
+# board's id(backlight). A board including input_touch must also include display_cyd + board_esp32_cyd.
+# =============================================================================
+
+touchscreen:
+  - platform: xpt2046
+    id: cyd_touch
+    spi_id: touch_bus
+    cs_pin: 33
+    # NOTE: interrupt_pin (GPIO36) REMOVED — it is an input-only pad with NO internal pull-up (the boot-time
+    # `gpio_pullup_en` error), so the XPT2046 IRQ was unreliable and interrupt-only touch went DEAD, which meant a
+    # dimmed screen never woke on tap. Pure POLLING (update_interval) is IRQ-independent and reliable on the CYD.
+    display: tft
+    update_interval: 50ms     # poll the panel every 50ms — fires on_touch reliably (no IRQ dependency)
+    threshold: 400            # raw-pressure gate — below this = no touch (XPT2046 noise floor)
+    # Placeholder calibration (community CYD defaults). REPLACE from the on-boot ESP_LOGI raw readings: tap the
+    # four corners, read x_raw/y_raw, set min/max. The display is rotated to LANDSCAPE (transform swap_xy in
+    # display_cyd) so the touch transform swaps too; flip mirror_x/mirror_y if left/right or up/down invert.
+    calibration:
+      x_min: 280
+      x_max: 3860
+      y_min: 340
+      y_max: 3860
+    transform:
+      mirror_x: true          # touch X was inverted vs the display (tap-left read as high x -> nav went the wrong
+                              # way); mirror_x aligns touch.x with the display so left=low (left tap = previous page)
+      mirror_y: true          # touch Y was ALSO inverted (mapping session: a lower button read a LOWER y) -> flip
+                              # so touch.y aligns with the display (top = low y) for menu button hit-testing
+      swap_xy: true
+    # TOUCH MODEL (both page nav AND the System actions menu, distinguished by tap-vs-hold, NO hit-testing so
+    # rough calibration is fine): on_touch records the press; the 100ms menu interval (display_cyd) handles the
+    # HOLD gestures (long-press opens the menu on the System page; hold-to-confirm fires Reboot/Reset-Wi-Fi/
+    # Factory / exits Back) and consumes touch_down_ms when it acts; on_release handles the short TAP (wake,
+    # page nav left/right, or cycle the menu highlight) only if the interval didn't already consume the press.
+    on_touch:
+      - lambda: |-
+          ESP_LOGI("touch", "x=%d y=%d  raw x=%d y=%d", touch.x, touch.y, touch.x_raw, touch.y_raw);
+          id(touching) = true;
+          id(touch_down_ms) = millis();
+          id(last_touch_x) = touch.x;             // on_release carries no coords -> stash x/y for nav + hit-test
+          id(last_touch_y) = touch.y;
+          id(last_activity_ms) = millis();
+    on_release:
+      - lambda: |-
+          id(touching) = false;
+          if (id(touch_down_ms) == 0) return;     // the menu interval already consumed this press (open/fire/exit)
+          uint32_t held = millis() - id(touch_down_ms);
+          id(touch_down_ms) = 0;
+          id(last_activity_ms) = millis();
+          if (id(splash_active)) return;          // boot splash owns the screen
+          if (id(ap_setup_shown)) return;         // AP-onboarding screen owns the screen — swallow nav
+          // Screensaver-exit swallow (mirrors display_tdisplay's wake-to-dashboard): a tap while the ambient idle
+          // saver is up EXITS it to the dashboard (+ wakes the backlight) and does NOT also navigate. The draw
+          // loader picks up saver_active=false / current_page=0 next tick (want != -3 -> dashboard).
+          if (id(saver_active)) {
+            id(saver_active) = false;
+            id(current_page) = 0;
+            id(backlight_dim) = false;
+            id(backlight).turn_on().set_brightness(wd_bl::eff_backlight(id(backlight_level).state / 100.0f, id(ldr_enabled) ? id(led_dark) : 0.0f, wd_bl::BlMode::ACTIVE)).perform();   // wake at the ladder active level (no full-bright flash)
+            id(last_activity_ms) = millis();
+            return;
+          }
+          // Wake-swallow: a tap on a dimmed screen only wakes, it doesn't act.
+          if (id(backlight_dim)) {
+            id(backlight_dim) = false;
+            id(backlight).turn_on().set_brightness(wd_bl::eff_backlight(id(backlight_level).state / 100.0f, id(ldr_enabled) ? id(led_dark) : 0.0f, wd_bl::BlMode::ACTIVE)).perform();   // wake at the ladder active level (no full-bright flash)
+            return;
+          }
+          // Overlay-swallow: NETWORK-FAULT is terminal ("unplug + restart") and its draw branch `return`s before the
+          // per-page fills -> a nav tap would land on an unfilled page. Swallow nav while it owns the screen. OFFLINE
+          // and FAULT are NOT swallowed: both fall through (overlay on the dashboard only), so navigating shows real
+          // page data + keeps the menu reachable during a never-online setup.
+          if (id(netwatch_disabled)) return;
+          // --- ACTIONS MENU (hit-tested by the mapped Y bands: Reboot<100, Wi-Fi<146, Factory<196, Back>=196) --
+          if (id(in_menu)) {
+            // Reboot/Wi-Fi/Factory require a HOLD (the 100ms interval fills + fires). Only Back is tap-actioned.
+            if (id(last_touch_y) >= 196) id(in_menu) = false;   // Back -> close the menu
+            return;
+          }
+          // On the System info view, the CENTRE of the bottom strip OPENS the Actions menu (the Actions button,
+          // x 70..250, y >= 170; the Mode button sits just above it at y 130..170). The bottom CORNERS (where the
+          // L/R nav arrows sit) fall through to page nav.
+          if (id(current_page) == 5 && id(last_touch_y) >= 170 && id(last_touch_x) >= 70 && id(last_touch_x) <= 250) { id(in_menu) = true; return; }
+          // Mode button (just ABOVE Actions, y 130..170): a TAP toggles device_mode Demo<->Auto (non-destructive).
+          if (id(current_page) == 5 && id(last_touch_y) >= 130 && id(last_touch_y) < 170 && id(last_touch_x) >= 70 && id(last_touch_x) <= 250) {
+            const std::string &dm = id(device_mode).state;
+            id(device_mode).make_call().set_option(dm == "Demo" ? "Auto" : "Demo").perform();
+            return;
+          }
+          if (held >= 700) return;                // a long press (non-menu) -> ignore
+          // short TAP = page nav. current_page holds the TTGO page INDEX (0 dash,1 detail,3 ble,4 network,
+          // 5 system; index 2/charlog CUT — web /wd/log.json keeps the full log) so the draw gates stay stable;
+          // cycle only the BUILT pages (index 2 skipped, not renumbered). LEFT half = prev.
+          static const int PAGES[] = {0, 1, 3, 4, 5};
+          const int NP = sizeof(PAGES) / sizeof(PAGES[0]);
+          int ci = 0; for (int i = 0; i < NP; i++) if (PAGES[i] == id(current_page)) ci = i;
+          id(current_page) = PAGES[id(last_touch_x) >= 160 ? (ci + 1) % NP : (ci + NP - 1) % NP];

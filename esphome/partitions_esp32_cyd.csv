@@ -1,0 +1,16 @@
+# WinterDash CYD partition table — ESP32-2432S028R (classic ESP32, 4MB flash, no-PSRAM).
+# Reuses the PROVEN 4MB geometry (identical to esp32-tdisplay-4mb / esp32-wroom32):
+# app0/app1 = 0x1D0000 (1.8125MB) each (dual-OTA — cable-less OTA preserved), storage = 0x50000 (320KB).
+# Bakes Battery only (screen+web) -> app comfortably under the 1.8125MB slot. The CUSTOM (user-uploaded) hero
+# WORKS E2E here: the 0x50000 storage holds 1 full-quality custom slot, rendered on dashboard + screensaver via
+# mmap (microSD was ABANDONED — internal storage instead). Default 64KB .wdb align, but the hero/thumb webp caps
+# are OVERRIDDEN in board_esp32_cyd.yaml to 48KB/12KB (WD_HERO_CAP=0xC000 / WD_THUMB_CAP=0x3000) -> SLOT_SPAN 252KB (not the default 256KB).
+# Reflash-gated:
+# OTA can't rewrite this table (a slot resize needs a CABLE flash). Per-board: never inherit the 16MB table.
+#   4MB(0x400000) - overhead 0x10000 = 0x3F0000 ; app0+app1 = 2 x 0x1D0000 = 0x3A0000 ; storage = 0x50000.
+# Name,     Type, SubType, Offset,    Size
+nvs,        data, nvs,     0x9000,    0x5000
+otadata,    data, ota,     0xe000,    0x2000
+app0,       app,  ota_0,   0x10000,   0x1D0000
+app1,       app,  ota_1,   0x1E0000,  0x1D0000
+storage,    data, spiffs,  0x3B0000,  0x50000

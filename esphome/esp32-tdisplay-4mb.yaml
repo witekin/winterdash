@@ -2,10 +2,10 @@
 # WinterDash — LilyGO TTGO T-Display, 4MB flash variant (ESP32, mipi_spi T-DISPLAY, 240x135)
 # -----------------------------------------------------------------------------
 # SAME panel + UI as esp32-tdisplay-16mb.yaml — the ONLY differences are the 4MB flash budget:
-#   - board_esp32_tdisplay_4mb (flash_size 4MB + partitions_esp32_tdisplay_4mb + -DWD_BAKE_MINIMAL)
-#   - banners_baked_minimal.h (web hero: Battery only) instead of banners_baked.h (full 10)
-#   - banner_preset_minimal.yaml (picker: Battery + Custom) instead of _full
-#   - NO presets_tdisplay_extra (on-screen bakes only Battery)
+#   - board_esp32_tdisplay_4mb (flash_size 4MB + partitions_esp32_tdisplay_4mb)
+#   - a MINIMAL baked set (Battery only, LCD + web) — declared in tools/board_assets.yaml (screen:[Battery],
+#     web:[Battery]) and emitted by gen_board_assets.py: banner_preset_esp32-tdisplay-4mb.yaml (picker Battery
+#     + Custom), banners_baked_esp32-tdisplay-4mb.h (web hero), and NO presets package (no non-Battery bakes).
 # Everything else (core, display_tdisplay UI, 2-button input, producers) is shared, unchanged.
 # Result: app ~1.81MB fits a 0x1D0000 dual-OTA slot -> cable-less OTA preserved; 320KB storage = 1 full-quality
 # custom banner slot.
@@ -14,9 +14,10 @@
 substitutions:
   device_name: "winterdash"
   friendly_name: "WinterDash"
-  fw_version: "dev-4mb"       # short version on the System screen; distinguishes the 4MB build in web About / HA
+  fw_version: "dev-esp32-tdisplay-4mb"   # board-id half MUST match the GitHub release asset name (esp32-tdisplay-4mb-<ver>.ota.bin) so the web-OTA update-check finds this board's asset. Release form: "<ver>-esp32-tdisplay-4mb". Shown on the System screen + web About / HA
   ble_signal_stale_s: "10"    # STEP 1: BLE signal "gone" (top-bar dot -> grey, BLE quality -> "No signal")
-  ble_timeout_s: "30"         # STEP 2: full OFFLINE overlay + a "No signal" event logged
+  ble_timeout_s: "20"         # STEP 2: full OFFLINE overlay + LED at 20s (was 30) — "message not disco": brief
+                              # alert then relax fast (display_tdisplay offline relax 25/100). A "No signal" event logged
   compute_interval: 1s
   draw_interval: 500ms
 
@@ -30,7 +31,7 @@ esphome:
   includes:
     - dashboard_html.h
     - convert_html.h
-    - banners_baked_minimal.h   # 4MB: Battery-only web hero (web_dashboard.h picks it via WD_BAKE_MINIMAL)
+    - banners_baked_esp32-tdisplay-4mb.h   # 4MB: Battery-only web hero (generated from board_assets.yaml)
     - web_dashboard.h
     - ble_scan.h
     - charge_log.h
@@ -41,11 +42,13 @@ esphome:
     - netwatch_probe.h   # watchdog Phase 2 — client-independent tcpip-thread liveness probe
     - netwatch_probe.cpp
     - status_compute.h
+    - wd_font_buf.h      # A5: static A8 glyph draw buffer -> glyph rasterization off the fragmentable 8-bit heap (NULL-deref crater mitigation); installed in the on_boot(-100) splash before lv_refr_now
+    - backlight_model.h  # C1: pure header — the single backlight ladder (wd_bl::eff_backlight), shared with the CYD (no LDR -> darkness fixed 0)
 # --- Package composition (4MB T-Display) -------------------------------------
 packages:
   core: !include packages/core.yaml             # board-agnostic platform layer
-  banner_preset: !include packages/banner_preset_minimal.yaml  # 4MB picker: Battery + Custom only
-  board: !include packages/board_esp32_tdisplay_4mb.yaml       # T-Display hardware, 4MB flash + WD_BAKE_MINIMAL
+  banner_preset: !include packages/banner_preset_esp32-tdisplay-4mb.yaml  # generated picker: Battery + Custom
+  board: !include packages/board_esp32_tdisplay_4mb.yaml       # T-Display hardware, 4MB flash
   display: !include packages/display_tdisplay.yaml # shared T-Display UI (bakes only Battery here — no presets_extra)
   input: !include packages/input_tdisplay_2btn.yaml     # T-Display 2-button nav
   mock: !include packages/mock_data.yaml        # Demo producer + canonical interface

@@ -44,6 +44,12 @@ esphome:
       # (default 64KB .wdb align + 64KB webp caps). If a dim change ever moves it, the build fails instead
       # of silently misaligning field banners on the next OTA. Bump ONLY with a planned wipe.
       - "-DWD_EXPECT_SLOT_SPAN=0x40000"
+      - "-DWD_HAS_DISPLAY=1"         # capability flag for the shared dashboard's board:{} (has a screen)
+      - "-DWD_HAS_IDLEDIM=1"         # unified with the CYD: screen idle-dim is the 4-level OFF/LOW/MED/HIGH (web /wd/cfg 'idim'). No LDR -> no Auto-dim, no LED (WD_HAS_LDR/WD_LED_TYPE default 0) = "the CYD dim model with auto-dim off"
+      - "-DWD_SSE_MAX_VIEWERS=1"     # tight-heap SSE cap: latest-viewer-wins (evict oldest). LVGL-axis policy: this
+                                     #   board runs LVGL (draw buffer eats the 8-bit heap) -> same no-PSRAM 2nd-viewer
+                                     #   shatter class as the CYD -> cap by default. Web emits "owner"; the client goes
+                                     #   dormant (red bar) on loss. 1 = single viewer (product is single-viewer).
 
 esp32:
   board: esp32dev

@@ -1,0 +1,2069 @@
+# =============================================================================
+# display_cyd.yaml — CYD (ESP32-2432S028R) display + LANDSCAPE branded LVGL tree
+# -----------------------------------------------------------------------------
+# Target: the TTGO WinterDash UI, 1:1, on the bigger CYD screen — same identity (dark header bar 0x1a1d24 with
+# hero + clock/status cluster, GREEN voltage 0x3ddc84 + gauge with redlines/expected-band/marker, current+temp
+# stat row), ported from display_tdisplay's 240x135 landscape layout to the CYD's 320x240 landscape. NOT a
+# redesign — the same widgets/colours/fonts, scaled up. The panel is native 240x320 portrait; `transform`
+# rotates it to 320x240 landscape (mirror flags tuned on the board — a visual step like touch calibration).
+#
+# PORT STATUS: the full TTGO UI is ported AND HW-verified E2E on real hardware — all 5 pages (splash, dashboard +
+# offline/fault/network-fault overlays, charger detail, bluetooth, network, system + a touch actions menu; the
+# on-device charge-log page was CUT here too, matching the TTGO A3.5 — the web Charger card + /wd/log.json stay),
+# the animated boot-splash, the screensaver, the WiFi-SETUP/AP-onboarding page, and the
+# custom-banner-on-screen render (mmap, via the internal 0x50000 storage slot — the microSD phase was ABANDONED).
+# Draw logic is near-identical to the TTGO — only the gauge width BW (222 -> 296) and pixel offsets scale.
+# STILL OPEN (on-screen polish, board-in-hand): fine-tune the detail/ble/network page coords (dashboard +
+# system already eyeballed) + per-unit touch calibration robustness. When the coords settle, a per-board geometry
+# generator could kill the TTGO/CYD tree duplication (single-source). See cyd-bringup-plan.md.
+#
+# Reads the board-agnostic status DTO (status_compute::status_out(), core-filled). Draw deps all live in core
+# (status_since_ms/sntp_time/demo_active/last_packet_ms/wifi_rssi) except fault_active (display-owned, below).
+# =============================================================================
+
+display:
+  # mipi_spi ESP32-2432S028 (ILI9341). NO reset_pin (RST on EN; GPIO4 = RGB-red). spi_id binds the display bus.
+  # transform rotates the native 240x320 portrait to 320x240 landscape — ILI9341 has no MADCTL in its init, so
+  # transform is honoured. mirror_x/mirror_y pick which of the 4 landscape rotations; TUNE on the board.
+  - platform: mipi_spi
+    model: ESP32-2432S028
+    id: tft
+    spi_id: tft_bus
+    dimensions:
+      width: 320
+      height: 240
+    transform:
+      swap_xy: true
+      mirror_x: true
+      mirror_y: true
+    update_interval: never
+
+image:
+  # Baked BATTERY hero (board_assets[esp32-cyd].screen = [Battery]). Canonical ids (match TTGO so the
+  # banner_preset lookup carries over). type RGB565 (not RGB) -> LV_IMG_CF_RGB565A8 = 3 B/px (vs ARGB8888's
+  # 4 B/px): ~25% less flash, visually ~identical, and the SAME format the converter bakes custom heroes in.
+  # dashboard resized up (fills the adaptive box-B hero zone: aspect ~1.79 -> ~140x78, right edge clears the
+  # status x148); the saver keeps its size (format-only saving ~31KB on the tight 4MB OTA slot).
+  - file: images/battery.webp
+    id: preset_battery_img
+    type: RGB565
+    transparency: alpha_channel
+    resize: 140x84
+  - file: images/battery.webp
+    id: preset_battery_saver_img       # rendered by the screensaver (render_saver)
+    type: RGB565
+    transparency: alpha_channel
+    resize: 300x132
+  # Wi-Fi-setup onboarding assets (shown while the fallback AP is up). QR = a Wi-Fi-join code for the OPEN
+  # "WinterDashAP" (baked white quiet-zone); brand mark for the hero. RGB565 straight from flash (0 DRAM).
+  - file: images/wifi_setup_qr.png
+    id: wifi_setup_qr_img
+    type: RGB565
+  - file: images/winterdash_mark_hi.png
+    id: winterdash_mark_img
+    type: RGB565
+    resize: 56x56
+
+font:
+  # RESTRICTED-GLYPH big fonts (Montserrat OFL via gfonts, rasterised at build). Only the glyphs each big label
+  # can show -> a fraction of a full-Latin built-in montserrat's flash (the [[esphome-lvgl-builtin-font-flash]]
+  # lever — the enabler for fitting the full 9-page port in the CYD's 0x1D0000 slot). Small varied-text labels
+  # (clock/units/stats/sys rows/notes/SSID) keep the built-in montserrat sizes below (general glyphs, cheap).
+  - file:
+      type: gfonts
+      family: Montserrat
+      weight: 600
+    id: m_big
+    size: 36
+    bpp: 4                              # 16-level antialiasing (ESPHome default is bpp:1 = NO AA -> jagged on big
+                                        # fonts). Restricted glyph set keeps the 4x-vs-bpp1 flash cost small.
+    glyphs: "0123456789.- WinterDash"   # voltage_val (digits, guard '-') + boot-splash title ("WinterDash")
+  - file:
+      type: gfonts
+      family: Montserrat
+      weight: 600
+    id: m_status
+    size: 22
+    bpp: 4                                   # 16-level AA (matches m_big; smooths the big status word)
+    glyphs: "ABCDEFGHIJKLMNOPQRSTUVWXYZ "   # status words (all uppercase: CHARGING/CHARGED/IDLE/FAULT/RECOND/OFFLINE/...)
+  # Material Design Icons — same glyph roles as the TTGO, sized up for the bigger panel.
+  - file: fonts/materialdesignicons-webfont.ttf
+    id: mdi_16
+    size: 18
+    bpp: 4
+    glyphs:
+      - "\U000F00AF"  # bluetooth
+      - "\U000F00B2"  # bluetooth-off
+      - "\U000F05A9"  # wifi
+      - "\U000F095C"  # current-dc
+      - "\U000F050F"  # thermometer
+      - "\U000F0241"  # flash (voltage / bulk-absorption charge-log)
+      - "\U000F029A"  # gauge (power)
+      - "\U000F01D9"  # dots-vertical (System "actions" hint)
+      - "\U000F0026"  # alert (fault charge-log row)
+      - "\U000F05E0"  # check-circle (float/storage charge-log row)
+      - "\U000F0904"  # power-sleep (off/powered-on charge-log row)
+      - "\U000F0141"  # chevron-left  (page nav hint)
+      - "\U000F0142"  # chevron-right (page nav hint)
+  - file: fonts/materialdesignicons-webfont.ttf
+    id: mdi_status
+    size: 26
+    bpp: 4
+    glyphs:
+      - "\U000F0241"  # flash        (charging / voltage)
+      - "\U000F05E0"  # check-circle (charged)
+      - "\U000F0026"  # alert        (fault)
+      - "\U000F0904"  # power-sleep  (idle)
+      - "\U000F00B2"  # bluetooth-off (offline)
+
+# --- Display config (runtime, NVS; web/HA-configurable) — ported from display_tdisplay so the CYD exposes the
+# same dimming knobs. dim_timeout/return_timeout in seconds; backlight_level in %; idle-dim is the 4-level idle_dim_level. ---
+number:
+  # These 3 are `internal: true` -> OFF SSE + HA + the stock /number/<id>/set route. The web drives them via the custom
+  # /wd/cfg POST and reads them via /wd/cfg.json (see web_dashboard.h CfgPost). Kept as template numbers for the NVS
+  # restore + .state the dim machine reads. (Brightness = board config, deliberately NOT on HA — a project design decision.)
+  - platform: template
+    id: dim_timeout
+    name: "Dim timeout"
+    internal: true
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 60
+    min_value: 5
+    max_value: 1800
+    step: 5
+    unit_of_measurement: "s"
+    mode: box
+  - platform: template
+    id: return_timeout
+    name: "Return timeout"
+    internal: true
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 30
+    min_value: 5
+    max_value: 1800
+    step: 5
+    unit_of_measurement: "s"
+    mode: box
+  - platform: template
+    id: backlight_level
+    name: "Backlight level"
+    internal: true
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    initial_value: 100
+    min_value: 30
+    max_value: 100
+    step: 5
+    unit_of_measurement: "%"
+    mode: slider
+  # NOTE: `night_dim` AND `dim_level` numbers are GONE — night level = fixed wd_bl::NIGHT_FACTOR, idle = 0.65*day (both in
+  # backlight_model.h). Only the 3 above remain, now internal:. The user-facing surface is 2 knobs (Backlight = backlight_level,
+  # Auto-dim = ldr_enabled), driven web-only via /wd/cfg; timeouts are advanced.
+
+globals:
+  - id: current_page           # 0=dashboard 1=detail 3=bluetooth 4=network 5=system (2=charlog CUT — web /wd/log.json keeps the log; index skipped, not renumbered)
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: last_activity_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: backlight_dim
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: splash_active
+    type: bool
+    restore_value: no
+    initial_value: 'true'
+  - id: splash_start_ms        # anchors the ~3.8s animated boot-splash entrance (set in on_boot -100)
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: saver_active           # screensaver up (ambient idle view; loaded explicitly, not in the page cycle)
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: fault_active           # display-owned (TTGO has it in display_tdisplay); gates the dashboard fill
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: offline_alert          # display-owned: offline is in the FULL-overlay phase (vs relaxed ambient)
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: idle_dim_level         # screen idle-dim: 0=OFF(panel dark) 1=LOW 2=MED 3=HIGH — web /wd/cfg 'idim', NVS. Default MED.
+    type: int
+    restore_value: true
+    initial_value: '2'
+  - id: serious_warn_active    # over/undervoltage keep-lit (compute-derived o.serious_warn; keeps screen lit + wakes)
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  # --- System actions-menu state (touch adaptation of the TTGO 2-button menu) ---
+  - id: in_menu                # System page: actions menu open (vs the info view)
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  # (menu_sel removed 2026-09-09 — dead on the CYD: the Actions menu uses touch Y-band hit-testing, not a selection
+  #  index. It was TTGO-port residue; the TTGO still uses menu_sel with its 2-button nav.)
+  - id: touching               # a finger is currently down (set on_touch, cleared on_release)
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: touch_down_ms          # millis() at touch-down; 0 once consumed by a completed hold/open
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: last_touch_x           # x of the last touch-down (on_release has no coords -> use this for L/R nav)
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: last_touch_y           # y of the last touch-down -> menu button hit-test band + Actions-open zone
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+# Animated boot-splash entrance (display-only; ported 1:1 from display_tdisplay.yaml's on_boot -100). Runs after the
+# display is up (setup prio 600 > -100): load page_splash, synchronously flush it, anchor splash_start_ms, then start
+# the fades (mark 0-700ms, wordmark a beat later 1100-1700ms, whole lockup fade-out 3300-3800ms). Fade only — no zoom
+# transform (that "snows" the alpha-less RGB565 mark edges). The draw loop times the handoff at >=3800ms. (No backlight
+# off/on trick: the CYD light is restore_mode ALWAYS_ON, unlike the TTGO's ALWAYS_OFF.)
+esphome:
+  on_boot:
+    - priority: -100
+      then:
+        - lambda: |-
+            wd_font_buf::install();   // re-point LVGL font glyph-buffer alloc to a static buffer BEFORE the first paint (lv_refr_now below) -> glyph rasterization never mallocs from the fragmentable 8-bit heap (NULL-deref crater mitigation)
+            id(last_activity_ms) = millis();
+            lv_scr_load(id(cyd_page_splash)->obj);
+            lv_refr_now(NULL);
+            id(splash_start_ms) = millis();
+            {
+              lv_anim_t am; lv_anim_init(&am);                       // mark: fade in 0-700ms
+              lv_anim_set_var(&am, id(splash_mark));
+              lv_anim_set_values(&am, 0, 255);
+              lv_anim_set_time(&am, 700);
+              lv_anim_set_exec_cb(&am, [](void *o, int32_t v){ lv_obj_set_style_opa((lv_obj_t *)o, (lv_opa_t)v, 0); });
+              lv_anim_start(&am);
+              lv_anim_t aw; lv_anim_init(&aw);                       // wordmark: fade in 1100-1700ms
+              lv_anim_set_var(&aw, id(splash_wm));
+              lv_anim_set_values(&aw, 0, 255);
+              lv_anim_set_time(&aw, 600);
+              lv_anim_set_delay(&aw, 1100);
+              lv_anim_set_exec_cb(&aw, [](void *o, int32_t v){ lv_obj_set_style_opa((lv_obj_t *)o, (lv_opa_t)v, 0); });
+              lv_anim_start(&aw);
+              lv_anim_t af; lv_anim_init(&af);                       // lockup: hold, fade out 3300-3800ms
+              lv_anim_set_var(&af, id(splash_box));
+              lv_anim_set_values(&af, 255, 0);
+              lv_anim_set_time(&af, 500);
+              lv_anim_set_delay(&af, 3300);
+              lv_anim_set_exec_cb(&af, [](void *o, int32_t v){ lv_obj_set_style_opa((lv_obj_t *)o, (lv_opa_t)v, 0); });
+              lv_anim_start(&af);
+            }
+
+lvgl:
+  buffer_size: 12.5%           # draw-buffer DRAM (not flash); 12.5% = 30 full lines (320x30x2) = 18.75KB (was 15% = 36 lines/23KB). Frees ~4KB TOTAL 8-bit heap. Buffer-sweep 2026-09-06 PROVED buffer size does NOT fix the COLD-LOAD crater: idle blk8 15%=13312 / 12.5%=13312 / 10%=14336, load crater floor only 512->832->1024 (crater is contiguity/fragmentation-bound, immune to total-free; 10% was worse — page couldn't finish loading). RE-TESTING 12.5% 2026-09-07 (Flow-4 era): web is lighter now + the target is the SLOWER screensaver-custom-hero fragmentation crater (not cold-load) — the ~4KB extra total may buy the saver-hero case margin even though it won't lift the contiguity-bound blk8. Revert to 15% if it's a wash. Real fix stays LVGL memory isolation.
+  default_font: montserrat_16
+  # Persistent L/R page-nav hint arrows (bottom corners), on the top layer so they show over EVERY page. The
+  # 100ms interval hides them during the actions menu / overlays / splash (only shown on a clean page view).
+  top_layer:
+    widgets:
+      - label:
+          id: nav_arrow_l
+          align: BOTTOM_LEFT
+          x: 5
+          y: -2
+          text: "\U000F0141"       # mdi chevron-left
+          text_font: mdi_16
+          text_color: 0x5a6472
+      - label:
+          id: nav_arrow_r
+          align: BOTTOM_RIGHT
+          x: -5
+          y: -2
+          text: "\U000F0142"       # mdi chevron-right
+          text_font: mdi_16
+          text_color: 0x5a6472
+  style_definitions:
+    - id: s_transp             # transparent flex container
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+    - id: s_bg_screen          # screen / zone background (0x0a0a0a)
+      bg_color: 0x0a0a0a
+      bg_opa: COVER
+      radius: 0
+      border_width: 0
+      pad_all: 0
+    - id: s_bg_header          # header / panel bar (0x1a1d24)
+      bg_color: 0x1a1d24
+      bg_opa: COVER
+      radius: 0
+      border_width: 0
+      pad_all: 0
+    # text styles (ported from display_tdisplay, sizes scaled up for 320x240)
+    - id: s_caption            # muted caption label
+      text_font: montserrat_16
+      text_color: 0x888888
+    - id: s_value              # value label
+      text_font: montserrat_16
+      text_color: 0xeeeeee
+    - id: s_title              # screen title
+      text_font: montserrat_18
+      text_color: 0xdddddd
+    - id: s_counter            # page counter "n/5"
+      text_font: montserrat_14
+      text_color: 0x666666
+    - id: s_value_lg           # big detail value
+      text_font: montserrat_20
+      text_color: 0xeeeeee
+    - id: s_bar_seg            # signal-bar segment (bg_color runtime-mutated in the draw; local wins)
+      radius: 0
+      bg_color: 0x333333
+      bg_opa: COVER
+      border_width: 0
+      pad_all: 0
+  pages:
+    # --- boot splash (handed off to the dashboard after ~2.5s by the draw interval) --------------------
+    - id: cyd_page_splash
+      bg_color: 0x0a0a0a
+      bg_opa: COVER
+      widgets:
+        # Brand entrance (ported 1:1 from TTGO page_splash): mark + two-tone wordmark, stacked, both start at
+        # opa 0 (black). The on_boot(-100) lambda fades the mark in (0-700ms), the wordmark a beat later
+        # (1100-1700ms), then fades the whole lockup out (3300-3800ms) before the handoff to the dashboard.
+        - obj:
+            id: splash_box
+            align: CENTER
+            width: SIZE_CONTENT
+            height: SIZE_CONTENT
+            styles: [s_transp]
+            scrollbar_mode: "OFF"
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              flex_align_main: CENTER
+              flex_align_cross: CENTER
+              pad_row: 10
+            widgets:
+              - image:
+                  id: splash_mark
+                  src: winterdash_mark_img   # 56x56 brand mark (RGB565 from flash; no zoom — alpha-less)
+                  opa: 0%
+              - obj:
+                  id: splash_wm
+                  width: SIZE_CONTENT
+                  height: SIZE_CONTENT
+                  styles: [s_transp]
+                  scrollbar_mode: "OFF"
+                  opa: 0%
+                  layout:
+                    type: flex
+                    flex_flow: ROW
+                    flex_align_cross: CENTER
+                    pad_column: 0
+                  widgets:
+                    - label: { text: "Winter", text_font: m_big, text_color: 0xeaf4ff }
+                    - label: { text: "Dash", text_font: m_big, text_color: 0x38bdf8 }
+    # --- DASHBOARD (page 0) — TTGO identity, landscape 320x240 -----------------------------------------
+    - id: cyd_page_dashboard
+      widgets:
+        - obj:
+            id: live_content
+            x: 0
+            y: 0
+            width: 320
+            height: 240
+            scrollbar_mode: "OFF"
+            styles: [s_bg_screen]
+            widgets:
+              # ----- Header bar -----
+              - obj:
+                  id: banner
+                  x: 0
+                  y: 0
+                  width: 320
+                  height: 108            # reserved hero-band (top, = hero height + margin) + status-band (below)
+                  scrollbar_mode: "OFF"
+                  styles: [s_bg_header]
+                  widgets:
+                    - image:
+                        id: banner_img
+                        src: preset_battery_img
+                        align: TOP_LEFT       # boot default; the render lambda re-anchors by height (v4 adaptive: wide->bottom, tall->top)
+                        x: 6
+                        y: 10
+                    - obj:
+                        id: clock_cluster
+                        align: TOP_RIGHT
+                        x: -8
+                        y: 8
+                        width: SIZE_CONTENT
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                          flex_align_cross: CENTER
+                          pad_column: 7
+                        widgets:
+                          - label:
+                              id: demo_badge
+                              text: "DEMO"
+                              text_font: montserrat_12
+                              text_color: 0xef4444
+                          - label:
+                              id: link_dot
+                              text: ""
+                              text_font: mdi_16
+                              text_color: 0x38bdf8
+                          - label:
+                              id: wifi_icon
+                              text: ""
+                              text_font: mdi_16
+                              text_color: 0x3ddc84
+                          - label:
+                              id: clock_label
+                              text: "--:--"
+                              text_font: montserrat_16
+                              text_color: 0xbbbbbb
+                    - obj:
+                        id: status_cluster
+                        align: TOP_LEFT       # fixed inner-corner "notch" the adaptive hero always dodges: box-A heroes are
+                        x: 148                # short enough to end above it (y<=70), box-B heroes narrow enough to stay left (x<=145)
+                        y: 72
+                        width: SIZE_CONTENT
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                          flex_align_cross: CENTER
+                          pad_column: 8
+                        widgets:
+                          - label:
+                              id: status_icon
+                              text: ""
+                              text_font: mdi_status
+                              text_color: 0x3ddc84
+                          - label:
+                              id: status_word
+                              text: "..."
+                              text_font: m_status
+                              text_color: 0x3ddc84
+              # ----- Data zone -----
+              - obj:
+                  id: data_zone
+                  x: 0
+                  y: 108
+                  width: 320
+                  height: 132
+                  scrollbar_mode: "OFF"
+                  styles: [s_bg_screen]
+                  widgets:
+                    - label:                     # detail TOP: raw charger phase (status-coloured) or an amber anomaly
+                        id: charger_phase
+                        align: TOP_RIGHT
+                        x: -12
+                        y: 8
+                        width: 150
+                        text: ""
+                        text_font: montserrat_14
+                        text_color: 0x777777
+                        text_align: RIGHT
+                        long_mode: WRAP
+                    - label:                     # detail BOTTOM: muted time-in-status (always)
+                        id: anomaly_text
+                        align: TOP_RIGHT
+                        x: -12
+                        y: 28
+                        width: 150
+                        text: ""
+                        text_font: montserrat_14
+                        text_color: 0x777777
+                        text_align: RIGHT
+                        long_mode: WRAP
+                    # voltage value + unit in a flex ROW anchored TOP_LEFT (24,8): the "V" always sits a fixed ~6px
+                    # after the number regardless of its width — a plain fixed-x unit either gaps on narrow values
+                    # ("13.14", narrow 1s, ends ~x100) or overlaps wide ones ("28.80" ends ~x118). CENTER aligns the
+                    # small unit vertically on the big number (matches the old y:8/y:24 baseline-ish look).
+                    - obj:
+                        id: volt_cluster
+                        align: TOP_LEFT
+                        x: 24
+                        y: 8
+                        width: SIZE_CONTENT
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        scrollbar_mode: "OFF"
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                          flex_align_cross: END      # bottom-align: the "V" baseline sits on the number's bottom
+                          pad_column: 6
+                        widgets:
+                          - label:
+                              id: voltage_val
+                              text: "0.00"
+                              text_font: m_big
+                              text_color: 0x3ddc84
+                          - label:
+                              id: volt_unit
+                              text: "V"
+                              text_font: montserrat_20
+                              text_color: 0x777777
+                              translate_y: -4      # flex END bottom-aligns the boxes -> V ends up ~descender-diff
+                                                   # too low; raise it so its baseline sits on the number's bottom
+                    - obj:
+                        id: bar_track
+                        align: TOP_MID
+                        x: 0
+                        y: 66
+                        width: 296
+                        height: 13
+                        radius: 4
+                        bg_color: 0x1c1c1c
+                        bg_opa: COVER
+                        border_width: 0
+                        pad_all: 0
+                        widgets:
+                          - obj:
+                              id: redline_low
+                              x: 0
+                              y: 0
+                              width: 49
+                              height: 13
+                              radius: 0
+                              bg_color: 0xef4444
+                              bg_opa: 45%
+                              border_width: 0
+                              pad_all: 0
+                          - obj:
+                              id: redline_high
+                              x: 272
+                              y: 0
+                              width: 24
+                              height: 13
+                              radius: 0
+                              bg_color: 0xef4444
+                              bg_opa: 45%
+                              border_width: 0
+                              pad_all: 0
+                          - obj:
+                              id: exp_band
+                              x: 197
+                              y: 0
+                              width: 20
+                              height: 13
+                              radius: 2
+                              bg_color: 0x3ddc84
+                              bg_opa: 65%
+                              border_width: 0
+                              pad_all: 0
+                    - obj:
+                        id: volt_marker
+                        align: TOP_LEFT
+                        x: 147
+                        y: 62
+                        width: 2
+                        height: 21
+                        radius: 0
+                        bg_color: 0xffffff
+                        bg_opa: COVER
+                        border_width: 0
+                        pad_all: 0
+                    - obj:
+                        id: stat_row
+                        align: BOTTOM_MID
+                        x: 0
+                        y: -8
+                        width: SIZE_CONTENT
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout:
+                          type: flex
+                          flex_flow: ROW
+                          flex_align_cross: CENTER
+                          pad_column: 34
+                        widgets:
+                          - obj:
+                              width: SIZE_CONTENT
+                              height: SIZE_CONTENT
+                              styles: [s_transp]
+                              layout:
+                                type: flex
+                                flex_flow: ROW
+                                flex_align_cross: CENTER
+                                pad_column: 7
+                              widgets:
+                                - label:
+                                    id: stat_curr_icon
+                                    text: "\U000F095C"
+                                    text_font: mdi_16
+                                    text_color: 0xf5b942
+                                - label:
+                                    id: stat_current_val
+                                    text: "0.0 A"
+                                    text_font: montserrat_20
+                                    text_color: 0xe8e8e8
+                          - obj:
+                              width: SIZE_CONTENT
+                              height: SIZE_CONTENT
+                              styles: [s_transp]
+                              layout:
+                                type: flex
+                                flex_flow: ROW
+                                flex_align_cross: CENTER
+                                pad_column: 7
+                              widgets:
+                                - label:
+                                    id: stat_temp_icon
+                                    text: "\U000F050F"
+                                    text_font: mdi_16
+                                    text_color: 0xf0785a
+                                - label:
+                                    id: stat_temp_val
+                                    text: "0 C"
+                                    text_font: montserrat_20
+                                    text_color: 0xe8e8e8
+        # ----- Unified full-screen takeover overlay (offline / fault / netfault -> ONE state-driven overlay).
+        # Tier-3 heap merge: the 3 former overlays were byte-identical 320x240 s_bg_screen COLUMN/CENTER containers;
+        # only per-label content/colour + fault's 2nd (ctx) line differed. One container + 6 labels (was 17 objects)
+        # driven by state in the draw lambda -> ~1.5-2KB resident 8-bit heap reclaimed. The takeover logic keeps the
+        # 3 priority branches (netfault > offline > fault) and still publishes fault_active/offline_alert unchanged
+        # (the RGB LED / saver / backlight read those GLOBALS, never these ids). ov_sub = fault ctx (hidden else);
+        # ov_clock/ov_demo hidden in netfault; the icon/title opacity is FAULT-flash-only (reset on every entry). -----
+        - obj:
+            id: ov
+            x: 0
+            y: 0
+            width: 320
+            height: 240
+            scrollbar_mode: "OFF"
+            styles: [s_bg_screen]
+            hidden: true
+            layout:
+              type: flex
+              flex_flow: COLUMN
+              flex_align_main: CENTER
+              flex_align_cross: CENTER
+              pad_row: 8
+            widgets:
+              - label:
+                  id: ov_icon
+                  text: ""
+                  width: 320
+                  text_font: mdi_status
+                  text_color: 0xef4444
+                  text_align: CENTER
+              - label:
+                  id: ov_title
+                  text: ""
+                  width: 320
+                  text_font: m_status
+                  text_color: 0xef4444
+                  text_align: CENTER
+              - label:
+                  id: ov_msg
+                  text: ""
+                  width: 300
+                  text_font: montserrat_14
+                  text_color: 0xe8e8e8
+                  text_align: CENTER
+                  long_mode: WRAP
+              - label:
+                  id: ov_sub
+                  text: ""
+                  width: 300
+                  text_font: montserrat_14
+                  text_color: 0x777777
+                  text_align: CENTER
+                  hidden: true
+              - label:
+                  id: ov_clock
+                  ignore_layout: true
+                  align: TOP_RIGHT
+                  x: -10
+                  y: 8
+                  text: "--:--"
+                  text_font: montserrat_16
+                  text_color: 0x999999
+              - label:
+                  id: ov_demo
+                  ignore_layout: true
+                  align: TOP_LEFT
+                  x: 10
+                  y: 8
+                  text: "DEMO"
+                  text_font: montserrat_14
+                  text_color: 0xf5b942
+                  hidden: true
+    # --- CHARGER DETAIL (page 1) — ported from display_tdisplay, scaled 320x240 -----------------------
+    - id: cyd_page_detail
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 320
+            height: 240
+            scrollbar_mode: "OFF"
+            styles: [s_bg_screen]
+            widgets:
+              - obj:
+                  align: TOP_MID
+                  x: 0
+                  y: 0
+                  width: 320
+                  height: 28
+                  styles: [s_bg_header]
+                  widgets:
+                    - label:
+                        align: LEFT_MID
+                        x: 12
+                        y: 1
+                        text: "Charger detail"
+                        styles: [s_title]
+                    - label:
+                        align: RIGHT_MID
+                        x: -12
+                        y: 2
+                        text: "2/5"
+                        styles: [s_counter]
+              - obj:
+                  align: TOP_MID
+                  x: 0
+                  y: 28
+                  width: 320
+                  height: 212
+                  bg_opa: TRANSP
+                  radius: 0
+                  border_width: 0
+                  scrollbar_mode: "OFF"
+                  pad_left: 20
+                  pad_right: 20
+                  pad_top: 8
+                  pad_bottom: 8
+                  layout:
+                    type: flex
+                    flex_flow: COLUMN
+                    flex_align_main: SPACE_EVENLY
+                    flex_align_cross: START
+                  widgets:
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - obj:
+                              width: SIZE_CONTENT
+                              height: SIZE_CONTENT
+                              styles: [s_transp]
+                              layout: {type: flex, flex_flow: ROW, flex_align_cross: CENTER, pad_column: 10}
+                              widgets:
+                                - label: {text: "\U000F050F", width: 22, text_align: CENTER, text_font: mdi_16, text_color: 0xf0785a}
+                                - label: {text: "Temperature", styles: [s_caption]}
+                          - label:
+                              id: detail_temp
+                              text: "-"
+                              styles: [s_value_lg]
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - obj:
+                              width: SIZE_CONTENT
+                              height: SIZE_CONTENT
+                              styles: [s_transp]
+                              layout: {type: flex, flex_flow: ROW, flex_align_cross: CENTER, pad_column: 10}
+                              widgets:
+                                - label: {text: "\U000F0241", width: 22, text_align: CENTER, text_font: mdi_16, text_color: 0xf5b942}
+                                - label: {text: "DC voltage", styles: [s_caption]}
+                          - label:
+                              id: detail_volt
+                              text: "-"
+                              styles: [s_value_lg]
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - obj:
+                              width: SIZE_CONTENT
+                              height: SIZE_CONTENT
+                              styles: [s_transp]
+                              layout: {type: flex, flex_flow: ROW, flex_align_cross: CENTER, pad_column: 10}
+                              widgets:
+                                - label: {text: "\U000F095C", width: 22, text_align: CENTER, text_font: mdi_16, text_color: 0xf5b942}
+                                - label: {text: "DC current", styles: [s_caption]}
+                          - label:
+                              id: detail_curr
+                              text: "-"
+                              styles: [s_value_lg]
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - obj:
+                              width: SIZE_CONTENT
+                              height: SIZE_CONTENT
+                              styles: [s_transp]
+                              layout: {type: flex, flex_flow: ROW, flex_align_cross: CENTER, pad_column: 10}
+                              widgets:
+                                - label: {text: "\U000F029A", width: 22, text_align: CENTER, text_font: mdi_16, text_color: 0xf5b942}
+                                - label: {text: "DC power", styles: [s_caption]}
+                          - label:
+                              id: detail_power
+                              text: "-"
+                              styles: [s_value_lg]
+    # --- BLUETOOTH (page 3) — ported from display_tdisplay, scaled 320x240 ----------------------------
+    - id: cyd_page_ble
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 320
+            height: 240
+            scrollbar_mode: "OFF"
+            styles: [s_bg_screen]
+            widgets:
+              - obj:
+                  align: TOP_MID
+                  x: 0
+                  y: 0
+                  width: 320
+                  height: 28
+                  styles: [s_bg_header]
+                  widgets:
+                    - label: {align: LEFT_MID, x: 12, y: 1, text: "Bluetooth", styles: [s_title]}
+                    - label: {align: RIGHT_MID, x: -12, y: 2, text: "3/5", styles: [s_counter]}
+              - obj:
+                  align: TOP_MID
+                  x: 0
+                  y: 28
+                  width: 320
+                  height: 212
+                  bg_opa: TRANSP
+                  radius: 0
+                  border_width: 0
+                  scrollbar_mode: "OFF"
+                  pad_left: 20
+                  pad_right: 20
+                  pad_top: 12
+                  pad_bottom: 12
+                  layout: {type: flex, flex_flow: COLUMN, flex_align_main: START, flex_align_cross: START, pad_row: 14}
+                  widgets:
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - obj:
+                              id: ble_bars
+                              width: SIZE_CONTENT
+                              height: 20
+                              styles: [s_transp]
+                              layout: {type: flex, flex_flow: ROW, flex_align_cross: END, pad_column: 3}
+                              widgets:
+                                - obj: {id: ble_bar_0, width: 4, height: 6, styles: [s_bar_seg]}
+                                - obj: {id: ble_bar_1, width: 4, height: 10, styles: [s_bar_seg]}
+                                - obj: {id: ble_bar_2, width: 4, height: 14, styles: [s_bar_seg]}
+                                - obj: {id: ble_bar_3, width: 4, height: 18, styles: [s_bar_seg]}
+                          - label: {id: ble_rssi_val, text: "-", styles: [s_value]}
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - obj:
+                              width: SIZE_CONTENT
+                              height: SIZE_CONTENT
+                              styles: [s_transp]
+                              layout: {type: flex, flex_flow: ROW, flex_align_cross: CENTER, pad_column: 10}
+                              widgets:
+                                - label: {id: link_dot2, text: "", text_font: mdi_16, text_color: 0x38bdf8}
+                                - label: {text: "Victron Blue", styles: [s_caption]}
+                          - label: {id: ble_age, text: "-", styles: [s_value]}
+                    - label:
+                        id: ble_hint
+                        width: 100%
+                        long_mode: WRAP
+                        text: "No data or charger offline\ncheck MAC if newly paired\nor plug in the charger"
+                        text_font: montserrat_14
+                        text_color: 0xf5b942
+                        hidden: true
+    # --- NETWORK (page 4) — ported from display_tdisplay, scaled 320x240 ------------------------------
+    - id: cyd_page_network
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 320
+            height: 240
+            scrollbar_mode: "OFF"
+            styles: [s_bg_screen]
+            widgets:
+              - obj:
+                  align: TOP_MID
+                  x: 0
+                  y: 0
+                  width: 320
+                  height: 28
+                  styles: [s_bg_header]
+                  widgets:
+                    - label: {align: LEFT_MID, x: 12, y: 1, text: "Network", styles: [s_title]}
+                    - label: {align: RIGHT_MID, x: -12, y: 2, text: "4/5", styles: [s_counter]}
+              - obj:
+                  align: TOP_MID
+                  x: 0
+                  y: 28
+                  width: 320
+                  height: 212
+                  bg_opa: TRANSP
+                  radius: 0
+                  border_width: 0
+                  scrollbar_mode: "OFF"
+                  pad_left: 20
+                  pad_right: 20
+                  pad_top: 12
+                  pad_bottom: 12
+                  layout: {type: flex, flex_flow: COLUMN, flex_align_main: START, flex_align_cross: START, pad_row: 12}
+                  widgets:
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - obj:
+                              id: wifi_bars
+                              width: SIZE_CONTENT
+                              height: 20
+                              styles: [s_transp]
+                              layout: {type: flex, flex_flow: ROW, flex_align_cross: END, pad_column: 3}
+                              widgets:
+                                - obj: {id: wifi_bar_0, width: 4, height: 6, styles: [s_bar_seg]}
+                                - obj: {id: wifi_bar_1, width: 4, height: 10, styles: [s_bar_seg]}
+                                - obj: {id: wifi_bar_2, width: 4, height: 14, styles: [s_bar_seg]}
+                                - obj: {id: wifi_bar_3, width: 4, height: 18, styles: [s_bar_seg]}
+                          - label: {id: wifi_val, text: "-", styles: [s_caption]}
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - label: {text: "Network", styles: [s_caption]}
+                          - label: {id: net_ssid, text: "-", styles: [s_value]}
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - label: {text: "IP", styles: [s_caption]}
+                          - label: {id: net_ip, text: "-", styles: [s_value]}
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - label: {text: "Home Assistant", styles: [s_caption]}
+                          - label: {id: ha_val, text: "-", styles: [s_caption]}
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: COLUMN, flex_align_main: START, flex_align_cross: START, pad_row: 1}
+                        widgets:
+                          - label: {text: "Hostname", styles: [s_caption]}
+                          - label: {id: net_hostname, width: 100%, text_align: RIGHT, text: "winterdash.local", styles: [s_value]}
+    # --- SYSTEM page (page 5) --------------------------------------------------------------------------
+    - id: cyd_page_system
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 320
+            height: 240
+            scrollbar_mode: "OFF"
+            styles: [s_bg_screen]
+            widgets:
+              - obj:
+                  id: sys_header
+                  align: TOP_MID
+                  x: 0
+                  y: 0
+                  width: 320
+                  height: 28
+                  styles: [s_bg_header]
+                  widgets:
+                    - label: {id: sys_title, align: LEFT_MID, x: 12, y: 1, text: "System", styles: [s_title]}
+                    - label: {align: RIGHT_MID, x: -12, y: 2, text: "5/5", styles: [s_counter]}
+              - obj:
+                  id: sys_info
+                  align: TOP_MID
+                  x: 0
+                  y: 28
+                  width: 320
+                  height: 212
+                  bg_opa: TRANSP
+                  radius: 0
+                  border_width: 0
+                  scrollbar_mode: "OFF"
+                  pad_left: 20
+                  pad_right: 20
+                  pad_top: 8
+                  pad_bottom: 8
+                  layout: {type: flex, flex_flow: COLUMN, flex_align_main: START, flex_align_cross: START, pad_row: 9}
+                  widgets:
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - label: {text: "Firmware", styles: [s_caption]}
+                          - label: {id: sys_version, text: "${fw_version}", styles: [s_value]}
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - label: {text: "Uptime", styles: [s_caption]}
+                          - label: {id: sys_uptime, text: "-", styles: [s_value]}
+                    - obj:
+                        width: 100%
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_main: SPACE_BETWEEN, flex_align_cross: CENTER}
+                        widgets:
+                          - label: {text: "Free heap", styles: [s_caption]}
+                          - label: {id: sys_heap, text: "-", styles: [s_value]}
+              # Actions menu. Hidden until in_menu. Each action is a bordered BUTTON with a visible progress bar
+              # underneath (fills on press-hold once the finger lands in the row's Y band); Back has no bar. Hit-testing
+              # is LIVE: a tap on the Actions button opens the menu, hold-to-confirm fires Reboot/Wi-Fi/Factory, tap Back closes.
+              - obj:
+                  id: sys_menu
+                  hidden: true
+                  align: TOP_MID
+                  x: 0
+                  y: 28
+                  width: 320
+                  height: 212
+                  bg_opa: TRANSP
+                  radius: 0
+                  border_width: 0
+                  scrollbar_mode: "OFF"
+                  pad_left: 70
+                  pad_right: 70
+                  pad_top: 3
+                  pad_bottom: 3
+                  layout: {type: flex, flex_flow: COLUMN, flex_align_main: START, flex_align_cross: CENTER, pad_row: 3}
+                  widgets:
+                    - label: {text: "Hold a button to confirm", text_font: montserrat_14, text_color: 0x888888}
+                    - obj:
+                        id: opt_reboot
+                        width: 180
+                        height: SIZE_CONTENT
+                        bg_color: 0x1a1d24
+                        bg_opa: COVER
+                        radius: 7
+                        border_width: 2
+                        border_color: 0x2a2e36
+                        pad_left: 12
+                        pad_right: 12
+                        pad_top: 4
+                        pad_bottom: 3
+                        layout: {type: flex, flex_flow: COLUMN, flex_align_cross: START, pad_row: 3}
+                        widgets:
+                          - label: {id: lbl_reboot, text: "Reboot", text_font: montserrat_18, text_color: 0xdddddd}
+                          - bar: {id: bar_reboot, width: 100%, height: 6, min_value: 0, max_value: 100, value: 0, bg_color: 0x0a0f16, bg_opa: COVER, indicator: {bg_color: 0x38bdf8, bg_opa: COVER}}
+                    - obj:
+                        id: opt_wifi
+                        width: 180
+                        height: SIZE_CONTENT
+                        bg_color: 0x1a1d24
+                        bg_opa: COVER
+                        radius: 7
+                        border_width: 2
+                        border_color: 0x2a2e36
+                        pad_left: 12
+                        pad_right: 12
+                        pad_top: 4
+                        pad_bottom: 3
+                        layout: {type: flex, flex_flow: COLUMN, flex_align_cross: START, pad_row: 3}
+                        widgets:
+                          - label: {id: lbl_wifi, text: "Reset Wi-Fi", text_font: montserrat_18, text_color: 0xdddddd}
+                          - bar: {id: bar_wifi, width: 100%, height: 6, min_value: 0, max_value: 100, value: 0, bg_color: 0x120f06, bg_opa: COVER, indicator: {bg_color: 0xf5b942, bg_opa: COVER}}
+                    - obj:
+                        id: opt_factory
+                        width: 180
+                        height: SIZE_CONTENT
+                        bg_color: 0x1a1d24
+                        bg_opa: COVER
+                        radius: 7
+                        border_width: 2
+                        border_color: 0x2a2e36
+                        pad_left: 12
+                        pad_right: 12
+                        pad_top: 4
+                        pad_bottom: 3
+                        layout: {type: flex, flex_flow: COLUMN, flex_align_cross: START, pad_row: 3}
+                        widgets:
+                          - label: {id: lbl_factory, text: "Factory reset", text_font: montserrat_18, text_color: 0xd6a0a0}
+                          - bar: {id: bar_factory, width: 100%, height: 6, min_value: 0, max_value: 100, value: 0, bg_color: 0x140808, bg_opa: COVER, indicator: {bg_color: 0xef5350, bg_opa: COVER}}
+                    - obj:
+                        id: opt_back
+                        width: 180
+                        height: SIZE_CONTENT
+                        bg_color: 0x1a1d24
+                        bg_opa: COVER
+                        radius: 7
+                        border_width: 2
+                        border_color: 0x2a2e36
+                        pad_left: 12
+                        pad_right: 12
+                        pad_top: 6
+                        pad_bottom: 6
+                        widgets:
+                          - label: {id: lbl_back, text: "Back", text_font: montserrat_18, text_color: 0xcccccc}
+              # "Actions" entry button (shown on the System INFO view; a TAP on it opens the Actions menu — hit-tested
+              # in input_cyd_touch.yaml, y>=170 centre). Bottom-centre, clearly bordered.
+              - obj:
+                  id: actions_btn
+                  align: BOTTOM_MID
+                  y: -30
+                  width: 180
+                  height: SIZE_CONTENT
+                  bg_color: 0x1a1d24
+                  bg_opa: COVER
+                  radius: 8
+                  border_width: 2
+                  border_color: 0x2a2e36
+                  pad_top: 7
+                  pad_bottom: 7
+                  layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER, pad_column: 8}
+                  widgets:
+                    - label: {text: "Actions", text_font: montserrat_16, text_color: 0xdddddd}
+              # "Mode" button — sits just ABOVE Actions on the System info view. Shows the current device_mode
+              # (Auto|Demo|Live); a TAP toggles Demo<->Auto (non-destructive -> tap, not hold). Hit-tested in
+              # input_cyd_touch.yaml; the label is kept in sync (STX-guarded) by the 100ms system-page lambda below.
+              - obj:
+                  id: mode_btn
+                  align: BOTTOM_MID
+                  y: -72
+                  width: 180
+                  height: SIZE_CONTENT
+                  bg_color: 0x1a1d24
+                  bg_opa: COVER
+                  radius: 8
+                  border_width: 2
+                  border_color: 0x2a2e36
+                  pad_top: 7
+                  pad_bottom: 7
+                  layout: {type: flex, flex_flow: ROW, flex_align_main: CENTER, flex_align_cross: CENTER, pad_column: 8}
+                  widgets:
+                    - label: {text: "Mode:", text_font: montserrat_14, text_color: 0x888888}
+                    - label: {id: lbl_mode, text: "Auto", text_font: montserrat_16, text_color: 0xdddddd}
+    # --- WiFi SETUP / AP onboarding (takeover; shown by the draw while ap_setup_shown). Ported from TTGO
+    #     page_setup, scaled 320x240: brand hero + Wi-Fi-join QR (right) + manual steps (left). ------------------
+    - id: cyd_page_setup
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 320
+            height: 240
+            scrollbar_mode: "OFF"
+            styles: [s_bg_screen]
+            widgets:
+              - obj:
+                  align: TOP_MID
+                  x: 0
+                  y: 16
+                  width: SIZE_CONTENT
+                  height: SIZE_CONTENT
+                  styles: [s_transp]
+                  scrollbar_mode: "OFF"
+                  layout: {type: flex, flex_flow: ROW, flex_align_cross: CENTER, pad_column: 9}
+                  widgets:
+                    - image: {src: winterdash_mark_img}
+                    # wordmark = ONE word "WinterDash" (brand rule: no space) but two-tone -> two adjacent labels
+                    # in a pad_column:0 row, so the outer row's gap only separates the mark from the wordmark.
+                    - obj:
+                        width: SIZE_CONTENT
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: ROW, flex_align_cross: CENTER, pad_column: 0}
+                        widgets:
+                          - label: {text: "Winter", text_font: m_big, text_color: 0xeaf4ff}
+                          - label: {text: "Dash", text_font: m_big, text_color: 0x38bdf8}
+              - image:
+                  src: wifi_setup_qr_img
+                  align: TOP_LEFT
+                  x: 196
+                  y: 104
+              - obj:
+                  align: TOP_LEFT
+                  x: 26
+                  y: 104
+                  width: 165
+                  height: 122
+                  styles: [s_transp]
+                  scrollbar_mode: "OFF"
+                  layout: {type: flex, flex_flow: COLUMN, flex_align_main: START, flex_align_cross: START, pad_row: 18}
+                  widgets:
+                    - obj:
+                        width: SIZE_CONTENT
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: COLUMN, flex_align_cross: START, pad_row: 2}
+                        widgets:
+                          - label: {text: "Join Wi-Fi", text_font: montserrat_16, text_color: 0x8a97a6}
+                          - label: {text: "WinterDashAP", text_font: montserrat_20, text_color: 0xffffff}
+                    - obj:
+                        width: SIZE_CONTENT
+                        height: SIZE_CONTENT
+                        styles: [s_transp]
+                        layout: {type: flex, flex_flow: COLUMN, flex_align_cross: START, pad_row: 2}
+                        widgets:
+                          - label: {text: "then open", text_font: montserrat_16, text_color: 0x8a97a6}
+                          - label: {text: "192.168.4.1", text_font: montserrat_20, text_color: 0x3ddc84}
+    # --- SCREENSAVER (ambient idle view; loaded explicitly by the page loader when saver_active, NOT in the tap
+    #     cycle). 1:1 PORT of display_tdisplay.yaml page_saver (lines ~1565-1624), scaled 240x135 -> 320x240.
+    #     render_saver (script: below) mirrors clock/status off the live dashboard widgets + maps the CUSTOM hero
+    #     (or the baked saver bake). FONT ADAPTATIONS (the CYD has no montserrat_10/12 or mdi_18): clock
+    #     montserrat_12 -> montserrat_14; DEMO badge montserrat_10 -> montserrat_14; status icon mdi_18 ->
+    #     mdi_status; status word montserrat_16 -> m_status (all present on the CYD; colours unchanged). ---------
+    - id: cyd_page_saver
+      widgets:
+        - obj:
+            x: 0
+            y: 0
+            width: 320
+            height: 240
+            styles: [s_bg_screen]
+            scrollbar_mode: "OFF"       # the centred hero can overflow -> kill the scrollbar (parity with TTGO)
+            widgets:
+              # Pure minimalism (like the TTGO): small clock top-right, red DEMO cue top-left, centred hero, status below.
+              - label:
+                  id: saver_clock_label
+                  align: TOP_RIGHT
+                  x: -8
+                  y: 6
+                  text: "--:--"
+                  text_font: montserrat_14      # CYD: TTGO montserrat_12 (absent here) -> montserrat_14
+                  text_color: 0x999999
+              - label:
+                  id: saver_demo_badge
+                  align: TOP_LEFT
+                  x: 8
+                  y: 6
+                  hidden: true                  # the demo-badge loop reveals it in demo mode (hidden-init avoids a first-frame flash)
+                  text: "DEMO"
+                  text_font: montserrat_14      # CYD: TTGO montserrat_10 (absent here) -> montserrat_14
+                  text_color: 0xef4444
+              - image:
+                  id: saver_img
+                  src: preset_battery_saver_img # CYD: saver-sized baked (TTGO seeds preset_battery_img); render_saver overrides src+pos before it's shown
+                  x: 10
+                  y: 52                         # placeholder only; render_saver re-centres to ((320-w)/2, 118-h/2)
+              - obj:
+                  id: saver_status_cluster
+                  align: BOTTOM_MID
+                  x: 0
+                  y: -12
+                  width: SIZE_CONTENT
+                  height: SIZE_CONTENT
+                  styles: [s_transp]
+                  layout:
+                    type: flex
+                    flex_flow: ROW
+                    flex_align_cross: CENTER
+                    pad_column: 6
+                  widgets:
+                    - label:
+                        id: saver_status_icon
+                        text: ""
+                        text_font: mdi_status   # CYD: TTGO mdi_18 (absent here) -> mdi_status (matches dashboard status_icon)
+                        text_color: 0x3ddc84
+                    - label:
+                        id: saver_status_word
+                        text: "..."
+                        text_font: m_status     # CYD: TTGO montserrat_16 -> m_status (matches dashboard status_word)
+                        text_color: 0x3ddc84
+
+# =============================================================================
+# render_saver — screensaver content refresh (1:1 PORT of display_tdisplay.yaml render_saver, lines ~286-342).
+# A MIRROR of the live dashboard (clock + status word/colour + status icon/colour) — no recompute, so the saver
+# can never drift out of sync — plus the hero. Kept a callable script (id render_saver) to match the TTGO; the
+# draw/idle lambdas call it while the saver is up + once right before it's shown. CYD adaptations: the CUSTOM
+# R_SAVER cut-out bound-check + centring use the CYD saver region (300x132) and 320x240 geometry; the baked
+# fallback is preset_battery_saver_img + ${banner_saver_lookup} (empty on the CYD -> Battery only).
+# =============================================================================
+script:
+  - id: render_saver
+    then:
+      - lambda: |-
+          // clock + status: mirror straight off the live dashboard widgets (no recompute). Determinism:
+          // the draw lambda calls render_saver EVERY tick and lv_label_set_text ALWAYS reallocs even for identical
+          // text, so this mirror churns the 8-bit heap every tick — and the screensaver is the DOMINANT unattended
+          // state (the field-hang scenario). Guard each write so it only fires on a REAL change. Idempotent.
+          auto STX = [](lv_obj_t *o, const char *s){ const char *c = lv_label_get_text(o); if (c == nullptr || strcmp(c, s) != 0) lv_label_set_text(o, s); };
+          auto SCL = [](lv_obj_t *o, lv_color_t col){ if (!lv_color_eq(lv_obj_get_style_text_color(o, LV_PART_MAIN), col)) lv_obj_set_style_text_color(o, col, 0); };
+          STX(id(saver_clock_label), lv_label_get_text(id(clock_label)));
+          STX(id(saver_status_word), lv_label_get_text(id(status_word)));
+          SCL(id(saver_status_word), lv_obj_get_style_text_color(id(status_word), LV_PART_MAIN));
+          STX(id(saver_status_icon), lv_label_get_text(id(status_icon)));
+          SCL(id(saver_status_icon), lv_obj_get_style_text_color(id(status_icon), LV_PART_MAIN));
+          // banner: CUSTOM -> mmap the selected slot's R_SAVER cut-out (baked at the saver size by the converter,
+          // so no scaling); BAKED -> the CYD saver bake. Both are tight cut-outs -> just centre native. Recompute
+          // only when preset/slot changes. OWN static handle (saver_mmap/saver_dsc) — never shared with the
+          // dashboard's mmap_h. On a re-map: release the OLD mapping, then map the new one; on any miss `show`
+          // stays the baked dsc, so saver_img is NEVER pointed at the torn saver_dsc (mmap-safe, verbatim TTGO).
+          namespace wd = esphome::web_dashboard;
+          std::string sbp = id(banner_preset).state;
+          int ssel = id(bnr_sel);
+          static std::string last_sbp = "\x01";
+          static int last_ssel = -999;
+          static lv_image_dsc_t saver_dsc;
+          static esp_partition_mmap_handle_t saver_mmap = 0;
+          if (sbp != last_sbp || (sbp == "Custom" && ssel != last_ssel)) {
+            last_sbp = sbp; last_ssel = ssel;
+            const lv_image_dsc_t *show = nullptr;
+            if (sbp == "Custom" && ssel >= 0 && ssel < wd::gallery_slot_cap()) {
+              const esp_partition_t *part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
+              size_t base = (size_t) ssel * wd::SLOT_SPAN + wd::R_SAVER;
+              uint8_t hdr[16];
+              if (part != nullptr && esp_partition_read(part, base, hdr, 16) == ESP_OK && memcmp(hdr, "WDB1", 4) == 0) {
+                uint16_t w = hdr[6] | (hdr[7] << 8), h = hdr[8] | (hdr[9] << 8);
+                if (w > 0 && h > 0 && w <= 300 && h <= 132) {   // CYD saver region 300x132 (TTGO: 240x135)
+                  size_t sz = 48 + (size_t) w * h * 3;
+                  const void *ptr = nullptr;
+                  if (saver_mmap) { esp_partition_munmap(saver_mmap); saver_mmap = 0; }
+                  if (esp_partition_mmap(part, base, sz, ESP_PARTITION_MMAP_DATA, &ptr, &saver_mmap) == ESP_OK) {
+                    saver_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+                    saver_dsc.header.cf = LV_COLOR_FORMAT_RGB565A8;
+                    saver_dsc.header.w = w; saver_dsc.header.h = h; saver_dsc.header.stride = (uint32_t)(w * 2);
+                    saver_dsc.data = (const uint8_t *) ptr + 48;
+                    saver_dsc.data_size = (uint32_t) w * h * 3;
+                    show = &saver_dsc;
+                  }
+                }
+              }
+            }
+            if (show == nullptr) {   // baked preset (or a custom miss) -> the big screensaver-size bake
+              esphome::image::Image *sv = id(preset_battery_saver_img);   // Battery = default + fallback
+              ${banner_saver_lookup}   // full gallery injects the else-if chain; the CYD (empty) -> sv stays Battery
+              show = sv->get_lv_image_dsc();
+            }
+            if (show != nullptr) {
+              lv_img_set_src(id(saver_img), show);
+              int w = show->header.w, h = show->header.h;
+              lv_obj_set_pos(id(saver_img), (320 - w) / 2, 118 - h / 2);   // CYD centre in the hero area (TTGO: (240-w)/2, 60-h/2)
+            }
+          }
+
+interval:
+  # Brightness config bridge (the web-config write path): apply web /wd/cfg POSTs on the MAIN loop (never from the httpd task — a number
+  # make_call can touch LVGL/backlight; same rule as bindkey) + publish the /wd/cfg.json seed the web form reads on load.
+  - interval: 1s
+    then:
+      - lambda: |-
+          namespace wdd = esphome::web_dashboard;
+          if (wdd::cfg_pending.load(std::memory_order_acquire)) {
+            wdd::cfg_pending.store(false, std::memory_order_relaxed);
+            int v;
+            if ((v = wdd::cfg_bl.exchange(-1))    >= 0) id(backlight_level).make_call().set_value(v).perform();
+            if ((v = wdd::cfg_dimto.exchange(-1)) >= 0) id(dim_timeout).make_call().set_value(v).perform();
+            if ((v = wdd::cfg_retto.exchange(-1)) >= 0) id(return_timeout).make_call().set_value(v).perform();
+            if ((v = wdd::cfg_auto.exchange(-1))  >= 0) id(ldr_enabled) = (v != 0);   // persisted global (auto-dim toggle)
+            // cfg_led drain HOISTED to core.yaml (board-agnostic led_level; core owns it, cfg_pending-free). Seed below still reads id(led_level).
+            if ((v = wdd::cfg_idim.exchange(-1))  >= 0) id(idle_dim_level) = v;       // screen idle-dim level 0..3 (NVS global; the dim machine reads it)
+            #if WD_DEBUG_LEDTEST
+            { int lt = wdd::cfg_ledtest.exchange(-2); if (lt != -2) id(led_test) = lt; }   // brownout probe: exact LED override (-1 = back to normal)
+            #endif
+          }
+          // Publish the seed (terse keys) on change only — values move only on a POST, so this is ~idle.
+          static char last[104] = {0};
+          char cb[104];
+          snprintf(cb, sizeof(cb), "{\"bl\":%d,\"dimto\":%d,\"retto\":%d,\"auto\":%d,\"led\":%d,\"idim\":%d}",
+                   (int) id(backlight_level).state, (int) id(dim_timeout).state,
+                   (int) id(return_timeout).state, id(ldr_enabled) ? 1 : 0, id(led_level), id(idle_dim_level));
+          if (strcmp(cb, last) != 0) { strcpy(last, cb); wdd::slot_cfg.publish(std::string(cb)); }
+  - interval: ${draw_interval}
+    then:
+      - lambda: |-
+          auto &o = esphome::status_compute::status_out();
+          const uint32_t now = millis();
+
+          // --- boot-splash handoff (animated entrance; anchored to splash_start_ms) ------------------
+          // page_splash is loaded ONCE in on_boot(-100) and the fades run there; while it plays we just wait
+          // (no per-tick re-load — that would restart/disrupt the lv_anim). At >=3800ms (lockup faded out) drop
+          // splash_active and fall through so the loop loads the dashboard (or the AP setup page if AP is up).
+          if (id(splash_active)) {
+            if ((uint32_t) (now - id(splash_start_ms)) < 3800) { return; }
+            id(splash_active) = false;
+            id(current_page) = 0;
+            id(last_activity_ms) = now;
+          }
+
+          // --- Screensaver EXIT (ported from display_tdisplay.yaml housekeeping exit, lines ~2392-2395) — runs
+          //     BEFORE the page loader so a keep-lit / overlay state that must own the screen is never briefly
+          //     re-covered by the saver page (the CYD loader is state-driven, unlike the TTGO's direct lv_scr_load).
+          //     Mirrors TTGO's `if (saver_active && (keep_lit || offline_alert))`. Enter + refresh live in the idle
+          //     block below. keep_lit here = fault / serious-warn / netfault / AP (the CYD keep_lit set).
+          if (id(saver_active) && (id(fault_active) || id(serious_warn_active) || id(netwatch_disabled) ||
+                                   id(offline_alert) || wifi::global_wifi_component->is_ap_active())) {
+            id(saver_active) = false;
+            id(current_page) = 0;
+          }
+
+          // --- page loader (touch mutates current_page) ---------------------------------------------
+          static int shown = -1;
+          // saver_active = HIGHEST precedence (-3 -> cyd_page_saver), then the AP-setup takeover (-2), then the page.
+          int want = id(saver_active) ? -3 : (id(ap_setup_shown) ? -2 : id(current_page));
+          if (want != shown) {
+            shown = want;
+            lv_obj_t *scr;
+            switch (shown) {                                   // TTGO page indices: 1 detail ... 5 system
+              case -3: scr = id(cyd_page_saver)->obj; break;  // screensaver (idle view)
+              case -2: scr = id(cyd_page_setup)->obj; break;
+              case 1:  scr = id(cyd_page_detail)->obj; break;
+              case 3:  scr = id(cyd_page_ble)->obj; break;
+              case 4:  scr = id(cyd_page_network)->obj; break;
+              case 5:  scr = id(cyd_page_system)->obj; break;
+              default: scr = id(cyd_page_dashboard)->obj; break;
+            }
+            lv_scr_load(scr);
+          }
+
+          // --- one-shot HEAP RECLAIM: destroy the boot-only pages once done (~4-5KB DRAM on this tight board).
+          //     Runs AFTER the page loader so the deleted page is guaranteed NOT the active screen (LVGL v9.5 hard
+          //     rule: never delete act_scr). Analyzed safe (2 agents): splash_active is monotonic true->false and the
+          //     loader has no splash case; the AP/setup page is only shown at boot (ap_timeout:0s -> AP NEVER auto-
+          //     raises mid-session; Reset-WiFi = reboot -> rebuilds the tree), so once we're past boot and NOT in AP
+          //     mode it's dead weight for the rest of this boot. is_connected() is deliberately NOT required — a
+          //     configured board running offline-by-design (no network) still frees it (its AP can never raise).
+          static bool splash_freed = false;
+          if (!splash_freed && !id(splash_active)) {           // handoff done; loader already swapped away from splash
+            splash_freed = true;
+            #ifdef WD_MEM_LOG   // DEV: log the freed page-root anchor -> see where the boot-only hole lands vs drawbuf/firstfree (heap layout probe)
+            ESP_LOGI("wdmem", "HOLE splash del obj=0x%08x t=%u", (unsigned)(uintptr_t)id(cyd_page_splash)->obj, (unsigned)millis());
+            #endif
+            lv_obj_del(id(cyd_page_splash)->obj);
+            id(cyd_page_splash)->obj = nullptr;                // a stray ref then hits nullptr, not freed memory
+          }
+          static bool setup_freed = false;
+          if (!setup_freed && millis() > 60000UL && !id(ap_setup_shown) &&
+              wifi::global_wifi_component != nullptr && !wifi::global_wifi_component->is_ap_active()) {
+            setup_freed = true;
+            #ifdef WD_MEM_LOG   // DEV: same layout probe for the late (>60s) setup-page free
+            ESP_LOGI("wdmem", "HOLE setup del obj=0x%08x t=%u", (unsigned)(uintptr_t)id(cyd_page_setup)->obj, (unsigned)millis());
+            #endif
+            lv_obj_del(id(cyd_page_setup)->obj);
+            id(cyd_page_setup)->obj = nullptr;
+          }
+          #ifdef WD_MEM_LOG   // DEV: log the LVGL draw-buffer address ONCE (allocated at setup, never moves) -> the fixed
+          //     layout anchor to compare the HOLE/firstfree addresses against across boots. Public LVGL API (no component
+          //     edit; LVGL is regenerated). This lives in display_cyd (always has LVGL) not core (headless has none).
+          {
+            static bool wd_drawbuf_logged = false;
+            if (!wd_drawbuf_logged) {
+              wd_drawbuf_logged = true;
+              lv_draw_buf_t *db = lv_display_get_buf_active(lv_display_get_default());
+              ESP_LOGI("wdmem", "BOOT drawbuf=0x%08x sz=%u connms=%u",
+                (unsigned) (db ? (uintptr_t) db->data : 0), (unsigned) (db ? db->data_size : 0), (unsigned) id(wd_wifi_conn_ms));
+            }
+          }
+          #endif
+
+          // --- backlight auto-dim after 60s idle -----------------------------------------------------
+          // --- serious_warn (over/undervoltage) keep-lit flag: compute-derived, display-owned, set ungated -----
+          id(serious_warn_active) = o.serious_warn;
+
+          // --- backlight keep-lit / dim / auto-return + screensaver enter/refresh (ported from TTGO housekeeping) --
+          {
+            bool ap = wifi::global_wifi_component->is_ap_active();
+            uint32_t inact = now - id(last_activity_ms);
+            uint32_t ret_ms = (uint32_t) id(return_timeout).state * 1000UL;
+            float dim_s = fmaxf(id(dim_timeout).state, id(return_timeout).state);   // dim never before auto-return
+            uint32_t dim_ms = (uint32_t)(dim_s * 1000.0f);
+            // A FAULT / a serious over-undervoltage warning / a NETWORK FAULT / AP-setup keeps the screen lit (and
+            // WAKES a dimmed one) so the alert/instruction stays visible — this is what stops the netfault + fault
+            // screens re-dimming after idle (the previous blunt 60s->8% rule ignored them).
+            bool keep_lit = id(fault_active) || id(serious_warn_active) || id(netwatch_disabled) || ap;
+            // Backlight ladder — single-sourced in backlight_model.h (wd_bl::eff_backlight). `day` = the manual
+            // "Backlight" ceiling (backlight_level, never overwritten); auto-dim (ldr_enabled) scales it to NIGHT_FACTOR
+            // when the LDR says dark; nothing readable goes below MIN_READABLE (below = a deliberate OFF); faults
+            // (keep_lit) stay full and ignore night. idle-dim target = the readable floor.
+            float day = id(backlight_level).state / 100.0f;
+            float darkness = id(ldr_enabled) ? id(led_dark) : 0.0f;  // continuous 0(bright)..1(dark); 0 when auto-dim off
+            // User idle-dim level (0=OFF|1=LOW|2=MED|3=HIGH) -> the idle fraction of day. OFF = panel fully dark
+            // (turn_off; the RGB LED carries glance-status). LOW/MED/HIGH ride eff_backlight (darkness-corrected +
+            // MIN_READABLE floor). Eyeball-tunable, mirrors the RGB CEIL[] idiom.
+            int dimlvl = id(idle_dim_level); if (dimlvl < 0) dimlvl = 0; if (dimlvl > 3) dimlvl = 3;
+            static const float DIM_FRAC[4] = {0.0f, 0.30f, 0.50f, 0.70f};   // OFF | LOW | MED | HIGH (idle = frac*day)
+            float active = wd_bl::eff_backlight(day, darkness, keep_lit ? wd_bl::BlMode::KEEP_LIT : wd_bl::BlMode::ACTIVE);
+            float idle   = wd_bl::eff_backlight(day, darkness, wd_bl::BlMode::IDLE, 1.0f, DIM_FRAC[dimlvl]);
+            if (keep_lit) {
+              id(backlight_dim) = false;
+            } else if (inact > dim_ms && !id(backlight_dim)) {
+              id(backlight_dim) = true;
+              if (dimlvl == 0) id(backlight).turn_off().perform();               // OFF -> panel fully dark (RGB LED = status); wakes via turn_on() in input_cyd_touch + the active branch
+              else id(backlight).turn_on().set_brightness(idle).perform();
+            }
+            static float last_active = -1.0f;
+            if (!id(backlight_dim)) {
+              if (active != last_active) { last_active = active; id(backlight).turn_on().set_brightness(active).perform(); }
+            } else {
+              last_active = -1.0f;   // force re-apply on the next wake
+            }
+            // auto-return to the dashboard after return_timeout (NOT during a fault / AP / the actions menu / the
+            // screensaver — don't yank a user off a page they navigated to while a TERMINAL overlay owns the screen;
+            // the saver owns the screen via want==-3 and exits on its own). OFFLINE is deliberately NOT gated here:
+            // offline falls through (page data is real + navigable), so a normal idle auto-return to the dashboard
+            // is the wanted behaviour — same as any other page (verified on-device: gating it just stranded the user).
+            if (inact > ret_ms && id(current_page) != 0 && !id(fault_active) && !ap && !id(in_menu) && !id(saver_active)) {
+              id(current_page) = 0;
+            }
+            // --- Screensaver ENTER + refresh (ported 1:1 from display_tdisplay.yaml housekeeping, lines ~2414-2427).
+            //     After the idle window with no fault / serious warning / AP (keep_lit) / offline-alert, and not in
+            //     the actions menu: populate the mirror FIRST, then flip saver_active so the page loader shows a
+            //     ready frame next tick (want==-3). Refresh each tick while it's up so the clock/status/hero stay
+            //     live. Exit is handled pre-loader above + on a touch tap (input_cyd_touch on_release). ----------
+            if (!id(saver_active) && inact > ret_ms && !keep_lit && !id(offline_alert) && !id(in_menu)) {
+              id(render_saver).execute();       // populate before showing
+              id(saver_active) = true;
+            }
+            if (id(saver_active)) id(render_saver).execute();   // keep the saver's mirror fresh while it's up
+          }
+
+          // --- AP-setup takeover: while the onboarding screen is up, keep it lit + skip the overlays/page fills --
+          if (id(ap_setup_shown)) { id(last_activity_ms) = now; return; }
+
+          // ==== DASHBOARD CUSTOM-HERO RENDER — 1:1 PORT of display_tdisplay.yaml build_custom + section (D)
+          // (lines ~1938-2018). Baked Battery preset + up to N user "Custom" slots in the storage partition,
+          // memory-mapped (no RAM copy). Runs every draw tick (cheap: only re-maps on an effective-target change)
+          // and BEFORE the overlay returns below, so the hero stays current under an offline/fault takeover exactly
+          // like the TTGO. httpd only sets intents; every lv_*/flash op happens here. CYD adaptations: dash region
+          // 174x96 bound = the envelope of the v4 adaptive boxes (A wide 174x60 / B tall 156x96); banner_img is
+          // placed by anchor_hero() (height-adaptive TOP_LEFT, not a fixed corner); invalidate id(banner).
+          // banner_preset/bnr_sel are core globals (the core gallery consumer writes them).
+          {
+            static std::string last_banner = "";
+            static int last_sel = -2;                 // force the first apply
+            static lv_image_dsc_t custom_dsc;
+            static esp_partition_mmap_handle_t mmap_h = 0;
+            namespace wd = esphome::web_dashboard;
+            // build_custom(slot): COMMIT-THEN-SWAP. Map+validate the target into a SCRATCH handle (magic + fixed
+            // dims + CRC every time); only on full success tear down the OLD handle, repoint custom_dsc, and
+            // publish gallery_active_slot. On any failure return false with the previous mapping untouched — never
+            // leave LVGL pointing into a torn/erased mapping.
+            auto build_custom = [&](int slot) -> bool {
+              const esp_partition_t *part = esp_partition_find_first(ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "storage");
+              if (part == nullptr || slot < 0 || slot >= wd::gallery_slot_cap(part)) return false;
+              size_t base = (size_t) slot * wd::SLOT_SPAN;
+              uint8_t hdr[16];
+              if (esp_partition_read(part, base, hdr, 16) != ESP_OK || memcmp(hdr, "WDB1", 4) != 0) return false;
+              uint16_t w = hdr[6] | (hdr[7] << 8), h = hdr[8] | (hdr[9] << 8);
+              if (w == 0 || h == 0 || w > wd::WDB_DASH_W || h > wd::WDB_DASH_H) return false;   // clamp to the board's dash region (build-flag driven)
+              size_t sz = 48 + (size_t) w * h * 3;
+              const void *ptr = nullptr;
+              esp_partition_mmap_handle_t scratch = 0;
+              if (esp_partition_mmap(part, base, sz, ESP_PARTITION_MMAP_DATA, &ptr, &scratch) != ESP_OK) return false;
+              // .wdb v2 (hdr[4]>=2): verify CRC32 (reserved[12..16]) over the pixel bytes. v1 legacy (hdr[4]<2)
+              // has no CRC -> skip. Every load (no id-cache) so a swap can't trust stale.
+              if (hdr[4] >= 2) {
+                uint32_t want = hdr[12] | (hdr[13] << 8) | (hdr[14] << 16) | ((uint32_t) hdr[15] << 24);
+                const uint8_t *px = (const uint8_t *) ptr + 48;
+                size_t nb = (size_t) w * h * 3;
+                uint32_t c = 0xFFFFFFFFu;
+                for (size_t i = 0; i < nb; i++) { c ^= px[i]; for (int k = 0; k < 8; k++) c = (c & 1) ? (c >> 1) ^ 0xEDB88320u : (c >> 1); }
+                c ^= 0xFFFFFFFFu;
+                if (c != want) { esp_partition_munmap(scratch); return false; }
+              }
+              if (mmap_h) esp_partition_munmap(mmap_h);   // success -> swap in the new mapping
+              mmap_h = scratch;
+              custom_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+              custom_dsc.header.cf = LV_COLOR_FORMAT_RGB565A8;
+              custom_dsc.header.w = w; custom_dsc.header.h = h; custom_dsc.header.stride = (uint32_t)(w * 2);
+              custom_dsc.data = (const uint8_t *) ptr + 48;   // pixels start after the 48B header
+              custom_dsc.data_size = (uint32_t) w * h * 3;
+              wd::gallery_active_slot = slot;   // publish: excluded from the alloc/erase scan
+              return true;
+            };
+            // anchor_hero(image_height): the v4 adaptive placement. A WIDE + short hero (box A, height <= the box-A
+            // cap) is BOTTOM-anchored so it rests just above the status band (box-A bottom = AH+10 = 70, status @72,
+            // 2px gap); a TALL hero (box B) TOP-anchors at y10 and runs down the left column (it's narrow, so it stays
+            // left of the status @x148). x is always the band's 6px left inset. Both custom + baked go through this.
+            auto anchor_hero = [&](int32_t ih) {
+              int32_t y = (ih <= wd::WDB_DASH_AH) ? (wd::WDB_DASH_AH + 10 - ih) : 10;
+              lv_obj_set_align(id(banner_img), LV_ALIGN_TOP_LEFT);
+              lv_obj_set_pos(id(banner_img), 6, y);
+            };
+            // (D) render when the effective target changed (preset name, or the custom slot). (B) select/delete +
+            // (C) favorite + (E) publish gallery_sel/fav are BOARD-AGNOSTIC -> core.yaml's housekeeping (it writes
+            // banner_preset/bnr_sel). DELETE's mmap release still happens here when it reacts to Battery below.
+            std::string bp = id(banner_preset).state;
+            int sel = id(bnr_sel);
+            if (bp != last_banner || (bp == "Custom" && sel != last_sel)) {
+              last_banner = bp; last_sel = sel;
+              bool shown_custom = (bp == "Custom") && build_custom(sel);  // swaps mmap_h on success
+              if (shown_custom) {
+                // Custom is a TIGHT CUT-OUT (like baked) -> the converter already fit it to box A or B; anchor by height.
+                lv_img_set_src(id(banner_img), &custom_dsc);
+                anchor_hero((int32_t) custom_dsc.header.h);
+              } else {
+                // Baked preset, or a Custom whose slot is gone/invalid -> release any custom mapping (so the alloc
+                // scan may reuse it) and draw a baked cut-out anchored bottom-left.
+                if (mmap_h) { esp_partition_munmap(mmap_h); mmap_h = 0; }
+                wd::gallery_active_slot = -1;
+                esphome::image::Image *bimg = id(preset_battery_img);   // Battery = default + fallback
+                ${banner_dash_lookup}   // full gallery injects the else-if chain; the CYD (empty) -> bimg stays Battery
+                lv_img_set_src(id(banner_img), bimg->get_lv_image_dsc());
+                anchor_hero((int32_t) bimg->get_height());       // same height-based anchor as custom (Battery is 140x84 -> h>60 -> box-B, top-anchored)
+                if (bp == "Custom") {   // selected slot is dead -> self-heal NVS so we stop retrying it
+                  id(bnr_sel) = -1;
+                  id(banner_preset).make_call().set_option("Battery").perform();
+                }
+              }
+              lv_obj_invalidate(id(banner));  // clean full redraw of the banner (no ghost on live swap)
+            }
+          }
+
+          // STX: write a label ONLY when its text CHANGES. lv_label_set_text always reallocs, so an unguarded
+          // per-draw-tick set churns the tight 8-bit heap (fragments -> web starve, and an offline->online rebuild
+          // then WDT-reboots). The P1 dashboard STX guards never covered these OVERLAY setters (offline/fault),
+          // which is why a held never-online "CHARGER OFFLINE" overlay degraded the board. Same pattern as P1.
+          auto stxs = [](lv_obj_t *o, const char *s){ const char *c = lv_label_get_text(o); if (c == nullptr || strcmp(c, s) != 0) lv_label_set_text(o, s); };
+          // small helper: mirror the header clock onto an overlay's lone clock label (STX-guarded)
+          auto set_ov_clock = [&](lv_obj_t *lbl) {
+            char cb[6];
+            if (id(sntp_time).now().is_valid()) { auto t = id(sntp_time).now(); snprintf(cb, sizeof(cb), "%02d:%02d", t.hour, t.minute); }
+            else { strcpy(cb, "--:--"); }
+            stxs(lbl, cb);
+          };
+          const uint32_t age = now - id(last_packet_ms);
+
+          // ==== OVERLAY TAKEOVER (netfault > offline-alert > fault) — ONE state-driven `ov` overlay (Tier-3 merge).
+          // The 3 former overlays collapsed to a single container + 6 shared labels; the 3 priority branches STAY
+          // (control flow can't merge: netfault/offline `return`, fault falls through; netfault+fault force the
+          // backlight bright, offline does NOT). Invariants: fault_active/offline_alert stay published as the
+          // source-of-truth GLOBALS (RGB LED / saver / backlight read them, never the ids); glyph+colour re-applied
+          // on entry; the shared icon/title opacity RESET on entry (only FAULT flashes); ov_sub (fault ctx) + the
+          // clock/demo group hidden where a state doesn't use them. `ov_prev` (one enum) replaces the 3 old latches.
+          enum OvState { OV_NONE, OV_NETFAULT, OV_OFFLINE, OV_FAULT };
+          static OvState ov_prev = OV_NONE;
+          auto ov_enter = [&](OvState st, const char *glyph, uint32_t accent, bool force_bl) {
+            ov_prev = st;
+            id(current_page) = 0; shown = 0; lv_scr_load(id(cyd_page_dashboard)->obj);
+            lv_obj_add_flag(id(live_content), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(ov), LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text(id(ov_icon), glyph);
+            lv_obj_set_style_text_color(id(ov_icon),  lv_color_hex(accent), 0);
+            lv_obj_set_style_text_color(id(ov_title), lv_color_hex(accent), 0);
+            lv_obj_set_style_text_opa(id(ov_icon),  LV_OPA_COVER, 0);   // clear any FAULT-flash residue
+            lv_obj_set_style_text_opa(id(ov_title), LV_OPA_COVER, 0);
+            if (force_bl) { id(backlight_dim) = false; id(backlight).turn_on().set_brightness(wd_bl::eff_backlight(id(backlight_level).state / 100.0f, 0.0f, wd_bl::BlMode::KEEP_LIT)).perform(); }   // fault: full day, floored
+          };
+
+          if (id(netwatch_disabled)) {                          // 1: NETFAULT — breaker tripped, terminal till power-cycle
+            if (ov_prev != OV_NETFAULT) {
+              id(fault_active) = false;
+              ov_enter(OV_NETFAULT, "\U000F0026", 0xf5b942, true);   // amber alert, force bright
+              stxs(id(ov_title), "NETWORK FAULT");
+              stxs(id(ov_msg), "Please unplug and replug\nthe device to restart.");
+              lv_obj_set_style_text_color(id(ov_msg), lv_color_hex(0xe8e8e8), 0);   // explicit white (don't lean on the widget default + netfault's terminal semantics)
+              lv_obj_add_flag(id(ov_sub), LV_OBJ_FLAG_HIDDEN);       // no ctx line, no clock/demo
+              lv_obj_add_flag(id(ov_clock), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(ov_demo), LV_OBJ_FLAG_HIDDEN);
+            }
+            return;                                             // terminal takeover — nothing else draws
+          }
+
+          uint32_t off_el = id(offline_active) ? (now - id(offline_since_ms)) / 1000 : 0;
+          bool never_online = (id(last_packet_ms) == 0);
+          id(offline_alert) = o.offline && off_el < (never_online ? 100 : 25);   // relax (off_el since offline began @ ble_timeout=20s): DROP settles at ~45s total (25s blink), never-online (setup) at ~120s. "Message not disco" — brief blink then calm breathe+hero. (was 90/180.)
+          if (id(offline_alert)) {                              // 2: OFFLINE — "CHARGER OFFLINE" (does NOT force backlight)
+            if (ov_prev != OV_OFFLINE) {
+              id(fault_active) = false;
+              ov_enter(OV_OFFLINE, "\U000F00B2", 0xef4444, false);   // bt-off red; backlight dims normally (LED dim-gate)
+              stxs(id(ov_title), "CHARGER OFFLINE");
+              lv_obj_set_style_text_color(id(ov_msg), lv_color_hex(0x888888), 0);   // offline body = gray
+              lv_obj_add_flag(id(ov_sub), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(ov_clock), LV_OBJ_FLAG_HIDDEN);
+            }
+            char ob[160];
+            if (id(last_packet_ms) == 0) {
+              char db[12];
+              if (off_el < 60)        snprintf(db, sizeof(db), "%us", (unsigned)((off_el / 15) * 15));   // 15s-quantized
+              else if (off_el < 3600) snprintf(db, sizeof(db), "%um", (unsigned)(off_el / 60));
+              else                    snprintf(db, sizeof(db), "%uh %02um", (unsigned)(off_el / 3600), (unsigned)((off_el % 3600) / 60));
+              snprintf(ob, sizeof(ob), "Waiting for charger\n%s", db);   // the "check key/MAC" hint moved to the BLE page (reachable once the overlay relaxes)
+            } else if (age / 60000 >= 1) {
+              snprintf(ob, sizeof(ob), "Last seen: %.2fV - %s\n%u minutes ago", o.v, o.word, age / 60000);
+            } else {
+              snprintf(ob, sizeof(ob), "Last seen: %.2fV - %s\n%us ago", o.v, o.word, (age / 1000 / 15) * 15);   // 15s-quantized
+            }
+            stxs(id(ov_msg), ob);
+            set_ov_clock(id(ov_clock));
+            if (id(demo_active)) lv_obj_clear_flag(id(ov_demo), LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(id(ov_demo), LV_OBJ_FLAG_HIDDEN);
+            // NO return — OFFLINE now FALLS THROUGH like FAULT: the `ov` overlay covers ONLY the dashboard, so on any
+            // OTHER page the per-page fills below run (real charger-independent data: WiFi/IP/uptime) and nav/menu stays
+            // reachable. Chained as `else if` with FAULT so an active offline skips the teardown branch.
+          } else if (o.scode == 3 && !o.offline) {              // 3: FAULT — focus takeover (live), FALLS THROUGH
+            if (ov_prev != OV_FAULT) {
+              id(fault_active) = true;
+              ov_enter(OV_FAULT, "\U000F0026", 0xef4444, true);      // red alert, force bright
+              stxs(id(ov_title), "FAULT");
+              lv_obj_set_style_text_color(id(ov_msg), lv_color_hex(0xe8e8e8), 0);   // fault body = white
+              lv_obj_clear_flag(id(ov_sub), LV_OBJ_FLAG_HIDDEN);     // ctx line visible
+              lv_obj_clear_flag(id(ov_clock), LV_OBJ_FLAG_HIDDEN);
+            }
+            std::string fe = (o.err.empty() || o.err == "No error") ? "Charger fault" : o.err;
+            stxs(id(ov_msg), fe.c_str());
+            char fc[40]; snprintf(fc, sizeof(fc), "%.2f V  -  %s", o.v, o.tstr); stxs(id(ov_sub), fc);
+            lv_opa_t fop = ((now / 500) % 2) ? LV_OPA_COVER : (lv_opa_t) 80;   // 2Hz flash (inherently changing -> unguarded, FAULT-only)
+            lv_obj_set_style_text_opa(id(ov_icon), fop, 0);
+            lv_obj_set_style_text_opa(id(ov_title), fop, 0);
+            set_ov_clock(id(ov_clock));
+            if (id(demo_active)) lv_obj_clear_flag(id(ov_demo), LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(id(ov_demo), LV_OBJ_FLAG_HIDDEN);
+            // NO return — falls through to the header/status/hero render beneath the overlay (as before).
+          } else if (ov_prev != OV_NONE) {                      // TEARDOWN — leaving offline OR fault (netfault never reaches here)
+            if (ov_prev == OV_FAULT) id(fault_active) = false;
+            ov_prev = OV_NONE;
+            lv_obj_clear_flag(id(live_content), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(ov), LV_OBJ_FLAG_HIDDEN);
+          }
+
+          // Determinism: LVGL 9.5 lv_label_set_text ALWAYS reallocs + invalidates even for identical text,
+          // and this draw lambda runs every ${draw_interval}. That per-tick realloc churn fragments the 8-bit DRAM
+          // heap, so a web-load dip fails the NEXT glyph draw-buffer alloc -> LVGL busy-spins -> task-WDT. So write
+          // only on a REAL change, reusing the state LVGL already stores (no extra caches). Idempotent: the drawn
+          // pixels are identical, we just skip the redundant realloc/invalidate.
+          auto STX = [](lv_obj_t *o, const char *s){ const char *c = lv_label_get_text(o); if (c == nullptr || strcmp(c, s) != 0) lv_label_set_text(o, s); };
+          auto SCL = [](lv_obj_t *o, lv_color_t col){ if (!lv_color_eq(lv_obj_get_style_text_color(o, LV_PART_MAIN), col)) lv_obj_set_style_text_color(o, col, 0); };
+          auto SX  = [](lv_obj_t *o, int32_t x){ if (lv_obj_get_x(o) != x) lv_obj_set_x(o, x); };
+          auto SW  = [](lv_obj_t *o, int32_t w){ if (lv_obj_get_width(o) != w) lv_obj_set_width(o, w); };
+          // --- header: clock + wifi icon + link dot + DEMO badge (ported from render_net_chrome) -----
+          {
+            if (id(sntp_time).now().is_valid()) {
+              char cb[6]; auto t = id(sntp_time).now();
+              snprintf(cb, sizeof(cb), "%02d:%02d", t.hour, t.minute);
+              STX(id(clock_label), cb);
+            } else {
+              STX(id(clock_label), "--:--");
+            }
+            float rssi = id(wifi_rssi).has_state() ? id(wifi_rssi).state : NAN;
+            STX(id(wifi_icon), "\U000F05A9");   // mdi wifi
+            lv_color_t wc = std::isnan(rssi) ? lv_color_hex(0x666666)
+                          : (rssi >= -68 ? lv_color_hex(0x3ddc84)
+                          : (rssi >= -75 ? lv_color_hex(0xf5b942) : lv_color_hex(0xef4444)));
+            SCL(id(wifi_icon), wc);
+            // link dot = BLE link state: connected/fresh blue, stale amber, offline red bluetooth-off.
+            // Mirrored onto link_dot2 (the Bluetooth page) — same idiom as the TTGO.
+            const char *dg; lv_color_t dc;
+            if (o.offline)        { dg = "\U000F00B2"; dc = lv_color_hex(0xef4444); }
+            else if (o.ble_stale) { dg = "\U000F00B2"; dc = lv_color_hex(0x888888); }
+            else                  { dg = "\U000F00AF"; dc = lv_color_hex(0x38bdf8); }
+            for (auto *d : {id(link_dot), id(link_dot2)}) { STX(d, dg); SCL(d, dc); }
+            // saver_demo_badge toggled here too (TTGO loops all badges together) so the idle saver shows the red
+            // DEMO cue when not Live — reached whenever the saver is up (no overlay early-return in that path).
+            for (auto *d : {id(demo_badge), id(saver_demo_badge)}) {
+              if (id(demo_active)) lv_obj_clear_flag(d, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(d, LV_OBJ_FLAG_HIDDEN);
+            }
+          }
+
+          // --- status word + icon (from the DTO) -----------------------------------------------------
+          if (o.offline) {
+            STX(id(status_word), "OFFLINE");
+            SCL(id(status_word), lv_color_hex(0xef4444));
+            STX(id(status_icon), "\U000F00B2");
+            SCL(id(status_icon), lv_color_hex(0xef4444));
+          } else {
+            STX(id(status_word), o.word);
+            SCL(id(status_word), lv_color_hex(o.col_hex));
+            STX(id(status_icon), o.icon ? o.icon : "\U000F0904");
+            SCL(id(status_icon), lv_color_hex(o.col_hex));
+          }
+
+          // --- hero voltage + gauge geometry (dashboard only; BW scaled 222 -> 296) -------------------
+          // !saver_active: these three dashboard-ONLY blocks (voltage/gauge, left-aux Elapsed, stat row) write
+          // OFF-SCREEN while the screensaver is up (current_page stays 0), and their live values change ~1 Hz
+          // (voltage/current/elapsed) -> lv_label_set_text reallocs the text buffer every tick -> the dominant
+          // 8-bit fragmenter over the multi-hour saver (the blk8->~700 pin). Gate them off during the saver; the
+          // header + status blocks below stay UNGATED so render_saver's clock/status mirror keeps ticking.
+          if (id(current_page) == 0 && !id(fault_active) && !id(saver_active)) {
+            char vb[8];
+            if (o.have && !std::isnan(o.v)) snprintf(vb, sizeof(vb), "%.2f", o.v);   // never-seen / NaN -> "-", not "0.00" or "nan"
+            else                            snprintf(vb, sizeof(vb), "-");
+            STX(id(voltage_val), vb);
+            lv_color_t vcol;
+            if (o.offline) {
+              vcol = lv_color_hex(0x888888);
+            } else if (((o.v > o.red_hi && !o.is_recond) || (o.v < o.red_lo && o.have)) || o.scode == 3) {
+              vcol = lv_color_hex(0xef4444);
+            } else if (o.show_band) {
+              vcol = (o.v < o.band_lo - 0.05f || o.v > o.band_hi + 0.05f) ? lv_color_hex(0xf5b942) : lv_color_hex(0x3ddc84);
+            } else {
+              vcol = lv_color_hex(0xe8e8e8);
+            }
+            SCL(id(voltage_val), vcol);
+            const float VMIN = 9.5f * o.sc, VSPAN = 6.0f * o.sc; const int BW = 296;
+            auto px = [&](float volt) { float p = (volt - VMIN) / VSPAN; if (p < 0) p = 0; if (p > 1) p = 1; return (int)(p * BW); };
+            int rl = px(o.red_lo);
+            SX(id(redline_low), 0);   SW(id(redline_low), rl);
+            int rh = px(15.0f * o.sc);
+            SX(id(redline_high), rh); SW(id(redline_high), BW - rh);
+            if (o.show_band) {
+              lv_obj_clear_flag(id(exp_band), LV_OBJ_FLAG_HIDDEN);
+              int bx = px(o.band_lo);
+              SX(id(exp_band), bx);
+              SW(id(exp_band), px(o.band_hi) - bx);
+            } else {
+              lv_obj_add_flag(id(exp_band), LV_OBJ_FLAG_HIDDEN);
+            }
+            SX(id(volt_marker), 12 + px(o.v) - 1);
+          }
+
+          // --- detail box: TOP = raw charger phase (status-coloured) or an amber anomaly; BOTTOM = Elapsed ---
+          if (id(current_page) == 0 && !id(fault_active) && !id(saver_active)) {   // !saver_active: off-screen "Elapsed" ticks every 1s -> realloc churn; skip during the saver
+          if (o.offline) {
+            STX(id(charger_phase), "");
+            STX(id(anomaly_text), "");
+          } else if (!o.note.empty()) {
+            // Anomaly OWNS the top line (may wrap to 2 lines) -> blank the Elapsed line so they can't overlap.
+            STX(id(charger_phase), o.note.c_str());
+            SCL(id(charger_phase), lv_color_hex(0xf5b942));
+            STX(id(anomaly_text), "");
+          } else {
+            STX(id(charger_phase), o.raw.c_str());            // raw charger phase; "" -> blank
+            SCL(id(charger_phase), lv_color_hex(o.col_hex));  // coloured like the status word
+            uint32_t secs = (now - id(status_since_ms)) / 1000;
+            char dbuf[16];
+            if (secs < 60) snprintf(dbuf, sizeof(dbuf), "%us", (unsigned)secs);
+            else if (secs < 3600) snprintf(dbuf, sizeof(dbuf), "%um", (unsigned)(secs / 60));
+            else snprintf(dbuf, sizeof(dbuf), "%uh %02um", (unsigned)(secs / 3600), (unsigned)((secs % 3600) / 60));
+            char info[24]; snprintf(info, sizeof(info), "Elapsed %s", dbuf);
+            STX(id(anomaly_text), info);
+            SCL(id(anomaly_text), lv_color_hex(0x777777));
+          }
+          }
+
+          // --- stat row: current + temp (dashboard only) ---------------------------------------------
+          if (id(current_page) == 0 && !id(fault_active) && !id(saver_active)) {   // !saver_active: off-screen current ~1 Hz -> realloc churn; skip during the saver
+            char sb[16];
+            snprintf(sb, sizeof(sb), "%.1f A", o.ibat); STX(id(stat_current_val), sb);
+            STX(id(stat_temp_val), o.tstr);
+          }
+
+          // --- charger detail (page 1) ---------------------------------------------------------------
+          if (id(current_page) == 1) {
+            char sb[16];
+            STX(id(detail_temp), o.tstr);
+            if (o.have) {   // never-seen charger -> "-", not a misleading 0.00/0.0/0 (matches the hero voltage guard)
+              if (std::isnan(o.v)) STX(id(detail_volt), "-"); else { snprintf(sb, sizeof(sb), "%.2f V", o.v); STX(id(detail_volt), sb); }   // Victron 0x7FFF sentinel -> NaN: "-", not "nan V"
+              snprintf(sb, sizeof(sb), "%.1f A", o.ibat); STX(id(detail_curr), sb);
+              snprintf(sb, sizeof(sb), "%.0f W", o.pw);   STX(id(detail_power), sb);
+            } else { STX(id(detail_volt), "-"); STX(id(detail_curr), "-"); STX(id(detail_power), "-"); }
+          }
+
+          // --- Bluetooth (page 3): Victron BLE signal bars + rssi + last-seen -------------------------
+          if (id(current_page) == 3) {
+            float brssi = (id(victron_rssi).has_state() && !o.ble_stale) ? id(victron_rssi).state : NAN;
+            int blit; lv_color_t bwc; const char *bwq;
+            if (std::isnan(brssi))    { blit = 0; bwc = lv_color_hex(0x666666); bwq = "No signal"; }
+            else if (brssi >= -60)    { blit = 4; bwc = lv_color_hex(0x38bdf8); bwq = "Good"; }
+            else if (brssi >= -70)    { blit = 3; bwc = lv_color_hex(0x38bdf8); bwq = "Good"; }
+            else if (brssi >= -78)    { blit = 2; bwc = lv_color_hex(0xf5b942); bwq = "Fair"; }
+            else                      { blit = 1; bwc = lv_color_hex(0xef4444); bwq = "Poor"; }
+            lv_obj_t *bbars[4] = { id(ble_bar_0), id(ble_bar_1), id(ble_bar_2), id(ble_bar_3) };
+            static int p_blit = -1; static lv_color_t p_bwc = lv_color_hex(0);   // bars recolor only on a bucket change (set_style_bg_color always invalidates)
+            if (blit != p_blit || !lv_color_eq(bwc, p_bwc)) { p_blit = blit; p_bwc = bwc;
+              for (int i = 0; i < 4; i++) lv_obj_set_style_bg_color(bbars[i], (i < blit) ? bwc : lv_color_hex(0x333333), 0); }
+            char bv[28];
+            if (std::isnan(brssi)) snprintf(bv, sizeof(bv), "%s", bwq);
+            else                   snprintf(bv, sizeof(bv), "%s (%d dBm)", bwq, (int) brssi);
+            STX(id(ble_rssi_val), bv);
+            SCL(id(ble_rssi_val), bwc);
+            if (id(last_packet_ms) == 0) STX(id(ble_age), "-");
+            else if (!o.ble_stale) STX(id(ble_age), "Live");
+            else { char ab[16]; uint32_t s = age / 1000; if (s < 60) snprintf(ab, sizeof(ab), "%us ago", (unsigned)(s < 15 ? 15 : (s / 15) * 15)); else snprintf(ab, sizeof(ab), "%um ago", (unsigned)(s / 60)); STX(id(ble_age), ab); }   // 15s buckets; floor to 15 (the "ago" branch starts at stale ~10s, so never "0s ago")
+            // Setup/offline hint (moved off the OFFLINE overlay; reachable THROUGHOUT the offline window — nav is NOT
+            // swallowed under the fall-through model, so the user can open this page while offline). One message per
+            // case, DEMO FIRST because in Demo the mock producer fakes a healthy BLE link (mock_data: refreshes
+            // last_packet_ms + a plausible RSSI every tick) -> RSSI/age/link-dot all read "connected", so any offline/
+            // unconfigured copy here would contradict the page -> just state it's simulated (no configure-nag; a Demo
+            // user with keys set doesn't need it, and one without discovers setup via the web dashboard). Then, only
+            // OUTSIDE demo: (2) keys NOT set = Live-with-no-keys -> point them at the web setup to enter MAC + key;
+            // (3) keys set but charger NEVER seen (last_packet_ms==0) -> likely wrong MAC/key or Instant Readout off
+            // -> check the MAC; (4) keys good + a later DROP -> power/range, not MAC -> a reassuring "reconnecting".
+            // Hidden when online. STX-swaps on the case-flip only (rare) -> no per-tick realloc.
+            if (id(demo_active)) {
+              STX(id(ble_hint), "Demo mode\nsimulated data");
+              lv_obj_clear_flag(id(ble_hint), LV_OBJ_FLAG_HIDDEN);
+            } else if (!id(keys_configured)) {
+              STX(id(ble_hint), "No charger configured\nadd MAC + key in\nthe web dashboard");
+              lv_obj_clear_flag(id(ble_hint), LV_OBJ_FLAG_HIDDEN);
+            } else if (id(last_packet_ms) == 0) {
+              STX(id(ble_hint), "No data or charger offline\ncheck MAC if newly paired\nor plug in the charger");
+              lv_obj_clear_flag(id(ble_hint), LV_OBJ_FLAG_HIDDEN);
+            } else if (o.offline) {
+              STX(id(ble_hint), "Charger went offline\ncheck it's powered / in range\nreconnecting...");
+              lv_obj_clear_flag(id(ble_hint), LV_OBJ_FLAG_HIDDEN);
+            } else {
+              lv_obj_add_flag(id(ble_hint), LV_OBJ_FLAG_HIDDEN);
+            }
+          }
+
+          // --- Network (page 4): Wi-Fi bars + quality + SSID/IP/HA (ported from render_net_chrome) -----
+          if (id(current_page) == 4) {
+            float rssi = id(wifi_rssi).has_state() ? id(wifi_rssi).state : NAN;
+            int lit; lv_color_t wc; const char *wq;
+            if (std::isnan(rssi))      { lit = 0; wc = lv_color_hex(0x666666); wq = "No signal"; }
+            else if (rssi >= -60)      { lit = 4; wc = lv_color_hex(0x3ddc84); wq = "Good"; }
+            else if (rssi >= -68)      { lit = 3; wc = lv_color_hex(0x3ddc84); wq = "Good"; }
+            else if (rssi >= -75)      { lit = 2; wc = lv_color_hex(0xf5b942); wq = "Fair"; }
+            else                       { lit = 1; wc = lv_color_hex(0xef4444); wq = "Poor"; }
+            lv_obj_t *wbars[4] = { id(wifi_bar_0), id(wifi_bar_1), id(wifi_bar_2), id(wifi_bar_3) };
+            static int p_wlit = -1; static lv_color_t p_wc = lv_color_hex(0);   // bars recolor only on a bucket change
+            if (lit != p_wlit || !lv_color_eq(wc, p_wc)) { p_wlit = lit; p_wc = wc;
+              for (int i = 0; i < 4; i++) lv_obj_set_style_bg_color(wbars[i], (i < lit) ? wc : lv_color_hex(0x333333), 0); }
+            char wv[28];
+            if (std::isnan(rssi)) snprintf(wv, sizeof(wv), "%s", wq);
+            else                  snprintf(wv, sizeof(wv), "%s (%d dBm)", wq, (int) rssi);
+            STX(id(wifi_val), wv); SCL(id(wifi_val), wc);
+            STX(id(net_ssid), id(wifi_ssid_txt).has_state() && !id(wifi_ssid_txt).state.empty() ? id(wifi_ssid_txt).state.c_str() : "-");
+            STX(id(net_ip), id(wifi_ip_txt).has_state() && !id(wifi_ip_txt).state.empty() ? id(wifi_ip_txt).state.c_str() : "-");
+            if (id(ha_connected).state) { STX(id(ha_val), LV_SYMBOL_OK); SCL(id(ha_val), lv_color_hex(0x3ddc84)); }
+            else { STX(id(ha_val), LV_SYMBOL_CLOSE); SCL(id(ha_val), lv_color_hex(0xef4444)); }
+            // Constant hostname -> set ONCE (was a std::string malloc/free + a label realloc EVERY tick on this page,
+            // for an invariant value; the TTGO sets it once too). set_text_static also reclaims the setup text buffer.
+            static std::string hn = std::string(App.get_name().c_str()) + ".local";  // function-static = stable lifetime
+            static bool hn_set = false;
+            if (!hn_set) { hn_set = true; lv_label_set_text_static(id(net_hostname), hn.c_str()); }
+          }
+
+
+          // --- system page: Firmware / Uptime / Free heap (page 5; IP + SSID live on the Network page) ----------
+          if (id(current_page) == 5) {
+            char buf[32];
+            uint32_t up = now / 1000;
+            if (up < 60)         snprintf(buf, sizeof(buf), "%us", (unsigned) up);
+            else if (up < 3600)  snprintf(buf, sizeof(buf), "%um", (unsigned)(up / 60));
+            else if (up < 86400) snprintf(buf, sizeof(buf), "%uh %02um", (unsigned)(up / 3600), (unsigned)((up % 3600) / 60));
+            else                 snprintf(buf, sizeof(buf), "%ud %uh", (unsigned)(up / 86400), (unsigned)((up % 86400) / 3600));
+            lv_label_set_text(id(sys_uptime), buf);
+            snprintf(buf, sizeof(buf), "%u KB", (unsigned)(heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+            lv_label_set_text(id(sys_heap), buf);
+          }
+
+  # --- System actions-menu (100ms). HIT-TESTING: the finger's mapped Y band picks the button; a HOLD fills that
+  # button's bar + fires at its target (Reboot 2s / Reset Wi-Fi 3s / Factory 5s). Open/close (Actions tap / Back
+  # tap) is in input_cyd_touch on_release. Y bands from the mapping session: Reboot<100, Wi-Fi<146, Factory<196. -
+  - interval: 100ms
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          // One-shot: kill LVGL scrolling on the menu + info containers (scrollbar_mode OFF only hides the bar;
+          // a drag still scrolls the content). Prevents the "buttons slide when you move your finger" glitch.
+          static bool no_scroll = false;
+          if (!no_scroll) {
+            no_scroll = true;
+            lv_obj_clear_flag(id(sys_menu), LV_OBJ_FLAG_SCROLLABLE);
+            lv_obj_clear_flag(id(sys_info), LV_OBJ_FLAG_SCROLLABLE);
+          }
+          // L/R nav-hint arrows: shown only on a CLEAN page view (hidden during menu / any overlay / splash)
+          bool clean = !id(splash_active) && !id(in_menu) && !id(netwatch_disabled) && !id(saver_active) && !((id(offline_alert) || id(fault_active)) && id(current_page) == 0);   // nav arrows show during OFFLINE + FAULT on OTHER pages (nav hint); the arrows live on top_layer (above every screen), so HIDE them on the dashboard (page 0) where the `ov` overlay takes over, else they'd render OVER it. Also hidden for netfault (terminal), splash, menu, saver.
+          for (auto *a : {id(nav_arrow_l), id(nav_arrow_r)}) {
+            if (clean) lv_obj_clear_flag(a, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(a, LV_OBJ_FLAG_HIDDEN);
+          }
+          // press-feedback: light the L/R arrow (our blue) while a finger is on that side for nav — but NOT while
+          // it's in the System Actions zone (centre bottom), so a corner-arrow tap lights the arrow, not Actions.
+          bool in_actions_zone = (id(current_page) == 5 && id(last_touch_y) >= 170 && id(last_touch_x) >= 70 && id(last_touch_x) <= 250);
+          bool nav_press = clean && id(touching) && id(touch_down_ms) != 0 && !in_actions_zone;
+          // SCL-guard: lv_obj_set_style_text_color ALWAYS invalidates (no value-guard in LVGL 9.5) and this runs at
+          // 10Hz on EVERY page — the arrows are almost always the idle 0x5a6472, so cache + recolor only on a change.
+          uint32_t ncl = (nav_press && id(last_touch_x) < 160)  ? 0x38bdf8u : 0x5a6472u;
+          uint32_t ncr = (nav_press && id(last_touch_x) >= 160) ? 0x38bdf8u : 0x5a6472u;
+          static uint32_t pncl = 0xFFFFFFFFu, pncr = 0xFFFFFFFFu;
+          if (ncl != pncl) { pncl = ncl; lv_obj_set_style_text_color(id(nav_arrow_l), lv_color_hex(ncl), 0); }
+          if (ncr != pncr) { pncr = ncr; lv_obj_set_style_text_color(id(nav_arrow_r), lv_color_hex(ncr), 0); }
+          if (id(current_page) != 5) {                        // the menu lives only on the System page
+            if (id(in_menu)) id(in_menu) = false;
+            return;
+          }
+          // border-colour SCL for the menu (100ms interval -> the draw lambda's SCL isn't in scope): reads the
+          // widget's current border colour, writes only on a change (set_style_border_color always invalidates).
+          auto BCL = [](lv_obj_t *o, uint32_t hex){ lv_color_t c = lv_color_hex(hex); if (!lv_color_eq(lv_obj_get_style_border_color(o, LV_PART_MAIN), c)) lv_obj_set_style_border_color(o, c, 0); };
+          if (!id(in_menu)) {
+            lv_obj_clear_flag(id(sys_info), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(actions_btn), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(mode_btn), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(sys_menu), LV_OBJ_FLAG_HIDDEN);
+            // Mode label reflects device_mode (STX: write only on change — set_text always reallocs/invalidates).
+            { const std::string &dm = id(device_mode).state;
+              if (dm != lv_label_get_text(id(lbl_mode))) lv_label_set_text(id(lbl_mode), dm.c_str()); }
+            // press-feedback: light the button's border while the finger is on it — SAME logic/colour as Actions.
+            bool on_actions = id(touching) && id(touch_down_ms) != 0 && id(last_touch_y) >= 170 && id(last_touch_x) >= 70 && id(last_touch_x) <= 250;
+            BCL(id(actions_btn), on_actions ? 0x6fa8cf : 0x2a2e36);
+            bool on_mode = id(touching) && id(touch_down_ms) != 0 && id(last_touch_y) >= 130 && id(last_touch_y) < 170 && id(last_touch_x) >= 70 && id(last_touch_x) <= 250;
+            BCL(id(mode_btn), on_mode ? 0x6fa8cf : 0x2a2e36);
+            return;
+          }
+          lv_obj_add_flag(id(sys_info), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(actions_btn), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(mode_btn), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(sys_menu), LV_OBJ_FLAG_HIDDEN);
+          // which action row is the finger on? (Y bands; Back has no hold-confirm — it's tap-to-close)
+          lv_obj_t *bars[3]  = {id(bar_reboot), id(bar_wifi), id(bar_factory)};
+          lv_obj_t *boxes[3] = {id(opt_reboot), id(opt_wifi), id(opt_factory)};
+          const uint32_t acc[3] = {0x38bdf8, 0xf5b942, 0xef5350};
+          const uint32_t tgt[3] = {2000, 3000, 5000};
+          int band = -1;
+          if (id(touching) && id(touch_down_ms) != 0) {
+            int y = id(last_touch_y);
+            if (y < 100) band = 0; else if (y < 146) band = 1; else if (y < 196) band = 2;
+          }
+          for (int i = 0; i < 3; i++) {
+            if (i == band) {
+              uint32_t held = now - id(touch_down_ms);
+              int pct = (int)(held * 100UL / tgt[i]); if (pct > 100) pct = 100;
+              lv_bar_set_value(bars[i], pct, LV_ANIM_OFF);
+              BCL(boxes[i], acc[i]);
+              id(last_activity_ms) = now;
+              if (held >= tgt[i]) {                            // held long enough -> fire + close
+                id(touch_down_ms) = 0;
+                lv_bar_set_value(bars[i], 0, LV_ANIM_OFF);
+                BCL(boxes[i], 0x2a2e36);
+                id(in_menu) = false;
+                if (i == 0) id(sys_restart).press();
+                else if (i == 1) id(sys_wifi_reset).press();
+                else id(sys_factory_reset).press();
+              }
+            } else {
+              lv_bar_set_value(bars[i], 0, LV_ANIM_OFF);
+              BCL(boxes[i], 0x2a2e36);
+            }
+          }
+          // press-feedback on Back (tap-to-close; light its border while the finger is on it, y >= 196)
+          bool on_back = id(touching) && id(touch_down_ms) != 0 && id(last_touch_y) >= 196;
+          BCL(id(opt_back), on_back ? 0x8ea0b4 : 0x2a2e36);

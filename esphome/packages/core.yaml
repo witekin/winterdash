@@ -15,6 +15,12 @@
 # (expansion sorted-diff must stay empty vs the pre-split baseline).
 # =============================================================================
 
+substitutions:
+  # Per-board WiFi power-save (a master may override). Default NONE keeps the radio always awake so this
+  # server's inbound HTTP/API is always serviced (see the power_save_mode note below). Headless overrides
+  # to `light` (esp32-wroom32.yaml) to A/B the heat vs reachability trade. Valid: none | light | high.
+  wifi_power_save: "none"
+
 logger:
   level: INFO
   baud_rate: 115200
@@ -30,6 +36,18 @@ wifi:
   # also keeps refreshing last_connected_. Kept only as documentation; the network wedge is handled by the
   # netwatch self-recovery watchdog (interval:), not this.
   reboot_timeout: 15min
+  # Keep the WiFi radio always awake. ESPHome's ESP32 default is power_save_mode: LIGHT (WIFI_PS_MIN_MODEM),
+  # which sleeps the modem between DTIM beacons and DROPS INCOMING packets while asleep. For a device that acts
+  # as a SERVER (our HTTP dashboard + /wd/*.json pollers + the HA API + ICMP), that shows up as "WiFi Connected,
+  # RSSI live, but ping/HTTP time out" — worst right after a (re)connect while the router/device power-save
+  # handshake re-establishes. netwatch is BLIND to it (its outbound probe still passes), so it never recovers ->
+  # the device sits reachable-only-to-itself until a manual power-cycle. NONE keeps the radio on so inbound is
+  # always serviced. Cost = a little idle current, irrelevant for a mains/vehicle-powered dashboard (not battery).
+  # Board-agnostic (every board serves HTTP/HA) -> lives in core, but as a per-board SUBSTITUTION so we can A/B it:
+  # default `none`; headless overrides to `light` (esp32-wroom32.yaml) to test whether the extra heat was really the
+  # always-on radio and whether LIGHT actually regresses reachability on that board (the "unreachable" wedge may be a
+  # SEPARATE device-side bug — see docs/internal/backlog.md §4 — not power-save at all).
+  power_save_mode: ${wifi_power_save}
   # OPEN fallback AP (no password): a non-technical user just taps "WinterDashAP" and the captive
   # portal opens. Any password would have to be shown on-screen anyway (zero real security for a
   # physically-accessible garage device) while adding friction — so it's intentionally open.
@@ -86,6 +104,8 @@ safe_mode:
 time:
   - platform: sntp
     id: sntp_time
+    on_time_sync:
+      - lambda: 'esphome::charge_log::total_count() ? (void) id(charger_log_json).update() : (void) 0;'   # Flow 1: rebuild once the wall clock validates so pre-SNTP events backfill their `ep` (only if we have any events)
 
 # --- RAM probe: load the BLE stack (passive scan, like the Victron broadcast
 # receiver will) so the free-heap budget is realistic, and log free heap. ---
@@ -111,20 +131,41 @@ esp32_ble_tracker:
     - then:
         - lambda: |-
             bool vic = false;
+            uint8_t rt = 0;                    // Victron device type (record_type) — plaintext, no bindkey; 0 = unknown
             for (auto &md : x.get_manufacturer_datas()) {
               auto u = md.uuid.get_uuid();
-              if (u.len == ESP_UUID_LEN_16 && u.uuid.uuid16 == 0x02E1) { vic = true; break; }
+              if (u.len == ESP_UUID_LEN_16 && u.uuid.uuid16 == 0x02E1) {
+                vic = true;
+                uint16_t pid = 0;
+                esphome::ble_scan::parse_victron_header(md.data, rt, pid);   // fills rt if it's a product advertisement
+                break;
+              }
             }
             // only accumulate the scan list during a 60s window opened by the pairing "Scan"
             // button — steady state (Demo or Live) does no scan-table work. The charger-RSSI feed
             // below runs unconditionally (it doesn't touch the scan table).
             if (id(scan_open_until_ms) && (int32_t)(millis() - id(scan_open_until_ms)) < 0)
-              esphome::ble_scan::add(x.address_str(), x.get_name(), x.get_rssi(), vic, millis());
+              esphome::ble_scan::add(x.address_str(), x.get_name(), x.get_rssi(), vic, rt, millis());
             // feed the real advertisement RSSI of OUR charger to the canonical sensor (Live).
             if (!id(demo_active) && !id(victron_mac).state.empty()) {
-              std::string mac = id(victron_mac).state;
-              for (auto &c : mac) c = toupper((unsigned char) c);
-              if (x.address_str() == mac) {
+              // Cache the paired MAC as uint64 so the per-advert compare is ZERO-ALLOC — was two
+              // std::string temporaries/advert (the copy + address_str(), thousands/min in Live)
+              // shredding the 8-bit pool over hours -> LVGL glyph OOM. Reparse only when the string
+              // changes (mirrors the apply-keys MAC->uint64 block below, same byte order as :476).
+              static std::string mac_cache; static uint64_t target_mac = 0;
+              if (id(victron_mac).state != mac_cache) {
+                mac_cache = id(victron_mac).state;
+                unsigned m[6];
+                target_mac = (mac_cache.size() == 17 &&
+                    sscanf(mac_cache.c_str(), "%x:%x:%x:%x:%x:%x",
+                           &m[0], &m[1], &m[2], &m[3], &m[4], &m[5]) == 6)
+                  ? ((uint64_t) m[0] << 40) | ((uint64_t) m[1] << 32) | ((uint64_t) m[2] << 24) |
+                    ((uint64_t) m[3] << 16) | ((uint64_t) m[4] << 8) | (uint64_t) m[5] : 0;
+              }
+              if (target_mac && x.address_uint64() == target_mac) {
+                // Persist the paired device's TYPE (plaintext record_type) so the web shows "AC Charger"
+                // instantly / offline. restore_value global -> NVS; only writes on an actual change.
+                if (rt && (int) rt != id(paired_rt)) id(paired_rt) = rt;
                 // Throttle to 1.5s like the other Live publishes — the charger advertises several
                 // times/s and each publish is an SSE frame on the single fragile web connection.
                 // (The TTGO reads victron_rssi.state in its loop, so 1.5s refresh is plenty.)
@@ -148,7 +189,7 @@ external_components:
   - source:
       type: local
       path: components
-    components: [captive_portal]
+    components: [captive_portal, web_server_idf]
 
 web_server:
   version: 2
@@ -233,6 +274,34 @@ sensor:
     accuracy_decimals: 0
     update_interval: 3s   # web-mirror; 3s tracks the 30s offline threshold at less SSE churn than 2s
     lambda: 'return id(offline_active) ? (millis() - id(offline_since_ms)) / 1000.0f : -1.0f;'
+  # Offline-clearing mirrors of the raw Victron numeric sensors (offline-stale fix 2026-09-10). The raw
+  # bat_voltage/bat_current/charger_temp are internal (the device reads them); THESE carry the public names
+  # for HA + the web SSE, published by the compute lambda ON-CHANGE and cleared to NaN once data is stale
+  # (>60s data-clear). No delta filter here — the lambda gates the publishes (mirrors the raw delta steps).
+  - platform: template
+    id: bat_voltage_pub
+    name: "Battery voltage"
+    device_class: voltage
+    state_class: measurement
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    update_interval: never
+  - platform: template
+    id: bat_current_pub
+    name: "Battery current"
+    device_class: current
+    state_class: measurement
+    unit_of_measurement: "A"
+    accuracy_decimals: 1
+    update_interval: never
+  - platform: template
+    id: charger_temp_pub
+    name: "Charger temperature"
+    device_class: temperature
+    state_class: measurement
+    unit_of_measurement: "°C"
+    accuracy_decimals: 0
+    update_interval: never
 
 text_sensor:
   # Diagnostics: WHY the last boot happened (esp_reset_reason at startup) — e.g. "Software reset via
@@ -264,6 +333,24 @@ text_sensor:
     id: status_note_pub
     name: "Status detail"
     update_interval: never
+  # Offline-clearing mirrors of the raw Victron text sensors (offline-stale fix 2026-09-10): the raw
+  # device_state_raw/charger_error_raw are now internal (device-only); THESE carry the public "Device state" /
+  # "Charger error" names for HA + the web, and the compute lambda clears them (-> "") once data is stale
+  # (>60s data-clear, later than the 20s Status=OFFLINE) so HA stops holding a stale label (e.g. "Absorption").
+  - platform: template
+    id: device_state_pub
+    name: "Device state"
+    update_interval: never
+  - platform: template
+    id: charger_error_pub
+    name: "Charger error"
+    update_interval: never
+  # (Removed the wd_hb "Heartbeat" + wd_live "Live data" SSE-beacon text_sensors — 2026-09-08. They were
+  # non-internal, so despite disabled_by_default ESPHome transmitted their state over the HA native API on EVERY
+  # publish (subscribe_states is all-or-nothing) -> a periodic ~14K TX-pbuf idle-heap swing whenever HA was
+  # connected. The web's liveness + the live mirror bundle {el,age,offel,brssi,ha} now ride the enriched
+  # /wd/live.json HTTP poll (slot_live, built by the interval below, polled 8s by the dashboard) — OFF the API
+  # entirely. See docs/internal/cyd-idle-ha-swing.md §3.)
   - platform: wifi_info
     ssid:
       id: wifi_ssid_txt
@@ -279,23 +366,31 @@ text_sensor:
     name: "BLE scan"
     internal: true   # OFF the SSE/API stream (>640B JSON aborted the SSE SerializationBuffer under
                      # fragmentation). Built here on the main loop; served on demand at /wd/scan.json.
-    update_interval: 5s   # relaxed 2s->5s: JSON list pushed every tick even when idle; 5s still fine for pairing (12s window)
+    update_interval: 5s   # the 5s tick still fires, but Flow 3 gates the BUILD to an open scan window (below), so the heavy list is assembled only while pairing
     # 12s window (was 30s) keeps the in-RAM device table small; ample for pairing
-    lambda: 'return esphome::ble_scan::to_json(millis(), 12000, 20);'
+    lambda: |-
+      if (!(id(scan_open_until_ms) && (int32_t)(millis() - id(scan_open_until_ms)) < 0)) return std::string();   // Flow 3 (web-load): build ONLY inside a triggered scan window (mirrors the ingest gate at on_ble_advertise); outside -> skip -> slot keeps last-good. Kills the always-on 5s map->vector->sort->concat storm (the heaviest builder) when nobody is pairing.
+      if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < WD_JSON_BLK_FLOOR) return std::string();   // OOM guard: skip the concat storm; empty = "skipped" sentinel
+      return esphome::ble_scan::to_json(millis(), 12000, 20);
     on_value:
-      - lambda: 'esphome::web_dashboard::slot_scan.publish(x);'   # tee to the httpd-readable slot
+      - lambda: 'if (!x.empty()) esphome::web_dashboard::slot_scan.publish(x);'   # tee; empty = skipped -> keep last-good (a real empty scan is "[]")
   # Charger event log (RAM-only): last 8 state-change events, newest-first, as JSON for the
   # "Charger detail" web card. Fed from the 250ms loop (charge_log::note); resets on reboot.
   - platform: template
     id: charger_log_json
     name: "Charger log"
     internal: true   # OFF SSE/API — served on demand at /wd/log.json (built here on the main loop).
-    update_interval: 5s   # tiny list; 5s keeps "N ago" fresh without loading the single web conn
+    # Flow 1 (web-load): BUILD-ON-CHANGE, not on a 5s timer. The log changes only on a charger state
+    # transition, so it's rebuilt from the compute lambda's note() (via .update()) + once on SNTP-sync
+    # (to backfill pre-SNTP `ep`). "N ago" no longer needs the 5s rebuild — the web ticks it locally from
+    # the emitted `ep`, and refetches only when the `lc` counter in /wd/live.json moves. See cyd-web-load-plan.md.
+    update_interval: never
     lambda: |-
+      if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < WD_JSON_BLK_FLOOR) return std::string();   // OOM guard: skip; empty = "skipped" sentinel
       uint32_t ep = id(sntp_time).now().is_valid() ? (uint32_t) id(sntp_time).now().timestamp : 0;
       return esphome::charge_log::to_json(millis(), ep);
     on_value:
-      - lambda: 'esphome::web_dashboard::slot_log.publish(x);'   # tee to the httpd-readable slot
+      - lambda: 'if (!x.empty()) esphome::web_dashboard::slot_log.publish(x);'   # tee; empty = skipped -> keep last-good (a real log is {"more":...})
 
 button:
   - platform: template
@@ -305,7 +400,7 @@ button:
     on_press:
       - lambda: |-
           esphome::ble_scan::clear();
-          id(scan_open_until_ms) = millis() + 60000;   // open a 60s scan window
+          id(scan_open_until_ms) = millis() + 20000;   // open a 20s scan window (a Victron advertises several times/s -> plenty; shorter = a faster "no Victron" verdict)
   # System actions, driven from the TTGO menu AND the web System section. Exposed on the web
   # API (POST /button/restart/press, /button/factory_reset/press). The dangerous one is gated
   # in the UI: TTGO = hold S2 5s; web = hold-to-confirm 2s (a raw curl can still hit it, same as
@@ -472,6 +567,7 @@ interval:
             id(last_packet_ms) = 0;              // freshness: mask the hero until real new-mode data
             id(mode_epoch) += 1;                 // force both producers to re-publish state/error once
             esphome::charge_log::reset();         // drop the other mode's event history
+            id(charger_log_json).update();        // Flow 1: rebuild the slot NOW (build-on-change) so the web doesn't refetch the old mode's JSON on the lc->0 drop
             // charger_temp SENTINEL: the Live producer only publishes temp when the packet carries one, and
             // the IP65 reports temp N/A -> Live NEVER overwrites it, so the OTHER mode's last temp (e.g.
             // demo's 27C) would freeze into Live. A NaN publish is blocked by the delta filter (NAN>min is
@@ -572,22 +668,37 @@ interval:
           // IDLE (grey) above — the safe default for "charger present but not charging".
 
           // ---- no-load / no-battery guard (Live + Demo share one rule) ----
-          // A charging (scode 1) or charged/maintenance (scode 2) phase reporting ~0A isn't actually
-          // doing anything: the charger is powered with nothing — or a disconnected battery — on the
-          // terminals (the field "14.4V CHARGING / 13.8V CHARGED on empty terminals" case). It reads
-          // exactly 0.0A (0.1A readout resolution -> <0.05 == "zero"), so downgrade to IDLE and never
-          // falsely claim CHARGING/CHARGED. A real battery, even full on Float, draws a small
-          // maintenance current (>0.05A, field ~0.3A) and stays CHARGED. Guards: only with an actual
-          // current reading (has_state, so a fresh boot's "no reading yet" != zero-load); ~8s debounce
-          // so a lone 0.0 sample near the absorption tail doesn't flip the word. Demo never trips it
-          // (its charge phases hold >=0.3A), so no demo branch is needed.
+          // A charging (scode 1) or RECOND (scode 4) phase reporting ~0A isn't doing anything: the
+          // charger is powered with nothing — or a disconnected battery — on the terminals (the field
+          // "14.4V CHARGING on empty terminals" case). It reads exactly 0.0A (0.1A readout resolution
+          // -> <0.05 == "zero"), so downgrade to IDLE and never falsely claim CHARGING.
+          // Float/Storage (scode 2) is DIFFERENT: a genuinely-full pack in maintenance sits at ~0A too
+          // (field 2026-09-10: Storage dropped to 0.0A and the old rule wrongly flipped CHARGED->IDLE
+          // for ~20min). So scode 2 is guarded ONLY until a battery is inferred present: bat_present
+          // latches true once real current (>=0.08A) is seen while the link is fresh (empty terminals never
+          // draw), and clears when the guard below CONFIRMS empty terminals (an active-charge phase at 0A) —
+          // NOT on a mere offline blip. restore_value:yes so it survives the frequent OTA/watchdog reboots
+          // (a reboot on a full pack at Storage@0A would otherwise re-demote to IDLE). ~8s debounce so a lone
+          // 0.0 sample doesn't flip the word, and the re-latch beats it on reconnect. Demo never trips it
+          // (charge phases hold >=0.3A), so no demo branch.
+          //   THRESHOLD 0.08A (was 0.15): current reads in coarse 0.1A quanta {0.0, 0.1, 0.2, ...}. A battery
+          //   connected ALREADY FULL skips Bulk and tops straight in Float/Storage at only 0.1A, oscillating
+          //   0<->0.1 (field 2026-09-11: confirmed in the Victron app itself) — it never reaches the 0.2 quantum
+          //   the old >=0.15 needed, so that pack would never latch present and Storage@0A would wrongly demote.
+          //   0.08 catches the 0.1 topping quantum yet stays ABOVE the guard's 0.05 zero threshold, so empty
+          //   terminals (0.0) still never latch. (A false latch would anyway be benign: empty terminals report
+          //   BULK = scode 1 = always guardable, and the scode-2-on-empty case is non-physical.)
+          bool link_fresh = (id(last_packet_ms) != 0) && (age < TIMEOUT);
+          if (link_fresh && id(bat_current).has_state() && fabsf(ibat) >= 0.08f) id(bat_present) = true;
           {
             static uint32_t nl_since = 0;
-            bool zero_load = (scode == 1 || scode == 2 || scode == 4) && id(bat_current).has_state() && fabsf(ibat) < 0.05f;
+            bool guardable = (scode == 1) || (scode == 4) || (scode == 2 && !id(bat_present));
+            bool zero_load = guardable && id(bat_current).has_state() && fabsf(ibat) < 0.05f;
             if (zero_load) {
               if (nl_since == 0) nl_since = now;
               if (now - nl_since >= 8000) {
                 word = "IDLE"; col_hex = 0x888888; icon = "\xF3\xB0\xA4\x84"; scode = 0; show_band = false;
+                id(bat_present) = false;   // confirmed no-load (active-charge phase at 0A) = empty terminals -> drop the present-latch so a later Float/Storage@0A stays guarded (self-corrects a moved/removed battery)
               }
             } else {
               nl_since = 0;
@@ -622,7 +733,7 @@ interval:
           o.sc = sc; o.red_lo = red_lo; o.red_hi = red_hi;
           o.show_band = show_band; o.band_lo = band_lo; o.band_hi = band_hi; o.is_recond = is_recond;
           o.word = word; o.col_hex = col_hex; o.icon = icon; o.scode = scode;
-          o.note = note; o.offline = offline; o.ble_stale = ble_stale;
+          o.note = note; o.raw = offline ? std::string("") : raw; o.offline = offline; o.ble_stale = ble_stale;
           o.now = now; o.age = age;
 
           // ---- publish the derived status = ONE source of truth. TTGO renders word/note locally
@@ -637,6 +748,27 @@ interval:
             if (pw != lw) { lw = pw; id(status_word_pub).publish_state(pw); }
             if (pn != ln) { ln = pn; id(status_note_pub).publish_state(pn); }
           }
+          // ---- offline-clearing raw mirrors: HA/web read THESE (bat_voltage_pub etc.), not the internal
+          //      raws, so they clear on a dropout instead of holding a stale reading. Fresh value while
+          //      age < 60s (data-clear, LATER than the 20s Status=OFFLINE -> "Last seen 14.2V" lingers,
+          //      then unknown); NaN / "" once cleared. On-change only (mirrors the raw delta steps) so the
+          //      fragile SSE stays light. Same single-source seam as status_word_pub. ----
+          {
+            const uint32_t DATA_CLEAR_MS = 60000UL;
+            bool cleared = (id(last_packet_ms) == 0) || (age > DATA_CLEAR_MS);
+            static float lv = NAN, lc = NAN, lt2 = NAN;
+            float ov = cleared ? NAN : (have ? v : NAN);
+            float oc = cleared ? NAN : (id(bat_current).has_state() ? ibat : NAN);
+            float ot = cleared ? NAN : (temp_na ? NAN : id(charger_temp).state);
+            if ((std::isnan(ov) != std::isnan(lv)) || (!std::isnan(ov) && !std::isnan(lv) && fabsf(ov - lv) >= 0.05f)) { lv = ov;  id(bat_voltage_pub).publish_state(ov); }
+            if ((std::isnan(oc) != std::isnan(lc)) || (!std::isnan(oc) && !std::isnan(lc) && fabsf(oc - lc) >= 0.1f))  { lc = oc;  id(bat_current_pub).publish_state(oc); }
+            if ((std::isnan(ot) != std::isnan(lt2))|| (!std::isnan(ot) && !std::isnan(lt2)&& fabsf(ot - lt2)>= 1.0f))  { lt2 = ot; id(charger_temp_pub).publish_state(ot); }
+            static std::string lds = "\x01", lce = "\x01";
+            std::string ods = cleared ? std::string("") : raw;
+            std::string oce = cleared ? std::string("") : err;
+            if (ods != lds) { lds = ods; id(device_state_pub).publish_state(ods); }
+            if (oce != lce) { lce = oce; id(charger_error_pub).publish_state(oce); }
+          }
           // ---- charger event log (RAM-only rolling history; newest-first) ----
           // Log a fine-grained state change once per transition (charge_log::note dedups by
           // label). Placed BEFORE the offline `return` below so "No signal" is captured too.
@@ -650,7 +782,10 @@ interval:
             }
             if (!ev.empty()) {
               uint32_t ep = id(sntp_time).now().is_valid() ? (uint32_t) id(sntp_time).now().timestamp : 0;
+              uint32_t before = esphome::charge_log::total_count();
               esphome::charge_log::note(ev, ep, now);
+              if (esphome::charge_log::total_count() != before)   // a NEW event landed (note() dedups) -> rebuild the log slot on-change (Flow 1); lc in /wd/live.json then tells the web to refetch
+                id(charger_log_json).update();
             }
           }
 
@@ -801,6 +936,36 @@ interval:
           // watchdog reboot never accumulates safe_mode attempts (the two breakers must not race).
           if (up < 120000UL) return;
 
+          // ---- Watchdog detector: heap-contiguity crater (trigger=4) ---------------------------
+          // Network-INDEPENDENT (runs before the net arming below): a locked 8-bit-heap crater leaves the web dead
+          // AND HA dropped (no client, the probe may be starved too), so it must not require an armed client/probe.
+          // The net-stale trigger below is blind to this class — there the loopTask + stack stay alive, they just
+          // can't allocate. blk8 = MALLOC_CAP_8BIT largest free block (NOT MALLOC_CAP_INTERNAL — that includes the
+          // phantom IRAM tail a byte-alloc can't use). Sustained via a low_since timestamp reset on ANY sample >=
+          // WD_BLK8_FLOOR -> strict "blk8 < floor CONTINUOUS for WD_BLK8_HOLD_MS". A recovering-but-degraded board
+          // (dips into the 503-band [floor,serve-floor) between requests) keeps resetting the clock and never trips;
+          // only a persistent LOCK (the measured crater pins ~1408 continuously) accumulates -> reboot fires ~60s
+          // INTO the lock, after the request barrage that caused it has already given up (not mid-barrage). Shares
+          // the K=3 breaker (recov) + marker + 300s window + OTA-suppress (all above) + the netwatch_disabled degrade
+          // UI. Floors in web_dashboard.h (3-band ladder with the 503-guard). Reboot defragments the heap
+          // (esp_restart). WD_BLK8_FLOOR=0 disables (blk8 < 0 never true).
+          int blk8 = (int) heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+          if (blk8 < WD_BLK8_FLOOR) {
+            if (id(netwatch_blk8_low_since_ms) == 0) { id(netwatch_blk8_low_since_ms) = up; }
+            else if (up - id(netwatch_blk8_low_since_ms) >= WD_BLK8_HOLD_MS) {
+              netwatch_rtc_recov = (uint8_t)(netwatch_rtc_recov + 1);   // shared K=3 breaker (bounds a TIGHT re-crater loop)
+              netwatch_rtc_marker = 1;
+              if (netwatch_rtc_lifetime_reboots < 0xFFFFFFFFUL) netwatch_rtc_lifetime_reboots++;
+              netwatch_rtc_trigger = 4;                                 // 4 = heap-contiguity crater
+              ESP_LOGE("netwatch", "HEAP-CRATER blk8=%d held %ums recov=%u life=%u -> esp_restart",
+                       blk8, (unsigned)(up - id(netwatch_blk8_low_since_ms)),
+                       (unsigned) netwatch_rtc_recov, (unsigned) netwatch_rtc_lifetime_reboots);
+              esp_restart();
+            }
+          } else if (id(netwatch_blk8_low_since_ms) != 0) {
+            id(netwatch_blk8_low_since_ms) = 0;   // blk8 recovered to >= floor -> disarm (strict continuous-sub-floor)
+          }
+
           // ---- Watchdog detector: net-stale ----------------------------------------------------
           // Replaces the retired FREE_FLOOR heap trigger (bench-proved the wedge is heap-agnostic: it wedged at
           // 24-29KB and IDF minfree hit 668B WITHOUT wedging). The real signal: on a network-stack wedge the httpd task
@@ -852,10 +1017,26 @@ interval:
           esp_restart();
   # Assemble the About/Network read-only info + diagnostics into ONE JSON doc on the MAIN loop
   # (so the httpd handler never reads live sensor .state cross-task) and publish it to slot_info, served
-  # at /wd/info.json. The browser fetches it on-open (~10s poll) instead of these 8 entities riding SSE.
-  - interval: 5s
+  # at /wd/info.json. The browser now demand-polls this (load-once + only while System is open) — it does NOT poll it
+  # in the default collapsed view — so the device rebuild is relaxed 5s->15s to cut the info build-churn (the heaviest
+  # /wd build: a std::string j + 3 esc() temporaries per tick) ~3x. Diag (heap8/blk8) still refreshes every 15s while
+  # System is open, plenty for a diagnostics panel. (If the residual crater persists, escalate to build-gating.)
+  - interval: 15s
     then:
       - lambda: |-
+          // OOM guard (CONFIRMED panic site): under a fragmented 8-bit heap the std::string appends below
+          // fail in operator new -> bad_alloc -> abort() (C++ exceptions OFF) -> panic. Skip the whole build
+          // when the largest byte-block is too small; the slot keeps last-good (web detects via bctr frozen).
+          static uint32_t info_bctr = 0, info_skip = 0;
+          int blk8v = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+          if (blk8v < WD_JSON_BLK_FLOOR) {
+            info_skip++;
+            #ifdef WD_JSON_FLOOR_LOG
+            ESP_LOGW("wdjson", "info SKIP blk8=%d heap8=%d streak=%u", blk8v, (int) heap_caps_get_free_size(MALLOC_CAP_8BIT), info_skip);
+            #endif
+            return;
+          }
+          info_skip = 0; info_bctr++;
           auto esc = [](const std::string &in) -> std::string {
             std::string o; o.reserve(in.size());
             for (char c : in) {
@@ -864,26 +1045,39 @@ interval:
             }
             return o;
           };
-          std::string j; j.reserve(320);
-          // firmware as TWO ASCII fields (version + compile time) — no in-string separator, so no
-          // non-ASCII byte (the old " · " joiner) ever rides the JSON. Web composes the display.
-          j += "{\"fwver\":\"${fw_version}\",";
-          j += "\"fwbuild\":\""; j += esc(App.get_compilation_time()); j += "\",";
-          j += "\"host\":\""; j += esc(id(hostname_info).has_state() ? id(hostname_info).state : std::string("")); j += "\",";
-          j += "\"ssid\":\""; j += esc(id(wifi_ssid_txt).has_state() ? id(wifi_ssid_txt).state : std::string("")); j += "\",";
-          j += "\"rst\":\"";  j += esc(id(reset_reason_s).has_state() ? id(reset_reason_s).state : std::string("")); j += "\",";
-          char nb[288];
-          // Slow tier: static + diagnostics + keyset. The frequently-changing live mirrors + uptime moved
-          // to the fast /wd/live.json tier (the 2s interval below). keyset = is a bindkey configured (value never sent).
+          // Flow 2 (web-load): CACHE the static prefix. fwver/fwbuild/rst never change after boot, host is set once,
+          // and ssid changes only on (re)connect -> rebuild the prefix ONLY when host/ssid move, so the 4 esc() heap
+          // temporaries + the string appends stop running every 15s at this CONFIRMED abort() site. A network loss/
+          // reconnect just changes ssid -> the key differs -> the prefix rebuilds ONCE with the new (or empty) value
+          // (never a crash: same code, just on-change). firmware = TWO ASCII fields (version + compile time), no
+          // in-string separator, so no non-ASCII byte rides the JSON; the web composes the display.
+          static std::string info_prefix;
+          static std::string info_key = "\x01";   // sentinel -> forces the first build
+          std::string host = id(hostname_info).has_state() ? id(hostname_info).state : std::string("");
+          std::string ssid = id(wifi_ssid_txt).has_state() ? id(wifi_ssid_txt).state : std::string("");
+          std::string key = host; key += '\x1f'; key += ssid;   // rebuild on host/ssid change only. NOTE: rst+fwbuild are NOT in the key -> they MUST be stable by the first 15s tick (fwbuild is a compile literal; rst is published via debug dump_config at boot, ~1-2s). If either is ever made lazy, add it to the key.
+          if (key != info_key) {
+            info_key = key;
+            info_prefix.clear(); info_prefix.reserve(200);   // worst case ~180B (scaffolding + fwbuild + host + ssid + rst) -> one reserve, no realloc
+            info_prefix += "{\"fwver\":\"${fw_version}\",";
+            info_prefix += "\"fwbuild\":\""; info_prefix += esc(App.get_compilation_time()); info_prefix += "\",";
+            info_prefix += "\"host\":\"";    info_prefix += esc(host); info_prefix += "\",";
+            info_prefix += "\"ssid\":\"";    info_prefix += esc(ssid); info_prefix += "\",";
+            info_prefix += "\"rst\":\"";     info_prefix += esc(id(reset_reason_s).has_state() ? id(reset_reason_s).state : std::string("")); info_prefix += "\",";
+          }
+          char nb[320];
+          // Slow tier: static + diagnostics + keyset. The frequently-changing live mirrors + uptime live in the
+          // enriched /wd/live.json poll (slot_live, {uptime,lc,owner,el,age,offel,brssi,ha}, 8s), NOT here and NOT
+          // on the HA API. keyset = is a bindkey configured (value never sent).
           // Stability instrumentation: minfree = this-boot min (IDF), pminfree = min-ever across warm reboots
           // (erosion), wedge = heap ~1s before the last task-WDT wedge, twdt = task-WDT reboots this window.
-          // Watchdog: trigger = last watchdog-reboot cause (2=net-stale caught), life = watchdog
+          // Watchdog: trigger = last watchdog-reboot cause (2=net-stale, 3=net-stale probe, 4=heap-crater), life = watchdog
           // reboots since power-cycle (flapping observability), recov = breaker count, netdis = breaker tripped now.
           snprintf(nb, sizeof(nb),
             "\"heap\":%d,\"heapblk\":%d,\"loop\":%d,\"keyset\":%d,"
             "\"minfree\":%u,\"pminfree\":%u,\"wedge\":%u,\"twdt\":%u,"
             "\"trigger\":%u,\"life\":%u,\"recov\":%u,\"netdis\":%u,"
-            "\"probe\":%u,\"pfires\":%u}",
+            "\"probe\":%u,\"pfires\":%u,\"heap8\":%d,\"blk8\":%d,\"ptype\":%d,\"bctr\":%u}",
             (int) (id(heap_free_s).has_state() ? id(heap_free_s).state : 0.0f),
             (int) (id(heap_block_s).has_state() ? id(heap_block_s).state : 0.0f),
             (int) (id(loop_time_s).has_state() ? id(loop_time_s).state : 0.0f),
@@ -897,24 +1091,91 @@ interval:
             (unsigned) netwatch_rtc_recov,
             (unsigned) (id(netwatch_disabled) ? 1 : 0),
             (unsigned) (::esphome::netwatch::netwatch_probe_ever_ok() ? 1 : 0),   // Phase-2: probe proven?
-            (unsigned) netwatch_rtc_probe_fires);                                 // Phase-2: flap-cap count
-          j += nb;
-          esphome::web_dashboard::slot_info.publish(j);
-  # Fast-live tier: uptime (fresh millis, for the web's restart-detect) + the frequently-changing mirrors.
-  # Built every 2s, polled fast at /wd/live.json -> the SSE-freshness heartbeat + snappy offline detection.
-  - interval: 2s
+            (unsigned) netwatch_rtc_probe_fires,                                  // Phase-2: flap-cap count
+            // The true byte-addressable (8-bit) DRAM heap. `heap`/`heapblk` above use
+            // MALLOC_CAP_INTERNAL, which includes the 32-bit-only IRAM tail -> a phantom ~20KB "largest block"
+            // that a byte alloc (LVGL A8 glyph mask, heap_caps MALLOC_CAP_8BIT) CANNOT use. heap8/blk8 show the
+            // real 8-bit floor the LVGL draw path actually draws from -> this is the number that collapses under
+            // web load and fails the 512B glyph alloc (see the over-invalidation fix in display_*.yaml).
+            (int) heap_caps_get_free_size(MALLOC_CAP_8BIT),
+            (int) heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+            (int) id(paired_rt),                  // paired device type (record_type; -1 = unknown) for the web pairing card
+            info_bctr);                           // build counter = freshness marker (the web sees a skipped tick as bctr frozen)
+          static std::string out; out.clear();   // reused across ticks (main-loop single-thread) -> no per-tick realloc; prefix (cached) + nb (stack)
+          out += info_prefix; out += nb;
+          #ifdef WD_JSON_FLOOR_LOG
+          ESP_LOGI("wdjson", "info BUILT blk8=%d len=%d bctr=%u", blk8v, (int) out.size(), info_bctr);
+          #endif
+          esphome::web_dashboard::slot_info.publish(out);
+  # Fast-live tier: the frequently-changing mirrors + the web's liveness heartbeat are served via the /wd/live.json
+  # HTTP poll (slot_live), NOT the HA API. This interval rebuilds the slot buffer every 6s (<= the dashboard's 8s
+  # poll, so a poll always reads current data); the dashboard ticks el/age/offel locally between polls off the
+  # frame timestamp. Payload = {uptime,lc[,owner],el,age,offel,brssi,ha}:
+  #  - uptime -> restart-detect (the web re-syncs the SSE on an uptime drop); lc = charge_log total_count -> the web
+  #    refetches /wd/log.json only when it moves (Charger card open); owner = SSE-ownership epoch (capped boards).
+  #  - el/age/offel/brssi/ha = the live mirror bundle the dashboard renders + ticks locally.
+  # (History: these rode two non-internal SSE text_sensors wd_hb/wd_live until 2026-09-08 — but non-internal =
+  # transmitted over the HA API on every publish -> a ~14K idle-heap swing. Folding them into this HTTP-only slot
+  # took them off the API. See docs/internal/cyd-idle-ha-swing.md §3.) Reused static buffer + reserve() -> warm
+  # once, then slot_live.publish() is an alloc-free double-buffer assign (safe under the heap floor; no gate needed).
+  - interval: 6s
     then:
       - lambda: |-
-          char lb[128];
-          snprintf(lb, sizeof(lb),
-            "{\"uptime\":%d,\"el\":%d,\"age\":%d,\"offel\":%d,\"brssi\":%d,\"ha\":%d}",
+          static std::string lj; lj.reserve(160);   // reused -> warm once, then no realloc (assign of <=capacity)
+          char b[160];
+          snprintf(b, sizeof(b),
+            "{\"uptime\":%d,\"lc\":%u"   // lc = charge_log total_count -> the web refetches /wd/log.json only when it moves (Charger card open)
+            #ifdef WD_SSE_MAX_VIEWERS
+            ",\"owner\":%u"             // current SSE-ownership epoch (latest-viewer-wins); absent => board doesn't cap viewers
+            #endif
+            ",\"el\":%d,\"age\":%d,\"offel\":%d,\"brssi\":%d,\"ha\":%d}",   // '}' after the appended mirror bundle
             (int) (millis() / 1000UL),
-            (int) (id(status_elapsed).has_state() ? id(status_elapsed).state : 0.0f),
-            (int) (id(ble_age_s).has_state() ? id(ble_age_s).state : -1.0f),
-            (int) (id(offline_elapsed).has_state() ? id(offline_elapsed).state : -1.0f),
-            (int) (id(victron_rssi).has_state() ? id(victron_rssi).state : -128.0f),
-            id(ha_connected).state ? 1 : 0);
-          esphome::web_dashboard::slot_live.publish(std::string(lb));
+            esphome::charge_log::total_count()
+            #ifdef WD_SSE_MAX_VIEWERS
+            , esphome::web_dashboard::owner_epoch.load(std::memory_order_relaxed)
+            #endif
+            , (int) (id(status_elapsed).has_state() ? id(status_elapsed).state : 0.0f)
+            , (int) (id(ble_age_s).has_state() ? id(ble_age_s).state : -1.0f)
+            , (int) (id(offline_elapsed).has_state() ? id(offline_elapsed).state : -1.0f)
+            , (int) (id(victron_rssi).has_state() ? id(victron_rssi).state : -128.0f)
+            , id(ha_connected).state ? 1 : 0);
+          lj.assign(b);
+          esphome::web_dashboard::slot_live.publish(lj);    // /wd/live.json (8s poll) -> off the HA API entirely
+
+  # --- MEM-LOG: a standalone periodic full memory snapshot to the COM log, INDEPENDENT of the JSON builders.
+  #     As the web-load flows make the builders event-driven, the incidental "info BUILT blk8=..." diagnostic
+  #     goes quiet -> this keeps a constant eye on the 8-bit heap. Dev-only: gated on WD_MEM_LOG (a CYD board
+  #     build_flag); strip for release. blk8/heap8 = the real 8-bit crater metrics; min8 = 8-bit min-ever this
+  #     boot (erosion/deepest dip); heap/heapblk = MALLOC_CAP_INTERNAL (incl. the phantom IRAM tail); minfree =
+  #     internal min-ever; loop = loop time.
+  - interval: 15s
+    then:
+      - lambda: |-
+          #ifdef WD_MEM_LOG
+          ESP_LOGI("wdmem", "blk8=%d heap8=%d min8=%d | heap=%d heapblk=%d minfree=%u | loop=%d",
+            (int) heap_caps_get_largest_free_block(MALLOC_CAP_8BIT),
+            (int) heap_caps_get_free_size(MALLOC_CAP_8BIT),
+            (int) heap_caps_get_minimum_free_size(MALLOC_CAP_8BIT),
+            (int) heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+            (int) heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+            (unsigned) esp_get_minimum_free_heap_size(),
+            (int) (id(loop_time_s).has_state() ? id(loop_time_s).state : 0.0f));
+          // Heap-LAYOUT probe (determinism test): free-block COUNT (heap_caps_get_info, no walk) + the first free
+          // block's ADDRESS (a single heap_caps_walk pass, captureless lambda -> C cb) + the WiFi-connect ms. Across
+          // ~10 cold boots at a fixed settled state this shows whether blk8/firstfree vary boot-to-boot and track
+          // connms (= the shared-heap boot-order fragmentation variance). 15s cadence + settled-idle -> the walk's
+          // lock hold is a non-issue. firstfree is "first free in walk order" (relative stability is what we compare).
+          multi_heap_info_t wd_hi; heap_caps_get_info(&wd_hi, MALLOC_CAP_8BIT);
+          uintptr_t wd_firstfree = 0;
+          heap_caps_walk(MALLOC_CAP_8BIT, [](walker_heap_into_t, walker_block_info_t b, void *u) -> bool {
+            uintptr_t *f = (uintptr_t *) u; if (!b.used && *f == 0) *f = (uintptr_t) b.ptr; return true;
+          }, &wd_firstfree);
+          ESP_LOGI("wdmem", "L8 free_blk=%u firstfree=0x%08x connms=%u",
+            (unsigned) wd_hi.free_blocks, (unsigned) wd_firstfree, (unsigned) id(wd_wifi_conn_ms));
+          // DEV: largest glyph draw-buffer ever requested vs the static reserve -> size s_buf exactly, trim BSS.
+          // wd_font_buf is CYD-only; safe here because WD_MEM_LOG itself is a CYD-only board flag.
+          ESP_LOGI("wdmem", "maxglyph=%u buf=%u", (unsigned) wd_font_buf::s_max_glyph, (unsigned) WD_FONT_BUF_SZ);
+          #endif
 
   # --- System housekeeping (500ms; board-agnostic; S4b-2b) -------------------------------
   - interval: 500ms
@@ -930,6 +1191,11 @@ interval:
             esphome::wifi_reset::forget_wifi_creds();
             App.safe_reboot();
           }
+          #ifdef WD_MEM_LOG   // DEV: latch millis() at first STA-connect (0 reserved as "not yet") for the heap-probe's connms correlation. 0.5s resolution -> fine vs a settled snapshot.
+          if (id(wd_wifi_conn_ms) == 0 && wifi::global_wifi_component != nullptr && wifi::global_wifi_component->is_connected()) {
+            uint32_t t = millis(); id(wd_wifi_conn_ms) = t ? t : 1;
+          }
+          #endif
           // AP-state latch: drive ap_setup_shown from is_ap_active() (the display reacts to this) + schedule the
           // post-onboard reboot on the AP->STA drop. No lv_* -> headless-safe.
           bool ap = wifi::global_wifi_component->is_ap_active();
@@ -1006,8 +1272,28 @@ interval:
           // (E) publish selection/favorites for GET /gallery (sel = -1 while a baked preset is live).
           wd::gallery_sel = (id(banner_preset).state == "Custom") ? id(bnr_sel) : -1;
           wd::gallery_fav = (uint64_t) id(bnr_fav);
+          // --- Status-LED level config (BOARD-AGNOSTIC; drain owned here, not in display, so every board gets it).
+          //     cfg_led is set by the shared /wd/cfg CfgPost; exchange it into led_level (led_cyd_rgb reads 0..3,
+          //     led_wroom32 reads 0=off). exchange(-1) self-guards (idle=-1) and does NOT touch cfg_pending, so it
+          //     can't race the display brightness drain (which owns cfg_pending).
+          { int lv; if ((lv = wd::cfg_led.exchange(-1)) >= 0) id(led_level) = lv; }
+          #if !WD_HAS_DISPLAY
+          //     No-display board: no display package produces /wd/cfg.json, so core seeds the one board-agnostic cfg
+          //     field (led) here — display boards produce the full cfg.json (incl led) themselves. Compile-gated so the
+          //     two seeders never coexist. On-change only.
+          { static int led_seed = -1;
+            if ((int) id(led_level) != led_seed) { led_seed = (int) id(led_level);
+              char cb[24]; snprintf(cb, sizeof(cb), "{\"led\":%d}", led_seed); wd::slot_cfg.publish(std::string(cb)); } }
+          #endif
 
 globals:
+  # User status-LED preference (BOARD-AGNOSTIC; hoisted here from led_cyd_rgb so any board with a status LED gets the
+  # /wd/cfg 'led' pref by construction). 0=OFF; RGB boards (led_cyd_rgb) read 0..3 as OFF|LO|MED|HIGH, mono boards
+  # (led_wroom32) read 0=off / >=1=on. NVS-persisted, default MED. Drained by the core housekeeping lambda above.
+  - id: led_level
+    type: int
+    restore_value: true
+    initial_value: '2'
     # --- Network self-recovery watchdog ------------------------------------
     # The tcpip/httpd task can wedge under heap starvation while loopTask (and the LCD) stay alive, so the
     # stock task_watchdog never fires. This watchdog detects sustained heap starvation
@@ -1016,6 +1302,10 @@ globals:
     # Breaker counters live in RTC slow memory (netwatch_rtc.h), NOT NVS globals — see that header for why
     # (NVS/globals flush can't commit reliably when the tcpip stack is wedged at reboot time). RAM-only here:
   - id: netwatch_low_since_ms      # millis() when the starve condition began (0 = not starved). RAM only.
+    type: uint32_t
+    restore_value: no
+    initial_value: "0"
+  - id: netwatch_blk8_low_since_ms # millis() when blk8 fell below WD_BLK8_FLOOR (0 = healthy). Heap-crater trip. RAM only.
     type: uint32_t
     restore_value: no
     initial_value: "0"
@@ -1031,6 +1321,10 @@ globals:
     type: uint32_t
     restore_value: no
     initial_value: "0"
+  - id: wd_wifi_conn_ms          # DEV(heap-layout probe): millis() at first STA-connect; 0 = not yet. Written ONLY under
+    type: uint32_t               # WD_MEM_LOG (CYD); 4B dead RAM in release builds (YAML globals can't be #ifdef'd out).
+    restore_value: no
+    initial_value: "0"
   # Bumped on every Demo<->Live change. The producers' on-change publish guards compare against it
   # and force a re-publish of their current state/error once after a switch, so a stale value from the
   # other mode can't survive just because the new mode's first value happens to equal it.
@@ -1044,6 +1338,13 @@ globals:
     type: uint32_t
     restore_value: no
     initial_value: "0"
+  # Paired Victron device TYPE (record_type from the plaintext product-advertisement), persisted in NVS so the
+  # web can show "AC Charger" instantly / even offline. -1 = unknown (not yet decoded from a packet). Set from
+  # on_ble_advertise when a packet from the paired MAC decodes a type. (docs/internal/ble-name-type-plan.md §12)
+  - id: paired_rt
+    type: int
+    restore_value: yes
+    initial_value: "-1"
   # Gallery selection state (persisted). bnr_sel = selected user slot when banner_preset ==
   # "Custom" (0..9); bnr_fav = favorites bitmask. Mirrored to web_dashboard volatiles each loop for
   # GET /gallery. Default 0 so the original single banner (slot 0) keeps showing (migration = no-op).
@@ -1058,6 +1359,16 @@ globals:
   - id: offline_active
     type: bool
     restore_value: no
+    initial_value: "false"
+  # battery-present inference for the no-load guard: latched true once real charge/parasitic current
+  # (>=0.08A, which catches the 0.1A topping quantum of an already-full pack) is seen while the link is
+  # fresh; cleared when the
+  # guard confirms empty terminals (an active-charge phase at 0A) — self-corrects a moved/removed battery.
+  # Lets Float/Storage hold CHARGED at ~0A on a real pack while empty terminals still demote to IDLE.
+  # restore_value:yes -> survives OTA/watchdog reboots + BLE blips (else a full pack at Storage@0A re-demotes).
+  - id: bat_present
+    type: bool
+    restore_value: yes
     initial_value: "false"
   # Wi-Fi onboarding (B-WiFi): ap_setup_shown tracks whether the branded setup screen is up
   # (500ms loop loads it while the fallback AP is active). wifi_reset_pending is set by the web
@@ -1124,6 +1435,7 @@ esphome:
             id(hostname_info).publish_state(std::string(App.get_name().c_str()) + ".local");
             // Charger event log baseline (RAM-only; SNTP not valid yet -> epoch 0, "N ago" only).
             esphome::charge_log::note("Powered on", 0, millis());
+            id(charger_log_json).update();        // Flow 1: seed the slot at boot (build-on-change; not the old 5s timer) so an early card-open shows the baseline even before SNTP
             // Seed the source mode BEFORE the demo simulator's first tick (on_boot runs before any
             // interval fires). Otherwise the sim can emit a stray "Bulk" frame + last_packet_ms at boot
             // -> the hero flashes CHARGING and a bogus charge event is logged before Live resolves.

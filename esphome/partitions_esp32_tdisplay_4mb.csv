@@ -1,6 +1,7 @@
 # WinterDash 4MB partition table — T-Display 4MB variant (same panel as the 16MB; only the flash chip differs).
 # app0/app1 = 0x1D0000 (1.8125MB) each (dual-OTA — cable-less OTA preserved), storage = 0x50000 (320KB).
-# Fits because the 4MB build BAKES ONLY BATTERY (on-screen + web, via -DWD_BAKE_MINIMAL) -> app ~1.81MB, under
+# Fits because the 4MB build BAKES ONLY BATTERY (on-screen + web; the per-board baked set is declared in
+# tools/board_assets.yaml + emitted by gen_board_assets.py — the old -DWD_BAKE_MINIMAL axis is retired) -> app ~1.81MB, under
 # the 1.8125MB slot with ~90KB headroom. DEFAULT slot geometry (64KB .wdb align + 64KB webp caps -> SLOT_SPAN
 # 256KB) -> 320KB/256KB = 1 FULL-QUALITY user custom slot. No F3 packed-offset render risk; byte-compatible with
 # the 16MB slot. Reflash-gated: OTA can't rewrite this table (a slot resize needs a CABLE flash). Per-board:

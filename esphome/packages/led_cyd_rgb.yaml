@@ -1,0 +1,159 @@
+# =============================================================================
+# led_cyd_rgb.yaml — CYD (ESP32-2432S028R) on-board RGB status LED (board-specific module)
+# -----------------------------------------------------------------------------
+# The CYD's counterpart to led_wroom32.yaml (headless mono LED). SAME board-agnostic state SET — it reads the
+# SAME core signals (AP-active, wifi-connected, the status DTO's scode/offline/warn, netwatch_disabled) — but
+# RENDERS as COLOUR instead of blink patterns, which is the whole point of an RGB LED: a human reads red/green/
+# blue/amber at a glance where mono can only carry a few blink rhythms. See led_wroom32's header for the shared
+# design rationale ("designed once, each board renders what its LED can carry").
+#
+# HARDWARE: common-ANODE RGB LED wired R=GPIO4, G=GPIO16, B=GPIO17. Common-anode ⇒ a pin driven LOW lights that
+# channel ⇒ `inverted: true` on each ledc output so set_level(1.0) = full brightness, set_level(0.0) = off.
+# (GPIO4 is the RED channel — NOT the display reset, a classic CYD trap; display RST is tied to EN. See
+# board_esp32_cyd.yaml / display_cyd.yaml.) ledc PWM (not gpio) so channels MIX (amber = R+G) and dim.
+#
+# DIFFS vs led_wroom32 (deliberate):
+#  • NO boot-hold states (0/1a/1b) — the CYD has no BOOT-hold Wi-Fi reset (it uses touch, input_cyd_touch.yaml, not
+#    input_wroom32_boot); there is no id(boot_btn)/id(wifi_reset_pending) here. Wi-Fi reset on CYD is a touch/UI
+#    action (a port task) — when it lands, add its cue here.
+#  • Mono BLINK PATTERNS → COLOURS. A little motion is kept only where it adds meaning (setup blink, SOS pulse,
+#    charging breathe); steady states are steady colour.
+#  • CHARGE-PHASE COLOUR (v1, basic, per the user's ask "spięte z Charging/fault analogicznymi kolorami"): the
+#    "all good / connected" branch colourises by the status DTO scode — idle/charging/charged/recond. Fault is
+#    already caught one rung up (attention). Bulk/Abs/Float nuance within "charging" is a later polish.
+#
+# MODEL (2026-09-04 refinement — minimal; a brightness-tracking COMFORT model, NOT a current cap: the original
+# 3.3V-brownout premise was HW-DISPROVEN (white-100% + bright screen + WiFi TX survived — see ~L107), so the dim-gating
+# below is a UX choice (a lit screen is itself the cue -> LED off), not a hardware constraint):
+#  FAULT/WARN (scode==3 | serious_warn | netwatch_disabled — the keep_lit faults that FORCE the screen bright)
+#     -> short RED blink, ALWAYS (bypasses the dim gate; must grab attention, and a short single-red is low-current).
+#  Everything else is DIM-ONLY (a bright/in-use screen is itself the cue -> LED off). Invariant: only keep_lit faults
+#  bypass the gate. Charger OFFLINE does NOT keep_lit, so it dims normally -> two-stage, dim-only: FRESH <120s
+#  (overlay up) -> RED blink; SETTLED >=120s (screensaver) -> RED breathe. blue idle glow = charger present +
+#  maintaining; red breathe = ESP alive, no charger. (red BLINK vs BREATHE = same colour, different rhythm.)
+#  Otherwise ONLY while the backlight has DIMMED (screen truly dark — a lit screen, incl. the bright screensaver
+#  right after return_timeout, is itself the cue, so the LED stays off):
+#     charging -> AMBER breathe ~3s · recond -> AMBER breathe ~1.5s (faster) · charged -> GREEN steady · idle -> BLUE breathe.
+#  Dropped vs the old ladder: AP-blue (the setup screen is the cue), the separate netfault-SOS (folded into FAULT),
+#  startup-settle + connecting (folded into "screen bright -> off").
+# =============================================================================
+
+# led_dark — ambient darkness 0..1 (0=bright, 1=full-dark), set by the LDR detector in board_esp32_cyd.yaml. NOTE:
+# the RGB LED no longer reads this — it stays here only because the SCREEN backlight ladder (display_cyd.yaml) reads
+# the SAME signal (and the LDR detector sets it). Board-local is simplest.
+# led_level — user RGB-LED brightness ceiling: 0=OFF 1=LO 2=MED 3=HIGH. Set via the web /wd/cfg 'led' field
+# (write-only, NVS-persisted); the lambda scales the NON-FAULT states by a fixed ceiling per level. FAULT ignores it
+# (its own fixed brightness); OFF also silences fault. Replaces the old led_dark->LED ambient scaling — a status LED
+# is a night-glow you WANT visible in the dark, so the user's level IS the brightness, not the room.
+# led_test — brownout-probe scaffold, consumed ONLY when built with -DWD_DEBUG_LEDTEST=1: an exact 0..100 white
+# override for the current HW test; -1 = inactive. See the #if block in the lambda.
+globals:
+  - id: led_dark
+    type: float
+    restore_value: false
+    initial_value: '0.0f'
+  # led_level (user LED brightness pref) HOISTED to core.yaml globals (board-agnostic; led_cyd_rgb still reads id(led_level)).
+  - id: led_test           # brownout probe (WD_DEBUG_LEDTEST): exact 0..100 white override; -1 = inactive (RAM).
+    type: int
+    restore_value: false
+    initial_value: '-1'
+
+output:
+  - platform: ledc
+    pin: 4                 # RED   (NOT display reset — GPIO4 is the RGB red channel on the CYD)
+    id: rgb_r
+    inverted: true         # common-anode: set_level(1.0) drives the pin LOW = channel ON
+    frequency: 1000Hz
+  - platform: ledc
+    pin: 16                # GREEN
+    id: rgb_g
+    inverted: true
+    frequency: 1000Hz
+  - platform: ledc
+    pin: 17                # BLUE
+    id: rgb_b
+    inverted: true
+    frequency: 1000Hz
+
+interval:
+  - interval: 50ms         # base tick — fine for the SOS pulse + breathe ramps + blinks
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          auto &o = esphome::status_compute::status_out();     // board-agnostic status DTO (compute-filled)
+          // A gentle triangle 0..1 over `period` ms — breathe/blink ramp.
+          auto tri = [&](uint32_t period) -> float {
+            uint32_t p = now % period; float h = period / 2.0f;
+            return (p < h) ? (p / h) : (2.0f - p / h);
+          };
+          // Gamma-eased breathe: floor 0 (dims to TRUE dark) with a gamma>1 exponent that flattens + deepens the
+          // PHYSICAL trough -> the glow lingers dark and DISPERSES to black before brightening again, instead of
+          // snapping bright off a linear ramp with a residual floor. (Perceptually gamma~2.2 roughly LINEARIZES the
+          // ramp, since brightness perception is ~L^0.45; the win here is the deep flat trough, not a low-biased
+          // curve — idle's 2.5 sits a touch lower.) gamma is eyeball-tunable (higher = darker/longer).
+          auto breathe = [&](uint32_t period, float gamma) -> float { return powf(tri(period), gamma); };
+          float r = 0, g = 0, b = 0;                            // channel levels 0..1 (pre-scale)
+          // Only FOUR things ever light this LED — a deliberately minimal COMFORT model: a lit screen is itself the
+          // cue, so the LED is dark then. (The original CURRENT-FIRST/3.3V-brownout rationale was HW-DISPROVEN — see
+          // ~L108 — so this dark-gating is a UX choice, not a current cap.)
+          //   FAULT/WARN -> short RED blink, ALWAYS (bypasses the dim gate). A fault force-keeps the screen LIT
+          //                 (display_cyd keep_lit), so a dim-gated red would hide exactly when it matters; a short
+          //                 single-red blink draws little average current -> brownout-safe even bright + WiFi TX.
+          //   charging   -> AMBER breathe ~3s    \  only while the backlight has DIMMED (screen truly dark). A lit
+          //   recond     -> AMBER breathe ~1.5s   >  screen is itself the cue, so the LED stays OFF = zero current
+          //   charged    -> GREEN steady         /   during active use + the WiFi-hard boot window (the brownout
+          //   idle       -> BLUE breathe (calm)      window is exactly when the screen is bright).
+          const bool fault = (o.scode == 3) || o.serious_warn || id(netwatch_disabled);  // NB: charger-offline is NOT a fault (handled below)
+          // User LED brightness (0=OFF|1=LO|2=MED|3=HIGH), web /wd/cfg 'led' -> NVS id(led_level). Every non-fault
+          // state's breathe is NORMALISED to peak 1.0, so CEIL[lvl] is the TRUE brightness (not "level x each state's
+          // own dim peak"): at HIGH every state reaches full, LO/MED dim uniformly. Per-state character comes from
+          // COLOUR + breathe RATE + breathe DEPTH, not absolute brightness. FAULT ignores the level (fixed).
+          // (Brownout premise was HW-disproven: white-100% + bright screen + WiFi TX survived -> these are comfort
+          // levels, not current caps.)
+          static const float CEIL[4] = {0.0f, 0.30f, 0.60f, 1.0f};   // OFF | LO | MED | HIGH (comfort; eyeball-tunable)
+          int lvl = id(led_level); if (lvl < 0) lvl = 0; if (lvl > 3) lvl = 3;
+          const bool led_off = (lvl == 0);
+          // Gate on the actual BACKLIGHT-DIM only (screen genuinely dark) — NOT saver_active: the screensaver enters
+          // at return_timeout while the backlight is still FULL (a BRIGHT saver), and the LED must stay off then; it
+          // lights only once the backlight has dimmed (dim_s >= return_timeout), i.e. the screen is truly dark.
+          const bool screen_dim = id(backlight_dim);
+          if (fault && !led_off) {                              // FAULT/WARN (keep_lit -> screen forced BRIGHT) -> RED blink at a FIXED brightness; ignores the level, only OFF silences it
+            const uint32_t p = now % 1800;
+            bool on = (p < 200) || (p >= 380 && p < 580) || (p >= 760 && p < 960);
+            r = on ? 0.9f : 0.0f;                               // fault fixed bright alarm (ignores the level; short-duty blink, HW-proven brownout-safe)
+          } else if (!led_off && screen_dim) {                  // everything else is DIM-ONLY: a bright/in-use screen is the cue -> LED off. (OFF also darkens these.)
+            // Invariant: only the keep_lit faults above bypass the dim gate (they force the screen bright + must grab
+            // attention). Charger-offline does NOT keep_lit (display_cyd:1689) -> the screen dims normally, so its cue
+            // is dim-only too -> no red "disco" when opening the menu (or any wake) lights the screen.
+            if (id(offline_alert)) {                            // charger offline, FRESH (overlay up; drop <~45s / never-online <~120s — threshold lives in display_cyd offline_alert relax) -> RED blink
+              const uint32_t p = now % 1800;
+              bool on = (p < 200) || (p >= 380 && p < 580) || (p >= 760 && p < 960);
+              r = on ? 1.0f : 0.0f;                             // normalised peak 1.0 (CEIL sets the real brightness)
+            } else if (o.offline) {                             // charger offline, SETTLED (relaxed: after the offline_alert window — see display_cyd) -> RED breathe (ESP alive, no charger)
+              float w = breathe(4200, 2.2f);  r = w;            // red breathe, eased to true dark
+            } else switch (o.scode) {                           // charger ONLINE -> charge phase (all normalised to peak 1.0; RATE + DEPTH distinguish, colour carries the state)
+              case 1:  { float w = breathe(3000, 2.2f);  r = w; g = w * 0.55f; break; }  // charging: AMBER breathe ~3s (eased to dark)
+              case 4:  { float w = breathe(1500, 2.2f);  r = w; g = w * 0.55f; break; }  // recond:   AMBER breathe ~1.5s (faster, eased)
+              case 2:  g = 1.0f; break;                                                        // charged:  GREEN steady (full; green channel is HW-weak -> colour-cal, not brightness)
+              default: { float w = breathe(4200, 2.5f); b = w; break; }                 // idle:     BLUE breathe ~4.2s (deeper gamma, calm)
+            }
+          }
+          // Apply the user brightness to the NON-FAULT states (each already normalised to peak 1.0, so this IS the
+          // real brightness). fault is at its own fixed value. led_dark is intentionally NOT read here anymore — a
+          // status LED is a night-glow you WANT visible in the dark, so the user's 4-level choice IS the brightness
+          // (not ambient-tracked); led_dark stays consumed by the SCREEN backlight ladder (display_cyd.yaml).
+          // Partially reverts the led_dark->LED scale from 596f283 — do NOT "restore" it.
+          if (!fault) { const float c = CEIL[lvl]; r *= c; g *= c; b *= c; }
+          #if WD_DEBUG_LEDTEST
+          // Brownout-probe scaffold (build -DWD_DEBUG_LEDTEST=1): POST /wd/cfg?ledtest=N (0..100) forces an EXACT white
+          // brightness (worst-case 3-channel current), overriding the state machine, so the safe caps are found at
+          // runtime with no reflash. ledtest=-1 -> normal. Compiled OUT of shipping builds.
+          if (id(led_test) >= 0) { const float x = id(led_test) / 100.0f; r = g = b = x; }
+          #endif
+          // Write only on a meaningful CHANGE (edge) — ledc has no rate guard; skip ~20 redundant writes/s.
+          static float pr = -1, pg = -1, pb = -1;
+          auto near = [](float a, float c){ return (a > c ? a - c : c - a) < 0.02f; };
+          if (!(near(r, pr) && near(g, pg) && near(b, pb))) {
+            pr = r; pg = g; pb = b;
+            id(rgb_r).set_level(r); id(rgb_g).set_level(g); id(rgb_b).set_level(b);
+          }

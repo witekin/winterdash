@@ -20,6 +20,7 @@
   .connlost{display:none;align-items:center;justify-content:center;gap:9px;background:var(--red);color:#fff;padding:9px 12px;border-radius:11px;font-size:13px;font-weight:600}
   .connlost.show{display:flex}
   .connlost.dead{cursor:pointer}                 /* terminal state: gave up reconnecting -> tap to reload */
+  .connlost.dormant{cursor:pointer}              /* single-viewer boards: superseded by another tab -> tap to take over */
   .dotx{width:8px;height:8px;border-radius:2px;background:#fff;opacity:.9;flex:none}  /* static (no pulse) */
   .dotpulse{width:8px;height:8px;border-radius:50%;background:#fff;animation:cpulse 1s ease-in-out infinite}
   @keyframes cpulse{0%,100%{opacity:.35}50%{opacity:1}}
@@ -35,18 +36,12 @@
   /* Cap BOTH dims (aspect preserved, no distortion) so wide vehicles stay in the left
  safe-area and never reach the status word — mirrors the device's left car-field. */
   .car{position:absolute;left:12px;bottom:6px;max-height:96px;max-width:48%;height:auto;width:auto}
-  /* Custom banner = a full 240x58 image; fill the hero (same aspect), status word overlays it. */
-  .car.full{left:0;bottom:0;width:100%;height:auto;max-width:none;max-height:none}
   .cluster{position:absolute;top:11px;right:14px;display:flex;align-items:center;gap:8px;color:var(--blue)}
   .cluster .demo{color:var(--red);font-weight:800;font-size:11px;letter-spacing:.09em;display:none}
   .cluster .wifi{color:var(--green)}
   .cluster svg.ic{width:17px;height:17px}
   .clock{font-size:16px;font-weight:600;color:#c4c8cf;letter-spacing:.02em;font-variant-numeric:tabular-nums}
   .status{position:absolute;left:56%;bottom:14px;display:flex;align-items:center;gap:9px;font-weight:800}
-  /* Full custom banner: subject sits in the left safe-area (~0-54%), right side is transparent.
- Left-anchor the status just past that edge (so the icon stays put instead of flying with the
- word length) with a small gap from the vehicle. */
-  .banner.full .status{left:55%;right:auto}
   /* narrow screens: right-anchor + shrink so the word clears the car AND doesn't clip */
   @media (max-width:480px){
     .status{left:auto;right:12px}
@@ -134,6 +129,8 @@
   .wm .w1{color:#eaf4ff}
   .wm .w2{color:var(--blue)}
   .about .wm{font-size:23px;line-height:1}
+  .wmlnk{text-decoration:none}   /* footer wordmark -> project page; subtle underline only on hover */
+  .wmlnk:hover .wm{text-decoration:underline;text-decoration-color:var(--faint);text-underline-offset:2px}
   .about .disclaimer{font-size:11.5px;line-height:1.5;color:var(--faint)}
   .about .tag{font-size:13px;color:var(--faint);line-height:1.4;margin-top:-4px}
   .about .arow{display:flex;justify-content:space-between;gap:12px;font-size:13.5px}
@@ -147,6 +144,7 @@
     padding:6px 11px;border:1px solid var(--line);border-radius:8px;font-weight:600;text-decoration:none}
   .about a.lnk{color:var(--muted)}
   .about a.lnk:hover{color:var(--text);border-color:var(--muted)}
+  [hidden]{display:none!important}  /* board-adaptive rows use the hidden attr; .setrow's display:flex would otherwise override the UA [hidden] rule */
   .setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px;border-top:1px solid var(--line)}
   .setrow:first-child{border-top:0}
   .setlab{color:var(--muted);font-size:15px}
@@ -162,7 +160,12 @@
   .subsec>summary::-webkit-details-marker{display:none}
   .subsec>summary::after{content:"";width:7px;height:7px;border-right:2px solid var(--faint);border-bottom:2px solid var(--faint);transform:rotate(-45deg);transition:transform .15s;margin-left:8px}
   .subsec[open]>summary{color:var(--text)}
+  .subsec[open]{box-shadow:inset 2px 0 0 rgba(56,189,248,.42)}   /* hierarchy = a DIMMED blue rail + brighter header (below); NO bg tint (it flattened nested boxes). Muted alpha so the rail marks without glowing. */
+  .subsec[open]>summary{border-bottom:1px solid var(--line)}
   .subsec[open]>summary::after{transform:rotate(45deg)}
+  /* open subsection: indent child rows under the header so they read as "belonging" to it (rail + inset).
+     Dividers stay full-width (border is outside the padding); only the content shifts right. */
+  .subsec[open] .setrow,.subsec[open] .setnoterow,.subsec[open] .pairblk{padding-left:30px}
   .subsec .pairblk{border-top:0}
   /* WinterDash branded subsection: two-tone wordmark (matches About, no mark) */
   /* Baked banner thumbnail picker (future gallery extends this grid) */
@@ -184,10 +187,16 @@
   .bthumb .delfill{position:absolute;left:4px;top:4px;width:0;height:20px;border-radius:6px;background:rgba(248,113,113,.4);pointer-events:none;z-index:1}
   .bthumb.newtile{border-style:dashed}
   .bthumb.newtile span{color:var(--blue);font-size:24px;line-height:1;font-weight:400}
+  /* storage full (no free slot: /gallery next_free < 0): the + tile becomes a non-clickable "delete one first" hint */
+  .bthumb.newtile.full{border-style:solid;border-color:var(--line);cursor:default}
+  .bthumb.newtile.full .nftxt{color:var(--red);font-size:12px;font-weight:600;text-align:center;line-height:1.35}
+  .bthumb.newtile.full .nftxt small{display:block;color:var(--faint);font-size:10.5px;font-weight:400;margin-top:3px}
   .bthumb.pulse{animation:bpulse 1.5s ease-out}
   @keyframes bpulse{0%{box-shadow:0 0 0 0 rgba(56,189,248,.55)}100%{box-shadow:0 0 0 12px rgba(56,189,248,0)}}
-  .scanhdr{display:flex;align-items:center;justify-content:space-between}
-  .scanlist{display:flex;flex-direction:column;gap:5px;min-height:56px;max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:8px;padding:6px;margin-bottom:2px}
+  .scanhdr{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 10px}
+  .scanhdr .pairlab{white-space:nowrap}   /* keep "Nearby Bluetooth devices" on one line; buttons wrap below when tight */
+  /* scan box aligns with the Victron-credentials panel (.paircreds): same subtle fill + 10px radius + --line border */
+  .scanlist{display:flex;flex-direction:column;gap:5px;min-height:122px;max-height:190px;overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:2px;background:rgba(255,255,255,.015)}   /* empty height ~= 3 scanned rows (32px+5gap ×3 + 16pad) so the box doesn't jump when results arrive */
   .scanrow{display:flex;align-items:center;gap:8px;padding:7px 9px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;cursor:pointer;font-size:12.5px}
   .scanrow:hover{border-color:var(--muted)}
   .scanrow.vic{border-color:var(--blue);background:rgba(56,189,248,.10)}
@@ -195,6 +204,10 @@
   .scanrow .mc{color:var(--faint);font-variant-numeric:tabular-nums;font-size:11.5px}
   .scanrow .vb{color:var(--blue);font-weight:700;font-size:10px;padding:1px 5px;border:1px solid var(--blue);border-radius:4px;flex:none}
   .scanrow .rs{color:var(--muted);font-size:11px;font-variant-numeric:tabular-nums;width:46px;text-align:right}
+  .scanrow.nopair{opacity:.5;cursor:default}                                   /* known Victron role we don't pair yet (v1) -> visible but not selectable */
+  .scanrow.nopair:hover{border-color:var(--blue)}
+  .scanrow .vb.un{color:var(--muted);border-color:var(--muted)}               /* muted role badge = unsupported */
+  .scanstatus .lnk{color:var(--blue);cursor:pointer;text-decoration:underline;font-weight:600}
   .scanempty{color:var(--faint);font-size:12px;padding:6px 2px}
   /* scan status — deliberately NOT the faint helper-comment grey, so an active scan is noticeable */
   .scanstatus{color:var(--muted);font-size:12.5px;padding:2px 4px;margin:auto;text-align:center;line-height:1.5}
@@ -205,26 +218,32 @@
   @keyframes spin{to{transform:rotate(360deg)}}
   @media (prefers-reduced-motion:reduce){.scanstatus .spin{animation:none}}
   .scanhint{color:var(--faint);font-size:11.5px;line-height:1.4;padding:2px 2px 2px}
-  .scanbtns{display:flex;gap:6px}
-  .eyebtn.tgl.on{color:var(--blue);border-color:var(--blue);background:rgba(56,189,248,.10)}
-  .setctl{display:flex;align-items:center;gap:6px}
-  .setctl input{width:66px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:14px;padding:6px 8px;text-align:right;font-variant-numeric:tabular-nums}
-  .setctl input:focus{outline:none;border-color:var(--muted)}
-  .setctl .u{color:var(--faint);font-size:13px;width:14px}
+  .scanbtns{display:flex;gap:6px;margin-left:auto}   /* right-align, and when the header wraps push the buttons to their own line's right */
   .slid{display:flex;align-items:center;gap:11px;min-width:170px;flex:0 1 56%}
   .slid input[type=range]{flex:1;min-width:90px;accent-color:var(--blue);cursor:pointer;height:22px}
   .sval{min-width:46px;text-align:right;font-size:13.5px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
   .selctl{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:14px;font-weight:600;padding:6px 10px;cursor:pointer}
   .selctl:focus{outline:none;border-color:var(--muted)}
-  .txtwide{background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--text);font:inherit;font-size:13px;padding:6px 9px;width:170px;font-variant-numeric:tabular-nums}
-  .txtwide:focus{outline:none;border-color:var(--muted)}
   .keyst{font-size:11px;font-weight:600;padding:1px 6px;border-radius:5px;margin-left:6px}
   .keyst.set{color:var(--green);background:rgba(61,220,132,.12)}
   .keyst.unset{color:var(--faint);background:var(--panel2)}
   .setnoterow{padding:8px 18px 12px;color:var(--faint);font-size:12px;line-height:1.45}
-  .pairblk{padding:12px 18px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line)}
+  .pairblk{padding:14px 18px 16px;display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line)}
   .pairlab{color:var(--muted);font-size:14px;display:flex;align-items:center;gap:8px}
-  .subsec .pairblk .pairsep{border-top:1px solid var(--line);margin-top:6px;padding-top:12px}
+  .subsec .pairblk .pairclear{border-top:1px solid var(--line);margin-top:9px;padding-top:14px}
+  .pairclear .pairlab{color:var(--faint);font-size:13px}
+  .subsec .pairblk .paircreds{border:1px solid var(--line);border-radius:10px;padding:11px 13px 12px;display:flex;flex-direction:column;gap:10px;margin-top:2px;background:rgba(255,255,255,.015)}
+  .paircredshdr{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);display:flex;align-items:center;gap:6px}
+  .paircreds .pairkeyhint{padding:0;margin-top:0}
+  .paircreds .pairfield{display:flex;flex-direction:column;gap:5px}
+  .paircreds .pairflab{display:flex;align-items:center;gap:8px}
+  .paircreds .pairflab .eyebtn{padding:2px 10px;font-size:11px}
+  .paircreds .pairin{width:100%;box-sizing:border-box;flex:none;max-width:none}
+  .paircreds .pairclear{margin-top:2px;justify-content:flex-end}
+  .clrbtn.hold{position:relative;overflow:hidden;touch-action:none;user-select:none}
+  .clrbtn .hbl{position:relative;z-index:1}
+  .eyebtn:disabled{opacity:.4;cursor:default}
+  .vbrand{color:#1f95d4}
   .pairrow{display:flex;align-items:center;gap:10px}
   .pairrow>.pairlab{flex:none;margin-right:auto}
   .pairctl{display:flex;align-items:center;gap:8px;flex:none}
@@ -249,7 +268,7 @@
   /* System actions */
   .sysrow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 18px;border-top:1px solid var(--line)}
   .sysrow:first-child{border-top:0}
-  .systxt{min-width:0}
+  .systxt{min-width:0;flex:1;padding-right:12px}   /* fill the row + reserve a right margin so the description wraps clear of the button/value, never crowding it */
   .sysname{color:var(--text);font-size:15px;font-weight:600}
   .sysrow.danger .sysname{color:var(--red)}
   .sysdesc{color:var(--faint);font-size:12px;margin-top:2px;line-height:1.4}
@@ -271,16 +290,32 @@
   .sysnote{padding:10px 18px 14px;color:var(--faint);font-size:12px}
   .sysnote:empty{display:none}
   .sysnote.warn{color:var(--amber)}
-  .sim{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:2px}
-  .sim button{background:var(--panel);border:1px solid var(--line);color:var(--muted);
-              border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit}
-  .sim button:hover{color:var(--text);border-color:var(--muted)}
   /* Hero-change cooldown: after picking a banner, dim + block the grid briefly so a rapid click-burst
  can't queue a storm of full-screen LVGL redraws (the task-watchdog repro on this no-PSRAM board —
  a 2nd API/HA client narrows the heap margin enough that ~5-6 redraws in ~2s trip the WDT). */
   #bpick.applying{opacity:.5;pointer-events:none;position:relative}
   #bpick.applying::after{content:"Applying\2026";position:absolute;inset:0;display:flex;align-items:center;
     justify-content:center;font-weight:700;color:var(--text);background:rgba(0,0,0,.28);border-radius:8px}
+  /* ---- firmware update (web-served OTA, browser-bridge; device never does TLS) ---- */
+  .updbadge{display:none;min-width:18px;height:18px;padding:0 5px;margin-left:auto;margin-right:6px;border-radius:9px;background:#e5484d;color:#fff;font-size:11px;font-weight:700;line-height:18px;text-align:center;vertical-align:middle}
+  .about .fwrow .fwk{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}   /* "Firmware" label + the update chip, grouped on the left of the fw row */
+  .updpill{display:inline-block;color:#7fd4ff;background:rgba(47,140,220,.16);border-radius:5px;padding:1px 6px;font-weight:600;font-size:11px;white-space:nowrap;cursor:pointer}   /* sized to match the .keyst "AC Charger" chip; clickable to un-skip a dismissed update */
+  .about .updrow{display:none;align-items:center;gap:6px 12px;flex-wrap:wrap;justify-content:flex-start;margin-top:6px;padding:9px 12px;font-size:13px;border:1px solid rgba(90,165,225,.35);border-radius:10px;background:rgba(47,140,220,.10)}   /* update-action callout box (framed, blue tint — like the scan box); chip lives on the fw row, this holds Download + hint */
+  .updrow a.updlnk{color:#7fd0ff;text-decoration:none;border-bottom:1px solid #3a6f8c;font-weight:600}
+  .updrow .updskip{margin-left:auto;background:transparent;border:1px solid rgba(120,150,175,.35);color:var(--muted);border-radius:6px;padding:2px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+  .updrow .updskip:hover{border-color:var(--muted);color:var(--text)}
+  .updrow .updhint{color:#9fb2c0;flex-basis:100%;margin-top:1px}
+  label.sysbtn{display:inline-block}
+  .otacol{display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+  .otacol .otafname{font-size:12px;color:#9fb2c0;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+  .otacol .otaerr{display:none;font-size:12px;color:#e0574a;max-width:190px;text-align:right;line-height:1.35}
+  #otaOverlay{position:fixed;inset:0;z-index:9999;background:rgba(6,9,13,.95);display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;text-align:center}
+  #otaOverlay .oi{font-size:34px;line-height:1}
+  #otaOverlay .ot{font-size:18px;font-weight:700;color:#eaf2f8;max-width:340px;line-height:1.35}
+  #otaOverlay .obar{width:min(340px,80vw);height:8px;border-radius:5px;background:#16222c;overflow:hidden}
+  #otaOverlay .obar>i{display:block;height:100%;width:0;background:#29b6f6;transition:width .2s}
+  #otaOverlay .os{font-size:14px;color:#9fb2c0;max-width:340px;line-height:1.4}
+  #otaOverlay .obtn{margin-top:4px;background:#1d3440;color:#cfe3ee;border:1px solid #2a5163;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:600;cursor:pointer}
 </style>
 </head>
 <body>
@@ -319,7 +354,7 @@
   </section>
 
   <!-- ===== Charger detail ===== -->
-  <details class="card list">
+  <details class="card list" data-poll="log">
     <summary>Charger detail</summary>
     <div class="row"><span class="lab"><svg class="ic thm" viewBox="0 0 24 24"><path d="M15 13V5A3 3 0 0 0 9 5V13A5 5 0 1 0 15 13M12 4A1 1 0 0 1 13 5V8H11V5A1 1 0 0 1 12 4Z"/></svg>Temperature</span><span class="v" id="dTemp">22°C</span></div>
     <div class="row"><span class="lab"><svg class="ic" viewBox="0 0 24 24"><path d="M7,2V13H10V22L17,10H13L17,2H7Z"/></svg>DC voltage</span><span class="v" id="dVolt">13.78 V</span></div>
@@ -331,7 +366,7 @@
 
   <!-- ===== Network / BLE ===== -->
   <details class="card list">
-    <summary>Network / BLE</summary>
+    <summary>Connectivity</summary>
     <div class="row"><span class="lab"><span class="bars" id="bbars"></span>Bluetooth</span><span class="v" id="brssi">—</span></div>
     <div class="row"><span class="lab"><svg class="ic" id="bleIco" viewBox="0 0 24 24" style="width:17px;height:17px;color:var(--blue)"><path id="bleIcoPath" d="M14.88,16.29L13,18.17V14.41M13,5.83L14.88,7.71L13,9.58M17.71,7.71L12,2H11V9.58L6.41,5L5,6.41L10.59,12L5,17.58L6.41,19L11,14.41V22H12L17.71,16.29L13.41,12L17.71,7.71Z"/></svg>Victron Blue</span><span class="v mut" id="ble">2s ago</span></div>
     <div class="row"><span class="lab"><span class="bars" id="wbars"></span>WiFi</span><span class="v ok" id="wq">Good <span style="color:var(--faint);font-weight:400">(-58 dBm)</span></span></div>
@@ -347,35 +382,50 @@
     <div class="set">
       <div class="setrow"><span class="setlab">Device mode <span class="modehint" id="modeHint"></span></span>
         <div class="seg" id="segMode"><button data-v="Auto">Auto</button><button data-v="Demo">Demo</button><button data-v="Live">Live</button></div></div>
+      <div class="setrow"><span class="setlab">Time zone</span>
+        <select class="selctl" id="selTz"><option>Europe/Warsaw</option><option>Europe/London</option><option>Europe/Lisbon</option><option>Europe/Athens</option><option>America/New_York</option><option>America/Chicago</option><option>America/Denver</option><option>America/Los_Angeles</option><option>UTC</option></select></div>
       <details class="subsec">
-        <summary><span>Charger pairing (BLE) <span class="keyst" id="pairChip"></span></span></summary>
+        <summary><span>Charger <span class="keyst" id="pairChip"></span></span></summary>
         <div class="pairblk">
-          <div class="scanhdr"><span class="pairlab">Nearby BLE devices</span><span class="scanbtns"><button type="button" class="eyebtn tgl" id="btnVicOnly">Victron only</button><button type="button" class="eyebtn" id="btnScan">Rescan</button></span></div>
+          <div class="scanhdr"><span class="pairlab"><svg class="ic" viewBox="0 0 24 24" style="width:17px;height:17px;color:var(--blue)"><path d="M14.88,16.29L13,18.17V14.41M13,5.83L14.88,7.71L13,9.58M17.71,7.71L12,2H11V9.58L6.41,5L5,6.41L10.59,12L5,17.58L6.41,19L11,14.41V22H12L17.71,16.29L13.41,12L17.71,7.71Z"/></svg>Nearby Bluetooth devices</span><span class="scanbtns"><button type="button" class="eyebtn" id="btnScan">Rescan</button></span></div>
           <div class="scanlist" id="scanList"><div class="scanstatus">Tap Rescan to search<span class="scansub">move the device closer to the charger if nothing shows</span></div></div>
           <div class="scanhint">Unnamed entries are usually phones/wearables (privacy). Your Victron shows its name + badge, at the top.</div>
-          <div class="pairrow pairsep">
-            <label class="pairlab" for="inMac">Victron MAC <span class="keyval" id="macVal"></span></label>
-            <div class="pairctl">
-              <input type="text" class="pairin" id="inMac" placeholder="XX:XX:XX:XX:XX:XX" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-              <span class="eyebtn" style="visibility:hidden" aria-hidden="true">show</span>
+          <div class="paircreds">
+            <div class="paircredshdr"><span><span class="vbrand">Victron</span> credentials</span><span class="keyst" id="keyState"></span></div>
+            <div class="pairfield">
+              <div class="pairflab"><label class="pairlab" for="inMac">MAC</label><span class="keyval" id="macVal"></span></div>
+              <input type="text" class="pairin" id="inMac" placeholder="XX:XX:XX:XX:XX:XX" maxlength="17" inputmode="text" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false">
             </div>
-          </div>
-          <div class="pairrow">
-            <label class="pairlab" for="inKey">Victron key <span class="keyst" id="keyState"></span><span class="keyval" id="keyVal"></span></label>
-            <div class="pairctl">
+            <div class="pairfield">
+              <div class="pairflab"><label class="pairlab" for="inKey">Key</label><span class="keyval" id="keyVal"></span><button type="button" class="eyebtn" id="btnEye">show</button></div>
               <input type="password" class="pairin" id="inKey" placeholder="32 hex chars" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
-              <button type="button" class="eyebtn" id="btnEye">show</button>
             </div>
+            <div class="scanhint pairkeyhint">Key: VictronConnect → Product info → “Instant readout via Bluetooth” → Show. Enable it on the charger first (firmware ≥ 3.61).</div>
+            <div class="pairrow pairclear"><button class="clrbtn hold" id="btnClearPair" type="button"><span class="holdfill" id="clrFill"></span><span class="hbl">Clear pairing</span></button></div>
           </div>
-          <div class="scanhint">Key: VictronConnect → Product info → “Instant readout via Bluetooth” → Show. Enable it on the charger first (firmware ≥ 3.61).</div>
-          <div class="pairrow"><span class="pairlab" style="color:var(--faint);font-size:13px">Clear stored MAC + key</span><button class="clrbtn" id="btnClearPair">Clear pairing</button></div>
-      </details>
-      <details class="subsec">
-        <summary><span>Charger settings</span></summary>
+        </div>
         <div class="setrow"><span class="setlab">Charge profile</span>
           <select class="selctl" id="selProf"><option>12V Normal</option><option>12V High</option><option>12V Li-ion</option><option>24V Normal</option><option>24V High</option><option>24V Li-ion</option></select></div>
         <div class="setrow"><span class="setlab">Temperature</span>
           <div class="seg" id="segTemp"><button data-v="C">°C</button><button data-v="F">°F</button></div></div>
+      </details>
+      <details class="subsec" id="secDisplay" hidden>
+        <summary><span>Display &amp; LED</span></summary>
+        <div class="setrow" id="rowLed" hidden><span class="setlab">Status LED</span>
+          <div class="seg" id="segLed" hidden><button data-v="0">Off</button><button data-v="1">Low</button><button data-v="2">Med</button><button data-v="3">High</button></div>
+          <div class="seg" id="segLedMono" hidden><button data-v="0">Off</button><button data-v="1">On</button></div></div>
+        <div id="brightCard" hidden>
+        <div class="setrow"><span class="setlab">Auto-return</span>
+          <span class="slid"><input type="range" id="inRetTo" min="5" max="60" step="5"><span class="sval" id="vRetTo"></span></span></div>
+        <div class="setrow"><span class="setlab">Screen brightness</span>
+          <span class="slid"><input type="range" id="inBlLv" min="30" max="100" step="5"><span class="sval" id="vBlLv"></span></span></div>
+        <div class="setrow" id="rowDim" hidden><span class="setlab">Dim</span>
+          <div class="seg" id="segDim"><button data-v="0">Off</button><button data-v="1">Low</button><button data-v="2">Med</button><button data-v="3">High</button></div></div>
+        <div class="setrow" id="rowAutoDim" hidden><span class="setlab">Auto-dim</span>
+          <div class="seg" id="segAuto"><button data-v="0">Off</button><button data-v="1">On</button></div></div>
+        <div class="setrow"><span class="setlab">Dim after</span>
+          <span class="slid"><input type="range" id="inDimTo" min="10" max="180" step="5"><span class="sval" id="vDimTo"></span></span></div>
+        </div>
       </details>
       <details class="subsec brand">
         <summary><span class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></span></summary>
@@ -384,23 +434,13 @@
           <div class="bpick" id="bpick"></div>
           <div class="scanhint" id="galHint">Tap a banner to use it — the change is instant. Tap <b>+</b> to make your own. On your banners: <b>★</b> favorite, hold <b>✕</b> to delete.</div>
         </div>
-        <div class="setrow"><span class="setlab">Time zone</span>
-          <select class="selctl" id="selTz"><option>Europe/Warsaw</option><option>Europe/London</option><option>Europe/Lisbon</option><option>Europe/Athens</option><option>America/New_York</option><option>America/Chicago</option><option>America/Denver</option><option>America/Los_Angeles</option><option>UTC</option></select></div>
-        <div class="setrow"><span class="setlab">Backlight level</span>
-          <span class="slid"><input type="range" id="inBlLv" min="30" max="100" step="5"><span class="sval" id="vBlLv"></span></span></div>
-        <div class="setrow"><span class="setlab">Dim level</span>
-          <span class="slid"><input type="range" id="inDimLv" min="5" max="100" step="5"><span class="sval" id="vDimLv"></span></span></div>
-        <div class="setrow"><span class="setlab">Auto-return</span>
-          <span class="slid"><input type="range" id="inRetTo" min="5" max="60" step="5"><span class="sval" id="vRetTo"></span></span></div>
-        <div class="setrow"><span class="setlab">Dim after</span>
-          <span class="slid"><input type="range" id="inDimTo" min="10" max="180" step="5"><span class="sval" id="vDimTo"></span></span></div>
       </details>
       <div class="setrow setsave"><span class="setnote" id="setNote"></span><button class="discardbtn" id="btnDiscard" disabled>Discard</button><button class="savebtn" id="btnSave" disabled>Saved</button></div>
     </div>
   </details>
 
   <!-- ===== System ===== -->
-  <details class="card list">
+  <details class="card list" data-poll="info">
     <summary>System</summary>
     <div>
       <div class="sysrow">
@@ -415,18 +455,30 @@
         <div class="systxt"><div class="sysname">Factory reset</div><div class="sysdesc">Erases all saved settings (pairing, banner, display). Hold for 2s to confirm.</div></div>
         <button class="sysbtn danger" id="btnFactory" type="button"><span class="holdfill" id="facFill"></span><span class="hbl">Factory Reset</span></button>
       </div>
+      <div class="sysrow" id="otaRow" hidden>
+        <div class="systxt"><div class="sysname">Update firmware</div><div class="sysdesc">Close other tabs to this device first, then pick the new <code>.bin</code> (see About) and update over Wi-Fi. The device reboots and takes a couple of minutes to come back — don't close this tab or unplug during the upload.</div></div>
+        <span class="otacol">
+          <div class="otafname" id="otaFname">No file chosen</div>
+          <label class="sysbtn" for="otaFile"><span class="hbl">Choose file</span></label>
+          <input type="file" id="otaFile" accept=".bin,application/octet-stream" hidden>
+          <button class="sysbtn" id="btnOta" type="button" hidden><span class="hbl">Update</span></button>
+          <div class="otaerr" id="otaErr"></div>
+        </span>
+      </div>
       <div class="sysnote" id="sysNote"></div>
+      <div class="sysrow"><div class="systxt"><div class="sysname">Uptime</div><div class="sysdesc">Time since the device last restarted.</div></div><span class="sysval" id="upVal">—</span></div>
       <div class="sysrow"><div class="systxt"><div class="sysname">Free heap</div><div class="sysdesc">Available RAM — a device health metric.</div></div><span class="sysval" id="heapVal">—</span></div>
     </div>
   </details>
 
   <!-- ===== About ===== -->
   <details class="card list">
-    <summary>About</summary>
+    <summary>About<span class="updbadge" id="updBadge">1</span></summary>
     <div class="about">
       <div class="brand"><img class="bm" alt="" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMTAwIiBoZWlnaHQ9IjExMDAiIHZpZXdCb3g9IjAgMCAxMTAwIDExMDAiIHJvbGU9ImltZyIgYXJpYS1sYWJlbD0iV2ludGVyRGFzaCBzbm93Zmxha2UgY2hhcmdpbmcgY2FibGUgbWFyayI+Cgo8ZGVmcz4KICA8bGluZWFyR3JhZGllbnQgaWQ9ImljZSIgeDE9IjAlIiB5MT0iNSUiIHgyPSI5MiUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiM0N0QzRjUiLz4KICAgIDxzdG9wIG9mZnNldD0iNDIlIiBzdG9wLWNvbG9yPSIjMjJCN0Y1Ii8+CiAgICA8c3RvcCBvZmZzZXQ9IjcyJSIgc3RvcC1jb2xvcj0iIzA3OEZGMiIvPgogICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMTY4RUVBIi8+CiAgPC9saW5lYXJHcmFkaWVudD4KICA8bGluZWFyR3JhZGllbnQgaWQ9InBsdWdEYXJrIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMxODM2NTMiLz4KICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzA3MUMzMiIvPgogIDwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KCjxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDE1Mi4wMCw0OC4wMCkiPgogIDxwYXRoIGQ9Ik0gMzg3IDAgTCAzNzEgMTIgTCAzNjQgMjcgTCAzNjMgMTUzIEwgMzU3IDE1MCBMIDMwNCAxMDQgTCAyOTMgOTcgTCAyNzcgOTUgTCAyNjMgMTAwIEwgMjU0IDEwOSBMIDI0OSAxMjQgTCAyNTEgMTM3IEwgMjYxIDE1MSBMIDM2NCAyMzggTCAzNjQgMzkwIEwgMzU4IDM5OCBMIDM0NyAzOTkgTCAyMjAgMzI0IEwgMjA3IDIwOSBMIDIwNCAxOTkgTCAxOTUgMTg4IEwgMTg2IDE4MyBMIDE3NCAxODEgTCAxNjIgMTg0IEwgMTUzIDE5MCBMIDE0NSAyMDMgTCAxNDQgMjE3IEwgMTUyIDI3NyBMIDE1MSAyODMgTCAxNDggMjgzIEwgNjQgMjMyIEwgNDggMjI0IEwgMzEgMjIzIEwgMTcgMjI5IEwgNiAyNDIgTCAyIDI1NSBMIDIgMjY0IEwgOCAyNzkgTCAxNiAyODcgTCAxMTAgMzQzIEwgMTA5IDM0NiBMIDM5IDM3NyBMIDMxIDM4NCBMIDI2IDM5NCBMIDI2IDQwOCBMIDI5IDQxNiBMIDM4IDQyNiBMIDQ5IDQzMSBMIDY2IDQzMSBMIDE4OSAzODEgTCAxOTMgMzgxIEwgMzEzIDQ1MSBMIDMxOSA0NTggTCAzMTkgNDY2IEwgMzEyIDQ3NSBMIDE4OSA1NDQgTCAxODMgNTQzIEwgNjYgNDk1IEwgNTIgNDk0IEwgNDEgNDk4IEwgMzEgNTA3IEwgMjYgNTE4IEwgMjYgNTMwIEwgMzEgNTQxIEwgNDQgNTUxIEwgMTEwIDU3OSBMIDExMSA1ODMgTCAxNCA2MzcgTCA2IDY0NSBMIDIgNjU0IEwgMCA2NTUgTCAwIDY3MyBMIDIgNjc0IEwgNiA2ODMgTCAxNSA2OTIgTCAyNSA2OTYgTCAzOCA2OTcgTCA1NCA2OTEgTCAxNDEgNjQyIEwgMTQ4IDY0MCBMIDE0OSA2NDQgTCAxMzcgNzAzIEwgMTM4IDcxNSBMIDE0MiA3MjMgTCAxNTAgNzMxIEwgMTYwIDczNSBMIDE3NiA3MzQgTCAxODkgNzI1IEwgMTk2IDcxMyBMIDIxOCA1OTggTCAzNTAgNTIyIEwgMzU3IDUxOSBMIDM2MyA1MjAgTCAzNjYgNTI0IEwgMzY1IDY2NyBMIDM2MCA2OTEgTCAzNTQgNzAxIEwgMzQxIDcxNCBMIDMzMCA3MjEgTCAyNDkgNzYwIEwgMjIwIDc3OCBMIDIwNSA3OTAgTCAxODQgODEzIEwgMTY2IDg0NSBMIDE1OCA4NzggTCAxNTggOTAxIEwgMTYyIDkyNSBMIDE3NCA5NTUgTCAxOTIgOTc3IEwgMjEwIDk5MCBMIDIyMCA5OTUgTCAyNDMgMTAwMSBMIDI0NCAxMDAzIEwgMjgwIDEwMDMgTCAyODEgMTAwMSBMIDI5OSA5OTggTCAzMjcgOTg3IEwgMzY3IDk2MiBMIDQwOCA5MzIgTCA0MzAgOTIwIEwgNDQ3IDkxNSBMIDQ1MCA5MTkgTCA0NjAgOTI1IEwgNDkxIDkzNSBMIDUxNyA5NTkgTCA1NTAgOTc4IEwgNTg5IDk5MyBMIDYxNCA5OTkgTCA2MjkgOTk5IEwgNjQ0IDk5MiBMIDY2MyA5NzkgTCA2ODIgOTYzIEwgNjk2IDk0OCBMIDcwOSA5MzAgTCA3MTQgOTIwIEwgNzIyIDg5MSBMIDcyMiA4NzAgTCA3MTggODYwIEwgNzEzIDg1NCBMIDY5NiA4NDUgTCA2NjEgODMzIEwgNjUzIDgyNSBMIDU4OCA4MTMgTCA1NTIgODExIEwgNTM3IDgxNSBMIDUyMyA4MjIgTCA0OTAgODMwIEwgNDU3IDg0NSBMIDQ1MCA4NTMgTCA0NDUgODY0IEwgNDIyIDg2OSBMIDM5OCA4NzkgTCAzNjYgODk5IEwgMzQ0IDkxNiBMIDMxMCA5MzggTCAyNzkgOTUwIEwgMjUxIDk1MSBMIDIzMCA5NDMgTCAyMTYgOTI4IEwgMjA5IDkxMSBMIDIwOCA4ODUgTCAyMTEgODczIEwgMjIxIDg1MyBMIDIzOCA4MzQgTCAyNTUgODIxIEwgMjg3IDgwNCBMIDM0NyA3ODEgTCAzNzcgNzY1IEwgMzkyIDc1NCBMIDQwNyA3MzkgTCA0MTcgNzI1IEwgNDI5IDY5NyBMIDQzMyA2NzQgTCA0MzMgNTIzIEwgNDM3IDUyMCBMIDQ0MyA1MjAgTCA1NzcgNTk3IEwgNTk2IDcxMiBMIDYwMyA3MjUgTCA2MTYgNzM0IEwgNjM0IDczNSBMIDY0MyA3MzEgTCA2NTIgNzIyIEwgNjU2IDcxMiBMIDY1NiA3MDEgTCA2NDYgNjQ3IEwgNjQ3IDY0MCBMIDY2NiA2NDkgTCA3NDMgNjkzIEwgNzU1IDY5NyBMIDc2NiA2OTcgTCA3NzkgNjkyIEwgNzg5IDY4MyBMIDc5MyA2NzMgTCA3OTUgNjcyIEwgNzk1IDY1NSBMIDc5MyA2NTQgTCA3OTAgNjQ2IEwgNzgxIDYzNyBMIDY4NSA1ODMgTCA2ODYgNTc5IEwgNzQ5IDU1MiBMIDc2MyA1NDMgTCA3NjkgNTMyIEwgNzcwIDUyMSBMIDc2NSA1MDggTCA3NTYgNDk5IEwgNzQyIDQ5NCBMIDcyOSA0OTUgTCA2MTEgNTQ0IEwgNjA2IDU0NCBMIDQ4MyA0NzQgTCA0NzggNDY3IEwgNDc4IDQ1OCBMIDQ4NCA0NTEgTCA2MDQgMzgxIEwgNjA4IDM4MSBMIDczMCA0MzEgTCA3NDEgNDMyIEwgNzUwIDQzMCBMIDc1NyA0MjYgTCA3NjYgNDE2IEwgNzcwIDQwNCBMIDc2OSAzOTMgTCA3NjMgMzgyIEwgNzUzIDM3NSBMIDY4NiAzNDYgTCA2ODUgMzQzIEwgNzc1IDI5MCBMIDc4NiAyODEgTCA3OTIgMjcxIEwgNzkzIDI2NSBMIDc5NSAyNjQgTCA3OTUgMjUzIEwgNzkzIDI1MiBMIDc4OCAyMzggTCA3NzggMjI4IEwgNzY1IDIyMyBMIDc1MSAyMjMgTCA3NDAgMjI3IEwgNjUwIDI4MiBMIDY0NSAyODMgTCA2NDQgMjc1IEwgNjUyIDIxOSBMIDY1MSAyMDIgTCA2NDcgMTk0IEwgNjQxIDE4OCBMIDYzMiAxODMgTCA2MjQgMTgxIEwgNjEwIDE4MyBMIDU5NyAxOTIgTCA1OTAgMjA1IEwgNTc2IDMyNCBMIDQ1MiAzOTggTCA0MzkgMzk4IEwgNDMzIDM5MCBMIDQzMyAyMzcgTCA1MTggMTY2IEwgNTQyIDE0NCBMIDU0NyAxMzMgTCA1NDcgMTE5IEwgNTQzIDEwOSBMIDUzNCAxMDAgTCA1MjEgOTUgTCA1MDcgOTYgTCA0OTggMTAwIEwgNDQxIDE0OSBMIDQzNCAxNTMgTCA0MzMgMjcgTCA0MjQgMTAgTCA0MTAgMCBaIiBmaWxsPSJ1cmwoI2ljZSkiLz4KICA8cGF0aCBkPSJNIDcwNCA4NjAgTCA2NTUgODQ2IEwgNjMyIDg0NyBMIDYyMyA4NTEgTCA2MTcgODU3IEwgNjExIDg2OCBMIDYwMSA4OTcgTCA1OTggOTExIEwgNTk4IDkyNSBMIDYwNyA5NjMgTCA2MTMgOTc3IEwgNjIwIDk4NCBMIDYyNSA5ODYgTCA2MzMgOTg2IEwgNjQ2IDk4MCBMIDY3NiA5NTcgTCA2OTggOTMyIEwgNzEwIDkwOSBMIDcxNCA4OTAgTCA3MTQgODczIEwgNzEwIDg2NSBaIiBmaWxsPSJ1cmwoI3BsdWdEYXJrKSIgb3BhY2l0eT0iMSIvPgo8cGF0aCBkPSJNIDUwOCA4ODIgTCA1MDQgODkyIEwgNTA2IDkxNyBMIDUxMSA5MzggTCA1MjIgOTYwIEwgNTIwIDk2MSBMIDUxNiA5NTggTCA1MTcgOTU2IEwgNTE2IDk1OCBMIDUxMiA5NTUgTCA1MjggOTY2IEwgNTU0IDk4MCBMIDU5MSA5OTMgTCA1ODAgOTg1IEwgNTgxIDk4MyBMIDU4MyA5ODUgTCA1ODAgOTc4IEwgNTc4IDk4MSBMIDU3MyA5NzIgTCA1NjAgOTE1IEwgNTU1IDkwMCBMIDU0OCA4OTMgTCA1MTYgODgxIFoiIGZpbGw9IiMxNzM2NTMiIG9wYWNpdHk9IjAuOTUiLz4KPHBhdGggZD0iTSA1MjIgODIyIEwgNTEwIDgyNCBMIDQ3OSA4MzQgTCA0NjIgODQyIEwgNDUyIDg1MCBMIDQ0NSA4NjYgTCA0NDIgODg3IEwgNDQzIDkwNSBMIDQ1MSA5MjAgTCA0NjAgOTI1IEwgNDkzIDkzNyBMIDQ4NiA5MjEgTCA0ODQgOTA2IEwgNDg1IDg4NyBMIDQ4OCA4NzIgTCA0OTUgODUzIEwgNTA0IDgzOCBaIiBmaWxsPSIjMjc0NzYyIiBvcGFjaXR5PSIwLjkiLz4KCiAgPGNpcmNsZSBjeD0iNjQ4LjAzIiBjeT0iODc2LjM0IiByPSIxMC4wMCIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2ODUuNzEiIGN5PSI4ODUuODMiIHI9IjkuMzciIGZpbGw9IiNGRkZGRkYiIHN0cm9rZT0iI0Q4REVFNSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPGNpcmNsZSBjeD0iNjIzLjU0IiBjeT0iOTExLjc1IiByPSIxMC40OSIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8Y2lyY2xlIGN4PSI2NjIuMzIiIGN5PSI5MTcuMTAiIHI9IjEwLjE2IiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNEOERFRTUiIHN0cm9rZS13aWR0aD0iMS41Ii8+CjxjaXJjbGUgY3g9IjYzNC45OCIgY3k9Ijk1MC40NyIgcj0iOS44MiIgZmlsbD0iI0ZGRkZGRiIgc3Ryb2tlPSIjRDhERUU1IiBzdHJva2Utd2lkdGg9IjEuNSIvPgo8L2c+Cjwvc3ZnPgo="><span class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></span></div>
       <div class="tag">Companion display for Victron Blue Smart chargers — keeps an eye on your battery through the winter.</div>
-      <div class="arow fwrow"><span class="k">Firmware</span><span class="val fwval" id="fw"><span id="fwVer">dev</span><span class="fwbuild" id="fwBuild"></span></span></div>
+      <div class="arow fwrow"><span class="fwk"><span class="k">Firmware</span><span class="updpill" id="updPill" hidden>New version</span></span><span class="val fwval" id="fw"><span id="fwVer">dev</span><span class="fwbuild" id="fwBuild"></span></span></div>
+      <div class="arow updrow" id="updRow"><a class="updlnk" id="updDl" rel="noopener noreferrer">Download .ota.bin</a><button class="updskip" id="updSkip" type="button">Skip</button><span class="updhint" id="updHint">then open the System tab and update</span></div>
       <div class="disclaimer">Independent open-source project — not affiliated with, endorsed by, or sponsored by Victron Energy. “Victron” and “Blue Smart” are trademarks of Victron Energy B.V., used only to describe compatibility.</div>
       <div class="links">
         <a class="lnk" href="https://github.com/witekin/winterdash" target="_blank" rel="noopener noreferrer">GitHub</a>
@@ -436,7 +488,15 @@
     </div>
   </details>
 
-  <div class="foot"><b class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></b> · <span id="footHost">winterdash-a1b2c3.local</span></div>
+  <div class="foot"><a class="wmlnk" href="https://witekin.github.io/winterdash/" target="_blank" rel="noopener noreferrer"><b class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></b></a> · <span id="footHost">winterdash-a1b2c3.local</span></div>
+</div>
+
+<div id="otaOverlay">
+  <div class="oi" id="otaIcon">⚙️</div>
+  <div class="ot" id="otaTitle">Preparing…</div>
+  <div class="obar"><i id="otaBar"></i></div>
+  <div class="os" id="otaSub"></div>
+  <button class="obtn" id="otaClose" type="button" hidden>Reload page</button>
 </div>
 
 <script>
@@ -457,43 +517,70 @@
   // ---- live data via web_server SSE ----
   // el (status elapsed) and age (BLE freshness) come from the ESP, so the web
   // mirrors the device instead of timing on its own.
-  const M={v:0,i:0,pw:0,t:0,raw:'',err:'',stat:'',snote:'',rssi:null,brssi:null,ssid:'',ipaddr:'',ha:false,el:null,age:null,offel:null,demo:false,
-    dmode:'',tunit:'C',dimto:null,retto:null,dimlv:null,blv:null,prof:'12V Normal',tz:'',mac:'',keyset:false,scanjson:'',clog:'',bp:'',fwver:'dev',fwbuild:'',host:'',heap:null};
+  const M={v:0,i:0,t:0,raw:'',err:'',stat:'',snote:'',rssi:null,brssi:null,ssid:'',ipaddr:'',ha:false,el:null,age:null,offel:null,demo:false,   // pw dropped: off SSE (bat_power internal:), render derives pw=v*i
+    dmode:'',tunit:'C',prof:'12V Normal',tz:'',mac:'',keyset:false,scanjson:'',clog:'',bp:'',fwver:'dev',fwbuild:'',host:'',heap:null,ptype:-1};
   let lastPacket=0,curCode=-1,sinceTs=Date.now(),offSince=0,staged={},savingUntil=0,customFetched=false,selId=null,heroLockUntil=0;
-  const MAP={'sensor-battery_voltage':'v','sensor-battery_current':'i','sensor-battery_power':'pw',
-    'sensor-charger_temperature':'t','sensor-wifi_rssi':'rssi',
-    'text_sensor-device_state':'raw','text_sensor-charger_error':'err','text_sensor-ip':'ipaddr',
-    'text_sensor-status':'stat','text_sensor-status_detail':'snote',
-    'binary_sensor-demo_mode':'demo',
-    'select-device_mode':'dmode','select-temp_unit':'tunit','select-charge_profile':'prof','select-timezone':'tz',
-    'number-dim_timeout':'dimto','number-return_timeout':'retto','number-dim_level':'dimlv','number-backlight_level':'blv',
-    'text-victron_mac':'mac',
-    'select-banner_preset':'bp'};
+  // Keyed on the web_server SSE name_id (domain/Name). ESPHome 2026.8 drops the legacy `id`; onState reads
+  // name_id||id so this holds from 2026.1.3 onward. Each key MUST equal the entity's YAML name: exactly.
+  const MAP={'sensor/Battery voltage':'v','sensor/Battery current':'i',
+    'sensor/Charger temperature':'t','sensor/WiFi RSSI':'rssi',
+    'text_sensor/Device state':'raw','text_sensor/Charger error':'err','text_sensor/IP':'ipaddr',
+    'text_sensor/Status':'stat','text_sensor/Status detail':'snote',
+    'binary_sensor/Demo mode':'demo',
+    'select/Device mode':'dmode','select/Temp unit':'tunit','select/Charge profile':'prof','select/Timezone':'tz',
+    'text/Victron MAC':'mac',
+    'select/Banner preset':'bp'};
     // NOTE: several fields are NO LONGER on SSE — pulled from /wd/*.json below on their own cadence,
  // not via onState. Off SSE: BLE scan list, charger log (the big blobs that aborted the SSE
  // buffer) -> M.scanjson / M.clog. Off SSE too: firmware, hostname, SSID + diagnostics
- // (heap/uptime/reset reason) -> one /wd/info.json -> M.fw / M.host / M.ssid / M.heap. Kept on SSE:
- // IP, HA link, demo flag, WiFi RSSI, Victron RSSI (small and/or genuinely live).
- // Baked banner PNGs (data URIs); filled by esphome/tools/gen_web_banners.py.
- /* baked banners de-inlined -> served at /img/<name> (banners_baked.h) */
+ // (heap/uptime/reset reason) -> one /wd/info.json -> M.fw / M.host / M.ssid / M.heap. Off SSE too (2026-09-08):
+ // HA link + Victron RSSI + el/age/offel -> the 8s /wd/live.json poll (pollOwner). Kept on SSE (on-change, small):
+ // IP, demo flag, WiFi RSSI, voltage/current/temp, status word + detail, banner preset, the config selects.
+ /* baked banners de-inlined -> served at /img/<name> from banners_baked_<board>.h (generated by esphome/tools/gen_board_assets.py) */
   const BASE=''; // same-origin when served by the device; set to 'http://<ip>' to test from file://
-  function onState(d){const k=MAP[d.id];if(k===undefined)return;M[k]=d.value;if(k==='v')lastPacket=Date.now();render();}
+  // The SSE 'state' wrapper (connect() below) calls connOk() for EVERY frame -> transport liveness AND (since
+  // 2026-09-08) lastHeartbeat are stamped for us there; onState just fans out the on-change canonical sensors via
+  // MAP. The liveness heartbeat + the live-mirror bundle {el,age,offel,brssi,ha} + owner/uptime/lc moved OFF the
+  // SSE onto the 8s /wd/live.json poll (pollOwner) — the device no longer emits the wd_hb/wd_live beacon frames.
+  function onState(d){
+    const nid=d.name_id||d.id;
+    const k=MAP[nid];if(k===undefined)return;M[k]=d.value;if(k==='v')lastPacket=Date.now();render();
+  }
   // Page<->device link (separate from the device<->charger OFFLINE state). A silently dropped SSE stream
   // does NOT fire onerror, so we watchdog on liveness freshness. NOTE: ESPHome's web_server sends the SSE
   // "ping" only ONCE at connect (web_server_idf.cpp — not periodic), so after Phase 2 moved the frequent
   // timer/rssi sensors off SSE, a STABLE charger (canonical sensors delta-filtered, no state change) leaves
-  // the stream legitimately silent for long stretches. So freshness now counts BOTH SSE events AND a
-  // successful /wd/live.json poll (~3s) as "device reachable" (connOk in pollLive), and the threshold is 10s
-  // (> the live-poll gap) — else the old 6s watchdog false-fired + force-reconnected every ~6s on a quiet link.
-  let es=null,lastEventTs=Date.now(),connDead=false;
+  // the stream legitimately silent for long stretches (2026-09-08: the wd_hb SSE heartbeat that used to keep it
+  // ticking is gone — liveness moved to the 8s poll). freshness (connOk -> lastEventTs + lastHeartbeat) counts BOTH
+  // SSE events AND a successful slow /wd/live.json poll (8s pollOwner) as "device reachable", and the reconnect
+  // threshold is 20s (> both cadences) — else one dropped frame/poll would false-fire + force-reconnect on a quiet link.
+  let es=null,lastEventTs=Date.now(),connDead=false,lastConnectAt=0;
+  // Liveness is stamped by connOk() for EITHER transport (an SSE on-change frame OR a successful 8s /wd/live.json poll):
+  //  - lastHeartbeat -> fast-data freshness (drives the hero OFFLINE overlay + local ticking). Init non-zero so the
+  //    first render before the first frame/poll doesn't flash OFFLINE. Stamped by connOk (any transport) so a wedge
+  //    on one path alone can't false-flag offline while the other still serves.
+  //  - lastEventTs (above, via connOk) = the same "any transport" stamp -> transport liveness (drives the red banner).
+  // liveBase = the timestamp of the last /wd/live.json poll (pollOwner); render() ticks el/age/offel locally from it
+  // between polls (0 until the first poll -> no ticking of absent values). lastUptime hoisted here (pollOwner references it).
+  let lastHeartbeat=Date.now(),liveBase=0,lastUptime=null;
+  // Single-viewer boards (device sets WD_SSE_MAX_VIEWERS -> /wd/live.json carries "owner"): this tab CLAIMS
+  // ownership (GET /wd/claim bumps a device epoch); if a NEWER tab claims, our live poll sees a higher owner
+  // and we go DORMANT (drop the SSE + pollers, show a red "open elsewhere — tap to take over" bar) so our own
+  // freshness watchdog can't reconnect and thrash the device's tight heap. Uncapped boards: /wd/claim 404s,
+  // myOwner stays null, no dormancy -> unchanged multi-viewer behaviour.
+  let myOwner=null,dormant=false;
   const connBanner=document.getElementById('connLost');
+  // Show the red banner and, ONLY on the not-shown -> shown transition, scroll it into view — it sits at the top of
+  // the page, so a reader scrolled down would otherwise miss a "connection lost" / "open elsewhere" message. Idempotent
+  // (no re-scroll while already shown, so the 2s watchdog re-asserting `show` can't fight the user scrolling away).
+  function bannerShow(){ if(!connBanner.classList.contains('show')){ connBanner.classList.add('show'); try{connBanner.scrollIntoView({behavior:'smooth',block:'start'});}catch(_){} } }
   // After this long with NO liveness (neither an SSE event nor a successful /wd/live.json poll) we STOP retrying
   // and show a terminal "Connection closed — refresh" instead of an endless "reconnecting…" spinner that implies
   // imminent recovery. A device that only rebooted (incl. a watchdog self-reboot) comes back in ~45s and the SSE
   // reconnects on its own; 60s means it genuinely did NOT return (wedged / powered off / out of range) -> the
   // honest thing is to tell the human to refresh, not spin forever. (Pairs with the device-side netwatch.)
   const CONN_GIVEUP_MS=60000;
-  function connOk(){lastEventTs=Date.now();
+  function connOk(){lastEventTs=Date.now();lastHeartbeat=Date.now();   // ANY live transport (an SSE frame OR a successful /wd/live.json poll) proves the device reachable -> keeps the hero OFFLINE watchdog satisfied, so a wedge on one path alone can't false-flag offline while the other still serves
     if(connDead){                                     // a stray in-flight fetch revived us -> leave the terminal state
       connDead=false;
       connBanner.classList.remove('dead');
@@ -507,32 +594,82 @@
   }
   function connect(){
     try{if(es)es.close();}catch(_){}
-    es=new EventSource(BASE+'/events');
+    es=new EventSource(BASE+'/events');lastConnectAt=Date.now();   // stamp on EVERY reconnect path; the watchdog (582) reads it to throttle
     es.onopen=connOk;
     es.addEventListener('ping',connOk);
     es.addEventListener('state',e=>{connOk();try{onState(JSON.parse(e.data));}catch(_){}});
     es.onmessage=e=>{connOk();try{const d=JSON.parse(e.data);if(d&&d.id)onState(d);}catch(_){}};
   }
-  connect();
+  // Assert THIS tab as the owner (single-viewer boards). GET /wd/claim bumps the device epoch -> we become the
+  // latest owner. On uncapped boards it 404s -> myOwner stays null and none of the dormancy logic ever engages.
+  // If we were dormant (superseded), a successful claim wakes us: clear the bar and reopen the SSE (we own it now).
+  function claim(){
+    // Route through the single-socket serializer (wdFetch), NOT a raw fetch, so a claim never stacks a 2nd
+    // concurrent request onto the poll burst -> congestion collapse on this 1-socket board. force=true bypasses
+    // wdFetch's `dormant` guard because a claim must run precisely to take over FROM dormant (the ?t= keeps it
+    // un-deduped; wdPump has no dormant guard so it drains while the pollers stay quiet).
+    wdFetch('/wd/claim?t='+Date.now(),t=>{
+      if(!t)return; let o; try{o=JSON.parse(t);}catch(_){return;}
+      if(o.owner==null)return;                         // uncapped board -> stay in plain multi-viewer mode
+      myOwner=o.owner;
+      if(dormant){                                     // taking over from dormant -> wake up
+        dormant=false;
+        connBanner.classList.remove('show','dead','dormant');
+        connBanner.innerHTML='<span class="dotpulse"></span>Connection lost — reconnecting…';
+        if(!document.hidden)connect();
+      }
+    },true);
+  }
+  // Stand down: a NEWER tab took ownership. Drop our SSE + stop pollers (wdFetch guards on `dormant`) so we don't
+  // thrash the device's heap, and show the takeover bar. Only the user (tap) or switching back (visibilitychange)
+  // re-claims. Reuses the red banner; `dormant` (not `dead`) so the click handler re-claims instead of reloading.
+  function sleep(){
+    dormant=true;
+    try{if(es){es.close();es=null;}}catch(_){}
+    connBanner.innerHTML='<span class="dotx"></span>Paused — dashboard open on another device. Tap to take over.';
+    connBanner.classList.remove('dead');connBanner.classList.add('dormant');bannerShow();
+  }
+  // (ownership claim() on load is fired later, alongside the first pollOwner — it must run AFTER wdQ/wdFetch exist)
+  // Defer the FIRST SSE connect ~500ms so a REFRESH doesn't stack a new /events socket on top of the
+  // previous page's not-yet-torn-down one (device frees an SSE socket only on its next failed send ~1-3s;
+  // two overlapping SSE sockets + the load-burst pollers can pin ~5.7KB pbuf each and OOM this no-PSRAM
+  // board). Liveness is pre-seeded (lastEventTs/lastHeartbeat = load time) and the watchdog needs a 20s gap,
+  // so the small delay to first SSE state — and the 700ms defer of the /wd opens below — stays invisible.
+  setTimeout(connect,500);
+  // Release the SSE socket promptly when this tab is refreshed/navigated/hidden so the device frees its
+  // pbuf before the reloaded page opens a new one (pagehide fires on bfcache + mobile too; the freshness
+  // watchdog below reconnects on a bfcache restore).
+  window.addEventListener('pagehide',()=>{try{if(es){es.close();es=null;}}catch(_){}});
+  // Determinism: a BACKGROUNDED tab (switched away, not closed) keeps the SSE open but the browser
+  // throttles its event loop and STOPS DRAINING the socket -> the device's SSE send buffer fills -> ~20s of
+  // failed sends (web_server_idf MAX_CONSECUTIVE_SEND_FAILURES) before the device tears it down, pinning a web
+  // socket + churning heap meanwhile. So close the SSE when the tab hides (clean FIN -> device frees it at once)
+  // and reopen when it's shown again. The 8s pollOwner keeps liveness alive on return; connDead stays terminal.
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden){ try{if(es){es.close();es=null;}}catch(_){} }
+    else if(!connDead){ lastHeartbeat=Date.now(); liveBase=0; claim(); connect(); seedCfg(true); }   // SSE was closed while hidden -> reset heartbeat freshness (no OFFLINE flash on return) + liveBase=0 (freeze the local tick until the next /wd/live.json poll re-syncs, <=8s). Then re-claim ownership (looking at a tab = take it over) + re-seed brightness/dim from /wd/cfg.json on return — another tab may have changed it while this one was hidden (cfg is OFF SSE). seedCfg(true): force past the dormant guard, since claim's wake is async (Flow 5 review #1)
+  });
   setInterval(()=>{
+    if(document.hidden)return;                         // hidden tab: the SSE is intentionally closed -> don't count the gap toward the terminal state, and don't reopen while hidden (visibilitychange reopens on return)
     if(connDead)return;                               // terminal: stop reconnecting; wait for a manual refresh
+    if(dormant)return;                                // superseded by a newer tab: stay quiet -> no watchdog reconnect (would evict the new owner + thrash); user taps/switches back to take over
     const gap=Date.now()-lastEventTs;
     if(gap>CONN_GIVEUP_MS){                            // device didn't come back -> honest terminal state, stop polling
       connDead=true;
       if(es){try{es.close();}catch(_){}es=null;}
       connBanner.innerHTML='<span class="dotx"></span>Connection closed — tap or refresh to reconnect.';
-      connBanner.classList.add('show','dead');
+      connBanner.classList.add('dead');bannerShow();
       return;
     }
-    if(gap>10000){connBanner.classList.add('show');connect();}
+    if(gap>20000){bannerShow();if(Date.now()-lastConnectAt>5000)connect();}   // 20s > the 8s /wd/live.json poll (the sole periodic liveness signal now that the SSE beacon is gone) so two dropped polls can't false-fire; throttle >5s between close/reopen so the ESP frees the old SSE socket first (no 2 pinned pbufs); event-driven reconnects (show/save/uptime) fire immediately
   },2000);
-  connBanner.addEventListener('click',()=>{if(connDead)location.reload();});
+  connBanner.addEventListener('click',()=>{if(dormant){claim();}else if(connDead){location.reload();}});
   function svgIc(d){return '<svg class="ic" viewBox="0 0 24 24" style="width:17px;height:17px;display:inline-block;vertical-align:-3px;margin-right:4px"><path d="'+d+'"/></svg>';}
   function fmtDur(s){s=Math.max(0,Math.floor(s));if(s<60)return s+'s';if(s<3600)return Math.floor(s/60)+'m';return Math.floor(s/3600)+'h '+String(Math.floor((s%3600)/60)).padStart(2,'0')+'m';}
 
   function render(){
     const raw=String(M.raw||'').toLowerCase();
-    const v=+M.v||0,i=+M.i||0,pw=+M.pw||0,t=+M.t||0;
+    const v=+M.v||0,i=+M.i||0,pw=v*i,t=+M.t||0;  // power derived client-side (bat_power is internal, off SSE)
     // charge profile → expected windows / axis / redlines (mirrors the device)
     const prof=M.prof||'12V Normal';const sc=prof.indexOf('24V')===0?2:1;
     const li=prof.indexOf('Li-ion')>=0,hi=prof.indexOf('High')>=0;
@@ -541,22 +678,33 @@
     // VMIN below redLo so the <10.5V low-danger band has visible width (was ==redLo -> collapsed).
     // VMAX unchanged (9.5 + 6 = 15.5). Mirrors the device axis.
     const VMIN=9.5*sc,VSPAN=6*sc;const px=x=>Math.max(0,Math.min(100,(x-VMIN)/VSPAN*100));
-    // device-authoritative BLE age (falls back to page proxy until first received)
-    const devAge=(M.age!=null&&M.age!=='')?+M.age:null;
-    // A fresh SSE voltage frame proves ONLINE immediately. M.age now comes from the 10s /wd/info.json poll
-    // (Phase 2), so without this fast-path a mode switch / charger-coming-online would show "Waiting" for up
-    // to the poll interval even while voltage frames already arrive. lastPacket is set on every 'v' frame.
+    // device-authoritative BLE age (falls back to page proxy until first received). Tick it locally from the last
+    // /wd/live.json poll (liveBase) so the counter advances every 1s between ~8s polls; the -1 sentinel
+    // (no BLE contact / never) is passed through UNTICKED so `devAge<0` stays a valid never-signal.
+    const dt=(liveBase>0)?(Date.now()-liveBase)/1000:0;
+    const rawAge=(M.age!=null&&M.age!=='')?+M.age:null;
+    const devAge=(rawAge==null)?null:(rawAge>=0?rawAge+dt:rawAge);
+    // A fresh SSE voltage frame proves ONLINE immediately. M.age now rides the 8s /wd/live.json poll, so without
+    // this fast-path a mode switch / charger-coming-online would show "Waiting" for up to the poll interval even
+    // while voltage frames already arrive. lastPacket is set on every 'v' frame.
     const pktAge=(lastPacket>0)?(Date.now()-lastPacket)/1000:Infinity;
     const fresh=pktAge<=TIMEOUT;                                          // recent packet -> definitely online
     const age=(devAge!=null&&devAge>=0)?devAge:(lastPacket>0?pktAge:-1);
     // offline only if NEITHER a recent packet NOR a fresh device age (device age covers stable-voltage
     // silence: no 'v' frame arrives but BLE contact continues). never = no packet ever + device says never.
-    const offline=!fresh&&((devAge!=null)?(devAge<0||devAge>TIMEOUT):((lastPacket===0)||(age>TIMEOUT)));
+    // OR in hbMissing — a cratered/powered-off/out-of-range device stops answering the 8s /wd/live.json poll (and
+    // emits no SSE frames), so lastHeartbeat goes stale and a frozen-fresh devAge (e.g. stuck at 2s) can no longer
+    // mask it as online. Post-2026-09-08 lastHeartbeat is stamped by connOk on EITHER transport (SSE frame or poll);
+    // HB_OFFLINE=28 gives a 2-poll tolerance (24s gap < 28) so two dropped polls on a silent-SSE link don't
+    // false-flag OFFLINE, tripping only on the 3rd (~32s). Genuine-death detection at ~28s (the red banner is 60s).
+    const HB_OFFLINE=28;
+    const hbMissing=(Date.now()-lastHeartbeat)/1000>HB_OFFLINE;
+    const offline=hbMissing||(!fresh&&((devAge!=null)?(devAge<0||devAge>TIMEOUT):((lastPacket===0)||(age>TIMEOUT))));
     const never=!fresh&&((devAge!=null&&devAge<0)||(devAge==null&&lastPacket===0));
     const D='—';
     // Offline duration is ESP-authoritative (sensor-offline_elapsed) so TTGO + web agree;
     // fall back to page-local timing only until the first value arrives.
-    const devOff=(M.offel!=null&&M.offel!=='')?+M.offel:null;
+    const devOff=(M.offel!=null&&M.offel!=='')?(+M.offel>=0?+M.offel+dt:+M.offel):null;   // Flow 4: tick locally (sentinel -1 untouched)
     if(offline){if(!offSince)offSince=Date.now();}else offSince=0;
     const offDur=(devOff!=null&&devOff>=0)?devOff:(offSince?(Date.now()-offSince)/1000:0);
 
@@ -580,7 +728,7 @@
 
     if(code!==curCode){curCode=code;sinceTs=Date.now();}
     // status elapsed from the ESP (falls back to page timing until first received)
-    const elapsed=(M.el!=null&&M.el!==''&&+M.el>=0)?fmtDur(+M.el):fmtDur((Date.now()-sinceTs)/1000);
+    const elapsed=(M.el!=null&&M.el!==''&&+M.el>=0)?fmtDur(+M.el+dt):fmtDur((Date.now()-sinceTs)/1000);   // +dt ticks locally between ~8s polls
 
     let vcol=C.neutral;
     if(offline)vcol=C.grey;
@@ -669,6 +817,9 @@
     {const v=document.getElementById('fwVer'),b=document.getElementById('fwBuild');if(v)v.textContent=M.fwver||'dev';if(b){const m=String(M.fwbuild||'').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);b.textContent=m?(m[1]+m[2]+m[3]+'_'+m[4]+m[5]+m[6]):(M.fwbuild||'');}}
     if(M.host){const a=document.getElementById('hostVal'),b=document.getElementById('footHost');if(a)a.textContent=M.host;if(b)b.textContent=M.host;}
     {const h=+M.heap,el=document.getElementById('heapVal');if(el)el.textContent=(M.heap!=null&&M.heap!==''&&isFinite(h))?(Math.round(h/1024)+' KB'):'—';}
+    // Uptime: lastUptime (seconds) — from the 8s /wd/live.json poll (pollOwner).
+    // Same rounding as the CYD on-screen formatter (s < 60s, m < 1h, "Xh MMm" < 1d, else "Xd Yh").
+    {const el=document.getElementById('upVal'),u=lastUptime;if(el)el.textContent=(u==null)?'—':(u<60?(u|0)+'s':u<3600?((u/60)|0)+'m':u<86400?(((u/3600)|0)+'h '+String(((u%3600)/60)|0).padStart(2,'0')+'m'):(((u/86400)|0)+'d '+(((u%86400)/3600)|0)+'h'));}
     // Banner hero: selection is INSTANT + device-authoritative (not staged). Baked preset =
     // a left-anchored cut-out fetched from /img/<name>; Custom = the selected user slot's full WebP
     // (fills the hero), fetched by id through the serial gallery queue and cached.
@@ -676,12 +827,10 @@
     if(carImg){
       const bp=M.bp;   // baked preset name (Battery/Sedan/…/Boat) or 'Custom' (undefined until first SSE)
       if(bp && BAKED.includes(bp)){
-        carImg.classList.remove('full');carImg.parentElement.classList.remove('full');
         carImg.src=BASE+'/img/'+encodeURIComponent(bp);
       }else if(bp==='Custom'){
         // custom is now a tight CUT-OUT -> render like baked (left cut-out, status to the right),
         // NOT full-width (that stretched it + the status overlapped the subject).
-        carImg.classList.remove('full');carImg.parentElement.classList.remove('full');
         if(selId!=null && fullCache.has(selId))carImg.src=fullCache.get(selId);
         else{carImg.removeAttribute('src');
           if(selId!=null)ensureFull(selId);                // fetch the selected slot's hero WebP
@@ -689,7 +838,7 @@
         }
       }else carImg.removeAttribute('src');                 // unknown yet -> no wrong flash
     }
-    markOn();syncSettings();renderScanList();renderCharLog();
+    markOn();syncSettings();renderScanList();renderCharLog();tickClogAgo();
   }
 
   // wifi bars (colored in render) + clock
@@ -701,6 +850,13 @@
   })();
 
   // ---- Settings form: POST to web_server REST (?...&body), reflect state via SSE ----
+  // ESPHome 2026.7 dropped object_id URLs -> web_server matches the entity NAME: POST /<domain>/<Name>/<action>
+  // (Name URL-encoded; device url-decodes the path). ENAME = the SINGLE source of truth for the writable
+  // entities' names (staged/object-id key -> YAML name: EXACTLY, case+spaces). Grep ENAME on any rename.
+  const ENAME={device_mode:'Device mode',banner_preset:'Banner preset',temp_unit:'Temp unit',
+    charge_profile:'Charge profile',timezone:'Timezone',victron_mac:'Victron MAC',
+    restart:'Restart',reset_wifi:'Reset WiFi',factory_reset:'Factory reset',ble_scan_clear:'BLE scan clear'};
+  const EN=k=>encodeURIComponent(ENAME[k]);   // name segment for a REST URL
   function post(url){return fetch(BASE+url,{method:'POST'}).catch(()=>{});}
   // Hold-to-confirm gate (client-side rAF; only the final fire hits the device). Returns {reset}
   // so a caller can cancel an in-flight hold (the gallery cancels holds when the grid rebuilds).
@@ -727,14 +883,14 @@
     const msg=(t,cls)=>{if(note){note.textContent=t||'';note.className='sysnote'+(cls?' '+cls:'');}};
     const sysMsg=label=>kind=>{if(kind==='hold')msg('Keep holding '+label+'…');else msg('Cancelled — hold the full 2 seconds.');};
     holdBtn(document.getElementById('btnReboot'),document.getElementById('rbFill'),2000,
-      ()=>{post('/button/restart/press');msg('Rebooting… the page reconnects in ~30s.','warn');},sysMsg('to reboot'));
+      ()=>{post('/button/'+EN('restart')+'/press');msg('Rebooting… the page reconnects in ~30s.','warn');},sysMsg('to reboot'));
     holdBtn(document.getElementById('btnWifi'),document.getElementById('wfFill'),2000,
-      ()=>{post('/button/reset_wifi/press');msg('Restarting into Wi-Fi setup — join the "WinterDashAP" network, then open 192.168.4.1.','warn');},sysMsg('to reset Wi-Fi'));
+      ()=>{post('/button/'+EN('reset_wifi')+'/press');msg('Restarting into Wi-Fi setup — join the "WinterDashAP" network, then open 192.168.4.1.','warn');},sysMsg('to reset Wi-Fi'));
     holdBtn(document.getElementById('btnFactory'),document.getElementById('facFill'),2000,
-      ()=>{post('/button/factory_reset/press');msg('Factory reset — device is rebooting with default settings.','warn');},sysMsg('to erase all settings'));
+      ()=>{post('/button/'+EN('factory_reset')+'/press');msg('Factory reset — device is rebooting with default settings.','warn');},sysMsg('to erase all settings'));
   })();
-  const inBlLv=document.getElementById('inBlLv'),inDimLv=document.getElementById('inDimLv'),inDimTo=document.getElementById('inDimTo'),inRetTo=document.getElementById('inRetTo');
-  const vBlLv=document.getElementById('vBlLv'),vDimLv=document.getElementById('vDimLv'),vDimTo=document.getElementById('vDimTo'),vRetTo=document.getElementById('vRetTo');
+  const inBlLv=document.getElementById('inBlLv'),inDimTo=document.getElementById('inDimTo'),inRetTo=document.getElementById('inRetTo');
+  const vBlLv=document.getElementById('vBlLv'),vDimTo=document.getElementById('vDimTo'),vRetTo=document.getElementById('vRetTo');
   const selProf=document.getElementById('selProf');
   const selTz=document.getElementById('selTz');
   const inMac=document.getElementById('inMac'),inKey=document.getElementById('inKey'),keyState=document.getElementById('keyState');
@@ -752,26 +908,92 @@
   // (staged is declared with the top-level state so it's initialized before any render.)
   function stage(k,v){staged[k]=v;refreshSave();syncSettings();}
   // device_mode is a runtime mode, not a saved setting -> apply instantly (not staged).
-  document.querySelectorAll('#segMode button').forEach(b=>b.onclick=()=>post('/select/device_mode/set?option='+encodeURIComponent(b.dataset.v)));
+  document.querySelectorAll('#segMode button').forEach(b=>b.onclick=()=>post('/select/'+EN('device_mode')+'/set?option='+encodeURIComponent(b.dataset.v)));
   document.querySelectorAll('#segTemp button').forEach(b=>b.onclick=()=>stage('temp_unit',b.dataset.v));
-  // Sliders: live readout + stage on drag. Two coupled pairs enforce the invariants:
-  // Dim level <= Backlight level (dim can't be brighter than active)
-  // Dim after >= Auto-return (dim happens AFTER the return, so you see it returned)
+  function paintLed(v){
+    document.querySelectorAll('#segLed button').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));            // rgb: exact level
+    document.querySelectorAll('#segLedMono button').forEach(b=>b.classList.toggle('on',(+b.dataset.v>0)===(v>0)));} // mono: on/off (any level>0 = On; NVS default 2 still paints On)
+  document.querySelectorAll('#segLed button,#segLedMono button').forEach(b=>b.onclick=()=>{stage('led',+b.dataset.v);paintLed(+b.dataset.v);});   // status-LED level -> /wd/cfg 'led' (rgb 0..3 / mono 0..1)
+  function paintDim(v){document.querySelectorAll('#segDim button').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));}
+  document.querySelectorAll('#segDim button').forEach(b=>b.onclick=()=>{stage('idim',+b.dataset.v);paintDim(+b.dataset.v);});   // screen idle-dim level (OFF|LOW|MED|HIGH -> /wd/cfg 'idim')
+  // Sliders: live readout + stage on drag. Terse keys = the /wd/cfg params (bl/retto/dimto). Coupled pair:
+  //   Dim after >= Auto-return. (The dim_level% slider is retired — idle-dim is the 4-level #segDim buttons.)
   function sliderWire(el,v,id,unit,coupled){
     el.addEventListener('input',()=>{v.textContent=Math.round(+el.value)+unit;stage(id,+el.value);if(coupled)coupled();});
   }
-  sliderWire(inBlLv,vBlLv,'backlight_level','%',()=>{      // backlight drops -> dim's max follows
-    inDimLv.max=Math.round(+inBlLv.value);
-    if(+inDimLv.value>+inBlLv.value){inDimLv.value=inBlLv.value;vDimLv.textContent=Math.round(+inDimLv.value)+'%';stage('dim_level',+inDimLv.value);}
-  });
-  sliderWire(inDimLv,vDimLv,'dim_level','%');
-  sliderWire(inRetTo,vRetTo,'return_timeout','s',()=>{     // return grows -> dim-after's min follows
+  sliderWire(inBlLv,vBlLv,'bl','%');
+  sliderWire(inRetTo,vRetTo,'retto','s',()=>{             // return grows -> dim-after's min follows
     inDimTo.min=Math.max(10,Math.round(+inRetTo.value));
-    if(+inDimTo.value<+inRetTo.value){inDimTo.value=inRetTo.value;vDimTo.textContent=Math.round(+inDimTo.value)+'s';stage('dim_timeout',+inDimTo.value);}
+    if(+inDimTo.value<+inRetTo.value){inDimTo.value=inRetTo.value;vDimTo.textContent=Math.round(+inDimTo.value)+'s';stage('dimto',+inDimTo.value);}
   });
-  sliderWire(inDimTo,vDimTo,'dim_timeout','s');
+  sliderWire(inDimTo,vDimTo,'dimto','s');
+  function paintAuto(v){document.querySelectorAll('#segAuto button').forEach(b=>b.classList.toggle('on',+b.dataset.v===v));}
+  document.querySelectorAll('#segAuto button').forEach(b=>b.onclick=()=>{stage('auto',+b.dataset.v);paintAuto(+b.dataset.v);});
   selProf.addEventListener('change',()=>stage('charge_profile',selProf.value));
   selTz.addEventListener('change',()=>stage('timezone',selTz.value));
+  // Brightness/dim/auto seed from the custom endpoint (the internal: numbers are OFF SSE — read here on load/save/discard).
+  function seedCfg(force){
+    // Flow 5 (web-load): seed through the single-socket wdQ (was a raw parallel fetch that piled onto the ~28KB cold-load
+    // burst). `force` bypasses the dormant guard so a superseded tab that is re-focused (claim takes over) still re-seeds.
+    wdFetch('/wd/cfg.json', t=>{ if(!t)return; let o; try{o=JSON.parse(t);}catch(_){return;}
+      const sv=(el,val,unit,vspan)=>{ if(val==null||document.activeElement===el)return; el.value=val; if(vspan)vspan.textContent=Math.round(val)+unit; };
+      if(!('bl'    in staged))sv(inBlLv,o.bl,'%',vBlLv);
+      if(!('retto' in staged))sv(inRetTo,o.retto,'s',vRetTo);
+      if(!('dimto' in staged)){ if(o.retto!=null)inDimTo.min=Math.max(10,Math.round(o.retto)); sv(inDimTo,o.dimto,'s',vDimTo); }
+      if(!('auto'  in staged)&&o.auto!=null)paintAuto(o.auto?1:0);
+      if(!('led'   in staged)&&o.led!=null)paintLed(o.led);   // RGB LED level (CYD-only)
+      if(!('idim'  in staged)&&o.idim!=null)paintDim(o.idim); // screen idle-dim level (all display boards)
+    }, force);
+  }
+  // Board-adaptive: hide the whole brightness block on headless (disp=0); Auto-dim only with a light sensor (ldr=1);
+  // the idle-dim buttons only if the board reports idim=1. Flags from /gallery board:{}. Fail-safe: all hidden
+  // (markup default) until the flags arrive — a device that never reports them never reveals the section.
+  function applyBoardCaps(disp,ldr,ledtype,idim,ota){
+    const blk=document.getElementById('brightCard'),ra=document.getElementById('rowAutoDim'),re=document.getElementById('rowLed'),rdm=document.getElementById('rowDim'),sd=document.getElementById('secDisplay'),sl=document.getElementById('segLed'),sm=document.getElementById('segLedMono');
+    if(blk)blk.hidden=!disp; if(ra)ra.hidden=!(disp&&ldr); if(rdm)rdm.hidden=!(disp&&idim);
+    if(re)re.hidden=!(ledtype>0);              // Status-LED row = a LED capability, NOT gated by disp (headless has an LED, no screen)
+    if(sl)sl.hidden=!(ledtype===2);            // rgb -> 4-seg Off/Low/Med/High
+    if(sm)sm.hidden=!(ledtype===1);            // mono -> 2-seg Off/On
+    if(sd)sd.hidden=!(disp||ledtype>0);        // "Display & LED" shows if there's a screen OR a controllable LED
+    const otr=document.getElementById('otaRow'); webOtaOk=(ota===1); boardCapsIn=true; if(otr)otr.hidden=!webOtaOk; maybeCheckUpdate();   // web-OTA is a per-board capability (board:{ota}); safe-fail OFF if a board is too weak. The update-CHECK still runs on every board (boardCapsIn); only the uploader + Download CTA are gated on webOtaOk
+  }
+  // Single-open accordion at BOTH levels (one section open at a time keeps the page short, not a long ribbon):
+  // the top-level cards (Charger detail / Network / Settings / System / About) and the Settings subsections.
+  // Close the siblings on the summary CLICK — synchronously, BEFORE the browser toggles the clicked one open — not on
+  // the async 'toggle' event, which leaves the outgoing section rendered for a frame beside the incoming one (both
+  // open at once = a visible flicker / layout jump). Doing it on click collapses + expands in the same paint.
+  function accordion(sel){ document.querySelectorAll(sel).forEach(d=>{
+    const s=d.querySelector(':scope > summary'); if(!s) return;
+    s.addEventListener('click',()=>{ if(!d.open) document.querySelectorAll(sel).forEach(o=>{ if(o!==d) o.open=false; }); }); }); }
+  accordion('.app > details.card.list');
+  accordion('.set > details.subsec');
+  // When a top-level card COLLAPSES, reset its child subsections to closed — so returning to it starts clean ("state 0"),
+  // not with a subsection still expanded from before. (Runs on the hidden children; no visible flicker.)
+  document.querySelectorAll('.app > details.card.list').forEach(card=>{
+    card.addEventListener('toggle',()=>{ if(!card.open) card.querySelectorAll('details.subsec').forEach(s=>{ s.open=false; }); }); });
+  // Focus glide: after any open/close, scroll the DEEPEST currently-open section's header to the top — open a card ->
+  // its header; open a subsection -> the (deeper) subsection header; collapse it -> back up to the card header; collapse
+  // everything -> page top (the load view). One rAF-coalesced glide per action; honours prefers-reduced-motion.
+  const _rm=matchMedia('(prefers-reduced-motion: reduce)');
+  let _focusRaf=0;
+  function focusDeepest(){
+    const sub=document.querySelector('.set > details.subsec[open]');
+    const card=document.querySelector('.app > details.card.list[open]');
+    const hdr=(sub&&sub.querySelector(':scope > summary'))||(card&&card.querySelector(':scope > summary'));
+    const behavior=_rm.matches?'auto':'smooth';
+    if(hdr) hdr.scrollIntoView({block:'start',behavior});
+    else window.scrollTo({top:0,behavior});
+  }
+  function scheduleFocus(){ if(_focusRaf)cancelAnimationFrame(_focusRaf);
+    _focusRaf=requestAnimationFrame(()=>requestAnimationFrame(focusDeepest)); }   // 2× rAF: let the expanded content lay out before measuring
+  document.querySelectorAll('.app > details.card.list, .set > details.subsec').forEach(d=>{ d.addEventListener('toggle',scheduleFocus); });
+  // Demand-driven polling: the heavy tiers (log = Charger detail, info-diag = System) poll ONLY while their section
+  // is open, and stop on close. In the default (collapsed) view only the 8s /wd/live.json poll runs -> far less steady-state
+  // /wd churn (each poll's serve = 2 std::string copies) that fragments the tight 8-bit heap. Sections carry data-poll.
+  document.querySelectorAll('[data-poll]').forEach(d=>{ d.addEventListener('toggle',()=>{ const k=d.getAttribute('data-poll'); d.open?secPollStart(k):secPollStop(k); }); });
+  // seedCfg() is fired from the init block at the bottom (after wdQ/wdFetch are declared) — calling it here would
+  // hit `const wdQ` in its temporal dead zone (wdFetch reads wdQ, declared far below) -> ReferenceError aborting
+  // the whole init (claim/pollers/render never scheduled). See the init block near claim()/pollOwner().
   // ===== Banner gallery ========================================================
   // Grid built ONCE (on gallery load / after a mutation) — never in render(), which only toggles
   // .on/★ via markOn(). Selection is INSTANT + device-authoritative (it left the Save batch). EVERY
@@ -782,7 +1004,9 @@
   // older device (no board.baked field) rendering the full grid as before.
   let BAKED=['Battery','Sedan','SUV','Pickup','Van','Classic','Sports','Quad','Motorcycle','Boat'];
   let gallery=null, galHolds=[], thumbIO=null;
-  const thumbCache=new Map(), fullCache=new Map(), thumb404=new Set();
+  const thumbCache=new Map(), fullCache=new Map(), thumb404=new Set(), fullPending=new Set(), thumbPending=new Set();
+  const heroFailUntil=new Map();   // Flow 6: per-id backoff after a failed hero fetch — stop the ~1s render-driven retry storm hammering a busy/cratered device
+  const T_ABORT=5000, WD_BACKOFF=3000;   // hard-abort a wedged fetch (5s < the 20s SSE-freshness gate); /wd backoff after a slow/failed serve
   let gchain=Promise.resolve();
   function gq(fn){const p=gchain.then(()=>fn());gchain=p.then(()=>{},()=>{});return p;}
   // Decode a .wdb (WDB1 + RGB565A8 planar) to a data URL — legacy hero fallback for a bare slot-0
@@ -804,9 +1028,21 @@
         .then(ab=>{const u=wdbBufToDataURL(new Uint8Array(ab));if(u)carImg.src=u;}).catch(()=>{}));
   }
   function ensureFull(id){
-    if(fullCache.has(id))return;
-    gq(()=>fetch(BASE+'/gallery/hero?id='+id).then(r=>r.ok?r.blob():Promise.reject()))
-      .then(b=>{fullCache.set(id,URL.createObjectURL(b));render();}).catch(()=>{});
+    if(document.hidden)return;                            // Flow 6: a hidden tab must not pull the ~28KB hero (render() still ticks in the background)
+    if(fullCache.has(id) || fullPending.has(id))return;   // cached OR already in-flight -> don't re-enqueue (render() calls this every tick until it resolves)
+    if((heroFailUntil.get(id)||0) > Date.now())return;    // Flow 6: backing off after a failed fetch -> don't hammer a busy/cratered device (retry <= every WD_BACKOFF, not the ~1s render tick)
+    if(!gallery)return;                                   // index not loaded -> crc unknown; wait so we request the ?v= (immutable/disk-cacheable) URL, not the bare uncacheable one. render() retries every 1s / on next SSE state.
+    // Versioned URL: append &v=<slot crc> so the browser disk-caches the hero (server sends immutable) and a reload
+    // serves it from cache with no ESP round-trip. crc comes from the current /gallery index (read at call time, not
+    // a stale closure); a re-save changes the crc -> new URL -> one re-fetch. Falls back to the bare URL if unknown.
+    const s=(gallery.slots||[]).find(x=>x.id===id);
+    const v=(s&&s.crc)?('&v='+s.crc):'';
+    fullPending.add(id);
+    const ac=new AbortController(), tm=setTimeout(()=>ac.abort(),T_ABORT);   // a stuck hero must not wedge the gq chain
+    gq(()=>fetch(BASE+'/gallery/hero?id='+id+v,{signal:ac.signal}).then(r=>r.ok?r.blob():Promise.reject()))
+      .then(b=>{fullCache.set(id,URL.createObjectURL(b));heroFailUntil.delete(id);render();})   // Flow 6: success -> clear the backoff
+      .catch(()=>{heroFailUntil.set(id,Date.now()+WD_BACKOFF);})                                 // Flow 6: fail -> back off ~WD_BACKOFF before the next attempt (was an immediate ~1s re-enqueue)
+      .finally(()=>{clearTimeout(tm);fullPending.delete(id);});
   }
   function markOn(){
     document.querySelectorAll('#bpick .bthumb').forEach(t=>{
@@ -814,41 +1050,92 @@
       t.classList.toggle('on',!!on);
     });
   }
-  function refreshGallery(tries){
+  function refreshGallery(tries,goneId){
     tries=tries||0;
     return gq(()=>fetch(BASE+'/gallery').then(r=>r.ok?r.json():Promise.reject())).then(j=>{
+      // A just-deleted slot is erased ASYNC in the device's ~500ms housekeeping, so an immediate GET can still
+      // report it used -> wait until it's actually gone (bounded) instead of rebuilding a ghost tile.
+      if(goneId!=null && (j.slots||[]).some(x=>x.id===goneId) && tries<8){
+        return new Promise(r=>setTimeout(r,600)).then(()=>refreshGallery(tries+1,goneId)); }
       gallery=j; thumb404.clear();
       if(j.board&&Array.isArray(j.board.baked)&&j.board.baked.length)BAKED=j.board.baked;   // per-board baked set (else keep the full-list default)
+      if(j.board)applyBoardCaps(j.board.disp!==0, j.board.ldr===1, (j.board.ledtype||0), j.board.idim===1, (j.board.ota===1?1:0));   // caps -> show/hide brightness+LED rows (ledtype 0none/1mono/2rgb) + the web-OTA feature (board:{ota})
       const s=(j.slots||[]).find(x=>x.sel); selId=s?s.id:null;
       buildGrid(); render();
-    }).catch(()=>{ if(tries<10) setTimeout(()=>refreshGallery(tries+1), 1500); });  // device still booting/saving -> retry (no manual F5)
+    }).catch(()=>{ if(tries<10) setTimeout(()=>refreshGallery(tries+1,goneId), 1500); });  // device still booting/saving -> retry (no manual F5)
   }
-  // Hero-change cooldown (~5s): the FIRST click applies instantly; further clicks are dropped until the
-  // lock lifts, so a rapid banner-burst can't storm the device with full-screen redraws (WDT repro).
-  const HERO_COOLDOWN_MS=5000;
-  function lockHero(){ const g=document.getElementById('bpick'); if(!g)return; g.classList.add('applying');
-    setTimeout(()=>g.classList.remove('applying'),HERO_COOLDOWN_MS); }
+  // Hero-change lock: the FIRST click applies instantly, then the picker shows the busy overlay and further
+  // clicks are DROPPED until the device CONFIRMS the change landed (poll /gallery: a custom shows its slot
+  // sel, a baked clears the sel) — snappy when quick, honest when slow, and still serialized so a rapid
+  // banner-burst can't storm the device with overlapping full-screen redraws (the WDT repro): each apply
+  // waits for the previous render to finish. MIN floor = a minimal rate cap + no flicker; MAX ceiling lifts
+  // the lock even if no confirm arrives (device slow/offline) — same fallback the old blind cooldown gave.
+  const HERO_LOCK_MIN=800, HERO_LOCK_MAX=5000;
+  function applyLock(isDone){
+    const g=document.getElementById('bpick'); if(g)g.classList.add('applying');
+    const t0=Date.now(); heroLockUntil=t0+HERO_LOCK_MAX;
+    const unlock=()=>{ heroLockUntil=0; if(g)g.classList.remove('applying'); };
+    const poll=()=>{
+      if(Date.now()-t0>=HERO_LOCK_MAX){ unlock(); return; }               // ceiling: stop waiting, lift anyway
+      gq(()=>fetch(BASE+'/gallery').then(r=>r.ok?r.json():Promise.reject())).then(j=>{
+        if(isDone(j.slots||[])){ const rem=HERO_LOCK_MIN-(Date.now()-t0); rem>0?setTimeout(unlock,rem):unlock(); }
+        else setTimeout(poll,450);
+      }).catch(()=>setTimeout(poll,600));
+    };
+    setTimeout(poll,450);
+  }
+  // Poll /gallery until isDone(slots) (bounded ~3s) then cb() — used to sequence a hero swap before an erase.
+  function waitGallery(isDone,cb,tries){
+    tries=tries||0;
+    gq(()=>fetch(BASE+'/gallery').then(r=>r.ok?r.json():Promise.reject())).then(j=>{
+      if(isDone(j.slots||[])||tries>=7) cb();
+      else setTimeout(()=>waitGallery(isDone,cb,tries+1),400);
+    }).catch(()=>{ if(tries<7) setTimeout(()=>waitGallery(isDone,cb,tries+1),600); else cb(); });
+  }
   function selectBaked(name){ if(Date.now()<heroLockUntil)return; if(M.bp===name)return;
-    heroLockUntil=Date.now()+HERO_COOLDOWN_MS; lockHero();
-    M.bp=name; selId=null; markOn(); render(); post('/select/banner_preset/set?option='+encodeURIComponent(name)); }
+    M.bp=name; selId=null; markOn(); render(); pausePollsUntil=Date.now()+2500;
+    post('/select/'+EN('banner_preset')+'/set?option='+encodeURIComponent(name));
+    applyLock(slots=>!slots.some(x=>x.sel)); }   // baked selected -> device clears any slot sel
   function selectUser(id){ if(Date.now()<heroLockUntil)return; if(M.bp==='Custom'&&selId===id)return;
-    heroLockUntil=Date.now()+HERO_COOLDOWN_MS; lockHero();
-    M.bp='Custom'; selId=id; markOn(); render(); gq(()=>fetch(BASE+'/gallery/select?id='+id,{method:'POST'})); }
+    // A: quiet the pollers ~2.5s while the device runs the build_custom mmap render-swap (kept < the 20s freshness gate)
+    M.bp='Custom'; selId=id; markOn(); render(); pausePollsUntil=Date.now()+2500;
+    gq(()=>fetch(BASE+'/gallery/select?id='+id,{method:'POST'}));
+    applyLock(slots=>{const s=slots.find(x=>x.sel);return !!s&&s.id===id;}); }   // custom selected -> device sets this slot sel
   function toggleFav(id,on){ if(gallery){const s=(gallery.slots||[]).find(x=>x.id===id);if(s)s.fav=on;} buildGrid();
     gq(()=>fetch(BASE+'/gallery/favorite?id='+id+'&fav='+(on?1:0),{method:'POST'})); }
   function deleteSlot(id){
     if(thumbCache.has(id)){URL.revokeObjectURL(thumbCache.get(id));thumbCache.delete(id);}
     if(fullCache.has(id)){URL.revokeObjectURL(fullCache.get(id));fullCache.delete(id);}
-    gq(()=>fetch(BASE+'/gallery/delete?id='+id,{method:'POST'})).then(()=>refreshGallery());
+    fullPending.delete(id);thumbPending.delete(id);   // drop any in-flight guards for the removed id
+    const g=document.getElementById('bpick');
+    // The device erase is ASYNC (~500ms housekeeping). Drop the tile optimistically, show the same busy overlay
+    // as a hero-apply, and lift it only once the reconcile confirms the slot is actually gone (no ghost tile).
+    if(gallery&&Array.isArray(gallery.slots)){gallery.slots=gallery.slots.filter(x=>x.id!==id);gallery.next_free=id;buildGrid();render();}   // the just-freed slot is trivially free -> the + tile recovers instantly even if the /gallery refresh is lost under load
+    if(g)g.classList.add('applying');
+    const done=()=>{if(g)g.classList.remove('applying');};
+    const erase=()=>gq(()=>fetch(BASE+'/gallery/delete?id='+id,{method:'POST'})).then(()=>refreshGallery(0,id)).then(done,done);
+    // Deleting the LIVE custom slot: switch the hero to Battery FIRST and let the device settle on the baked
+    // preset (no slot sel) before erasing. Otherwise the erase makes build_custom fail on the still-selected slot
+    // -> a reactive munmap + self-heal-to-Battery fires UNDER the delete = a heap ramp (worse with HA attached).
+    // The overlay is already up, so the user never sees the intermediate step.
+    if(M.bp==='Custom' && selId===id){
+      M.bp='Battery'; selId=null; markOn(); render(); pausePollsUntil=Date.now()+3500;
+      post('/select/'+EN('banner_preset')+'/set?option=Battery');
+      waitGallery(slots=>!slots.some(x=>x.sel), ()=>setTimeout(erase,400));   // baked live + a short settle, then erase
+    } else {
+      erase();
+    }
   }
   function loadThumb(im){
     const id=+im.dataset.id;
     if(thumbCache.has(id)){im.src=thumbCache.get(id);return;}
-    if(thumb404.has(id))return;
+    if(thumb404.has(id) || thumbPending.has(id))return;   // 404'd, or already in-flight -> don't re-enqueue on a grid rebuild
+    thumbPending.add(id);
     gq(()=>fetch(BASE+'/gallery/thumb?id='+id).then(r=>r.ok?r.blob():Promise.reject(r.status)))
       .then(b=>{const u=URL.createObjectURL(b);thumbCache.set(id,u);
         const el=document.querySelector('#bpick [data-kind="user"][data-id="'+id+'"] img');if(el)el.src=u;})
-      .catch(()=>{thumb404.add(id);});
+      .catch(()=>{thumb404.add(id);})
+      .finally(()=>{thumbPending.delete(id);});
   }
   function loadBaked(im){
     if(im.src)return;const name=im.dataset.baked;
@@ -894,53 +1181,89 @@
     slots.filter(s=>s.fav).sort((a,b)=>a.id-b.id).forEach(s=>grid.appendChild(userTile(s)));
     slots.filter(s=>!s.fav).sort((a,b)=>a.id-b.id).forEach(s=>grid.appendChild(userTile(s)));
     BAKED.forEach(n=>grid.appendChild(bakedTile(n)));
+    // The + tile ALWAYS shows (inviting — doesn't scare on open). When storage is full, a click doesn't navigate to
+    // the converter: it flips the tile to an honest "no room, delete one" message for a few seconds, then back to +.
     const nt=document.createElement('a');nt.className='bthumb newtile';nt.href='/convert';nt.title='Make a new banner';nt.innerHTML='<span>+</span>';
+    if(gallery&&gallery.next_free<0){
+      nt.addEventListener('click',e=>{ e.preventDefault();
+        if(nt.classList.contains('full'))return;                                   // already showing the message
+        nt.classList.add('full');nt.innerHTML='<span class="nftxt">Memory full<br><small>delete a banner to add</small></span>';
+        setTimeout(()=>{ nt.classList.remove('full');nt.innerHTML='<span>+</span>'; },4000); });   // revert to the +
+    }
     grid.appendChild(nt);
     markOn();observeThumbs();
   }
+  // MAC smart-input: accept the Victron-app format (a4cf12345678) OR colons/spaces/hyphens, normalize to the readable
+  // ESP-native A4:CF:12:34:56:78 (paste from either works). The ESP always gets/keeps colon-uppercase — www translates.
+  function normMac(s){const h=(s||'').replace(/[^0-9a-fA-F]/g,'').slice(0,12).toUpperCase();return h.replace(/(.{2})(?=.)/g,'$1:');}
   inMac.addEventListener('input',()=>{
-    stage('victron_mac',inMac.value.trim());
-    // a different MAC = a different device = a different key -> force re-entry
-    if(inMac.value.trim()!==(M.mac||'')){inKey.value='';stage('victron_bindkey','');}
+    const f=normMac(inMac.value);
+    if(f!==inMac.value)inMac.value=f;                          // reformat in place (paste of app-format -> colons)
+    stage('victron_mac',f);
+    if(f!==normMac(M.mac||'')){inKey.value='';stage('victron_bindkey','');}   // different MAC = different device -> re-enter key
     pairVal();
   });
   inKey.addEventListener('input',()=>{stage('victron_bindkey',inKey.value.trim());pairVal();});
-  // Clear goes through the same Save flow as everything else (no instant NVS write).
-  document.getElementById('btnClearPair').onclick=()=>{
-    inMac.value='';inKey.value='';stage('victron_mac','');stage('victron_bindkey','');pairVal();
-  };
+  // Clear pairing = HOLD-to-confirm (like the System reboot/factory), and it writes empties DIRECTLY to the device
+  // (not via the Save flow) — hold the full 2s to erase the stored MAC + key.
+  holdBtn(document.getElementById('btnClearPair'),document.getElementById('clrFill'),2000,()=>{
+    inMac.value='';inKey.value='';delete staged.victron_mac;delete staged.victron_bindkey;
+    post('/text/'+EN('victron_mac')+'/set?value=');post('/wd/bindkey?value=');
+    pairVal();refreshSave();
+  });
   // ---- BLE scan list (from text_sensor-ble_scan JSON) ----
-  const scanList=document.getElementById('scanList'),btnVicOnly=document.getElementById('btnVicOnly'),pairChip=document.getElementById('pairChip');
-  let lastScan='@',vicOnly=false,scanUntil=0;   // scanUntil mirrors the device's 60s scan window
-  btnVicOnly.onclick=()=>{vicOnly=!vicOnly;btnVicOnly.classList.toggle('on',vicOnly);lastScan='@';renderScanList();};
+  const scanList=document.getElementById('scanList'),pairChip=document.getElementById('pairChip');
+  let lastScan='@',showAll=false,scanUntil=0;   // Victron-only by default; a "Show all" link (only when no Victron found) reveals the rest. scanUntil mirrors the device's 20s scan window
+  // Victron record_type -> role. Pairable in v1 = Charger (Solar/AC) + Monitor; other KNOWN types are shown but not selectable.
+  const RT_PAIR={1:'Solar Charger',2:'Battery Monitor',8:'AC Charger'};
+  const RT_SEEN={4:'DC/DC Converter',9:'Smart Battery Protect',15:'Orion XS'};
+  function roleInfo(rt){rt=+rt||0;
+    if(!rt)return{label:'Victron',pairable:true,known:false};                 // type not decoded yet (transient) -> allow pairing
+    if(RT_PAIR[rt])return{label:RT_PAIR[rt],pairable:true,known:true};
+    if(RT_SEEN[rt])return{label:RT_SEEN[rt],pairable:false,known:true};
+    return{label:'Victron (0x'+rt.toString(16).toUpperCase()+')',pairable:false,known:true};
+  }
   function escHtml(s){const p=document.createElement('span');p.textContent=s;return p.innerHTML;}
-  function pickDevice(mac){inMac.value=mac;stage('victron_mac',mac);inKey.value='';stage('victron_bindkey','');pairVal();}
+  function pickDevice(mac){const f=normMac(mac);inMac.value=f;stage('victron_mac',f);inKey.value='';stage('victron_bindkey','');pairVal();}
   function renderScanList(){
     if(M.scanjson===lastScan)return;lastScan=M.scanjson;
-    let arr=[];try{arr=JSON.parse(M.scanjson||'[]');}catch(_){}
-    if(vicOnly)arr=arr.filter(d=>d.v);
+    let all=[];try{all=JSON.parse(M.scanjson||'[]');}catch(_){}
+    const vic=all.filter(d=>d.v), other=all.length-vic.length, arr=showAll?all:vic, active=Date.now()<scanUntil;
     if(!arr.length){
-      const active=Date.now()<scanUntil;   // 3-state: scanning (window open) / idle (tap Rescan)
-      scanList.innerHTML = active
-        ? '<div class="scanstatus scanning"><span class="spin"></span>Rescan in progress…'+(vicOnly?' (Victron only)':'')+'</div>'
-        : '<div class="scanstatus">'+(vicOnly?'No Victron devices in range.':'Tap Rescan to search')+'<span class="scansub">move the device closer to the charger if nothing shows</span></div>';
+      if(active){scanList.innerHTML='<div class="scanstatus scanning"><span class="spin"></span>Scanning…'+(other?'<span class="scansub">'+other+' Bluetooth device'+(other>1?'s':'')+' found, no Victron yet</span>':'')+'</div>';return;}   // live count -> the no-Victron case doesn't look frozen for the full window
+      if(showAll){scanList.innerHTML='<div class="scanstatus">No Bluetooth devices found<span class="scansub">move the device closer to the charger</span></div>';return;}
+      scanList.innerHTML='<div class="scanstatus">'+(other
+        ? ('Found '+other+' Bluetooth device'+(other>1?'s':'')+', none are Victron.<span class="scansub">Not your charger? <span class="lnk" id="lnkAll">Show all devices</span></span>')
+        : 'Tap Rescan to search<span class="scansub">move the device closer to the charger if nothing shows</span>')+'</div>';
+      const la=document.getElementById('lnkAll');if(la)la.onclick=()=>{showAll=true;lastScan='@';renderScanList();};
       return;
     }
     scanList.innerHTML='';
-    arr.forEach(d=>{const row=document.createElement('div');row.className='scanrow'+(d.v?' vic':'');
+    arr.forEach(d=>{
+      const ri=d.v?roleInfo(d.rt):null, pairable=d.v?ri.pairable:true;   // non-Victron rows stay selectable (manual MAC); only KNOWN-unsupported Victron roles are gated
+      const row=document.createElement('div');row.className='scanrow'+(d.v?' vic':'')+(pairable?'':' nopair');
       const ico=d.v?'<svg class="ic" viewBox="0 0 24 24" style="width:15px;height:15px;color:var(--blue);flex:none"><path d="'+BT_ON+'"/></svg>':'';
-      row.innerHTML=ico+'<span class="nm">'+escHtml(d.name||'(no name)')+'</span>'+(d.v?'<span class="vb">Victron</span>':'')+'<span class="mc">'+escHtml(d.mac)+'</span><span class="rs">'+(+d.rssi)+' dBm</span>';
-      row.onclick=()=>pickDevice(d.mac);scanList.appendChild(row);});
+      const nameTxt=d.name||(d.v?ri.label:'(no name)');   // fallback = role label instead of "(no name)" for a Victron
+      let badge='';
+      if(d.v){ if(d.name)badge='<span class="vb'+(ri.pairable?'':' un')+'">'+escHtml(ri.label)+'</span>';   // real name present -> role as a badge beside it
+               else if(ri.known&&!ri.pairable)badge='<span class="vb un">not supported</span>'; }         // no name + unsupported -> flag it (role is already the name text)
+      row.innerHTML=ico+'<span class="nm">'+escHtml(nameTxt)+'</span>'+badge+'<span class="mc">'+escHtml(d.mac)+'</span><span class="rs">'+(+d.rssi)+' dBm</span>';
+      if(pairable)row.onclick=()=>pickDevice(d.mac);
+      scanList.appendChild(row);
+    });
   }
   document.getElementById('btnScan').onclick=()=>{
-    post('/button/ble_scan_clear/press');
-    scanUntil=Date.now()+60000;lastScan='@';renderScanList();     // open the 60s window + show "in progress"
+    post('/button/'+EN('ble_scan_clear')+'/press');
+    showAll=false;scanUntil=Date.now()+20000;lastScan='@';renderScanList();     // each scan starts Victron-only; open the 20s window (mirrors the device) + show "in progress"
     setTimeout(pollScan,600);                                     // first pull soon (don't wait for the 2s tick)
-    setTimeout(()=>{lastScan='@';renderScanList();},60600);       // flip back to idle copy when the window lapses
+    setTimeout(()=>{lastScan='@';renderScanList();},20600);       // flip back to idle / "no Victron" copy when the window lapses
   };
 
   // ---- charger event log (from text_sensor-charger_log JSON; newest-first) ----
-  let lastClog='@';
+  // Flow 1 (web-load): the device builds the log ON-CHANGE (not every 5s). The web seeds once on card-open,
+  // refetches only when the `lc` counter in /wd/live.json moves, and ticks "N ago" LOCALLY from each event's
+  // emitted `ep` (wall-clock epoch) so a quiet log needs zero polling.
+  let lastClog='@', lastLc=null, logOpen=false;
   function fmtAgo(s){s=+s||0;if(s<60)return 'just now';const m=Math.floor(s/60);if(m<60)return m+' min ago';const h=Math.floor(m/60);if(h<24)return h+' h ago';return Math.floor(h/24)+' d ago';}
   // timeline dot colour by charger state
   function clogColor(s){s=String(s||'').toLowerCase();
@@ -955,27 +1278,39 @@
     let o={};try{o=JSON.parse(M.clog||'{}');}catch(_){}
     const arr=(o&&o.e)||[],more=(o&&+o.more)||0;
     if(!arr.length){box.innerHTML='<div class="clog-empty">No events yet</div>';return;}
+    const nowS=Date.now()/1000;
     let html=arr.map(e=>{
-      const ago=fmtAgo(e.ago);
+      const ep=+e.ep||0;
+      const ago=fmtAgo(ep>0?Math.max(0,Math.floor(nowS-ep)):(+e.ago||0));   // known ep -> ticked locally; pre-SNTP (ep 0) -> the device's frozen `ago`
       // With a wall clock: state + "N ago" under it on the left; time over date on the right.
       // Pre-SNTP (no e.t): state only on the left, "N ago" as the right-hand value (no bogus date).
-      const left=e.t?('<div><div class="s">'+escHtml(e.s)+'</div><div class="ago">'+escHtml(ago)+'</div></div>')
+      // data-ep lets tickClogAgo() re-tick "N ago" every second without a device rebuild (Flow 1).
+      const left=e.t?('<div><div class="s">'+escHtml(e.s)+'</div><div class="ago" data-ep="'+ep+'">'+escHtml(ago)+'</div></div>')
                     :('<div><div class="s">'+escHtml(e.s)+'</div></div>');
       const right=e.t?('<div class="tw"><div class="tm">'+escHtml(e.t)+'</div>'+(e.d?'<div class="dt">'+escHtml(e.d)+'</div>':'')+'</div>')
-                     :('<div class="tw"><div class="tm">'+escHtml(ago)+'</div></div>');
+                     :('<div class="tw"><div class="tm" data-ep="'+ep+'">'+escHtml(ago)+'</div></div>');
       return '<div class="e" style="--dc:'+clogColor(e.s)+'">'+left+right+'</div>';
     }).join('');
-    // Honest truncation marker: the ring only keeps the last 8, so once older events are
+    // Honest truncation marker: the ring only keeps the last 6, so once older events are
     // dropped the bottom entry is NOT the start — say so instead of implying it is.
     if(more>0)html+='<div class="more">'+more+' earlier event'+(more>1?'s':'')+' not kept</div>';
     box.innerHTML=html;
+  }
+  // Flow 1: re-tick each row's "N ago" locally every second from its data-ep, so the device needn't rebuild.
+  function tickClogAgo(){
+    const box=document.getElementById('clog');if(!box)return;
+    const now=Date.now()/1000;
+    box.querySelectorAll('[data-ep]').forEach(el=>{
+      const ep=+el.getAttribute('data-ep');if(!ep)return;   // 0 = pre-SNTP -> leave the device's frozen text
+      el.textContent=fmtAgo(Math.max(0,Math.floor(now-ep)));
+    });
   }
   function refreshSave(){
     if(savingUntil>Date.now()){btnSave.disabled=true;btnDiscard.disabled=true;btnSave.textContent='Saving…';setNote.textContent='';return;}
     const n=Object.keys(staged).length;btnSave.disabled=!n;btnDiscard.disabled=!n;btnSave.textContent=n?'Save changes':'Saved';setNote.textContent=n?'Unsaved changes':'';
   }
   // Discard: drop all staged edits and snap every control back to the device state.
-  btnDiscard.onclick=()=>{if(btnDiscard.disabled)return;staged={};inKey.value='';pairVal();refreshSave();syncSettings();render();};
+  btnDiscard.onclick=()=>{if(btnDiscard.disabled)return;staged={};inKey.value='';pairVal();refreshSave();syncSettings();seedCfg();render();};
   btnSave.onclick=()=>{
     if(btnSave.disabled)return;            // soft guard: ignore rapid re-clicks
     // Pause /events for the save window: a settings POST triggers a device apply + an LVGL redraw; on this
@@ -983,18 +1318,24 @@
     // small LVGL glyph-buffer alloc (from the shared system heap — LVGL has no fallback) -> task_watchdog.
     // Closing /events drops the SSE leg during the save; we reconnect after the save lock. (deep-research )
     if(es){es.close();es=null;}
+    // Brightness/dim/auto-dim -> ONE batched write to the custom /wd/cfg (these are internal: entities, off /number/set).
+    { const cfg=[]; for(const k of ['bl','dimto','retto','auto','led','idim'])if(k in staged)cfg.push(k+'='+staged[k]);
+      if(cfg.length)post('/wd/cfg?'+cfg.join('&')); }
     for(const k in staged){
-      if(k==='temp_unit'||k==='charge_profile'||k==='timezone')post('/select/'+k+'/set?option='+encodeURIComponent(staged[k]));
-      else if(k==='victron_mac')post('/text/victron_mac/set?value='+encodeURIComponent(staged[k]));
+      if(k==='bl'||k==='dimto'||k==='retto'||k==='auto'||k==='led'||k==='idim')continue;   // handled by /wd/cfg above (no /number route)
+      if(k==='temp_unit'||k==='charge_profile'||k==='timezone')post('/select/'+EN(k)+'/set?option='+encodeURIComponent(staged[k]));
+      else if(k==='victron_mac')post('/text/'+EN('victron_mac')+'/set?value='+encodeURIComponent(staged[k]));
       else if(k==='victron_bindkey')post('/wd/bindkey?value='+encodeURIComponent(staged[k]));  // Phase 3: write-only endpoint (value never streams back)
-      else post('/number/'+k+'/set?value='+staged[k]);
+      else post('/number/'+EN(k)+'/set?value='+staged[k]);
     }
-    if('victron_bindkey' in staged)M.keyset=!!staged.victron_bindkey;   // Phase 3: optimistic — keyset else only re-syncs on the 10s info.json poll
+    if('victron_bindkey' in staged)M.keyset=!!staged.victron_bindkey;   // Phase 3: optimistic — keyset else only re-syncs on the next info.json fetch (load-once / while System open / after a save)
     inKey.value='';            // never keep the secret in the field after saving
     // Soft guard: hold the button in a "Saving…" state ~1.5s so a burst of POSTs can't
     // hammer the single web connection (this board is RAM/connection-tight).
     pairVal();staged={};savingUntil=Date.now()+1500;refreshSave();setTimeout(refreshSave,1550);
-    setTimeout(connect,1600);   // reconnect SSE once the save settled (before the 6s freshness watchdog fires)
+    setTimeout(seedCfg,1600);   // re-seed sliders from the device-clamped /wd/cfg.json after the apply
+    setTimeout(pollInfo,1650);  // refresh info-once (keyset/ptype pairing state) after a save/re-key — info is no longer continuously polled
+    setTimeout(connect,1600);   // reconnect SSE once the save settled (before the 20s freshness watchdog fires)
   };
   function syncSettings(){
     document.querySelectorAll('#segMode button').forEach(b=>b.classList.toggle('on',b.dataset.v===M.dmode));
@@ -1005,24 +1346,19 @@
     if(!('charge_profile' in staged)&&M.prof&&document.activeElement!==selProf)selProf.value=M.prof;
     if(!('timezone' in staged)&&M.tz&&document.activeElement!==selTz)selTz.value=M.tz;
     // banner selection is instant + device-authoritative now -> markOn() owns the .on state (not here)
-    if(!('victron_mac' in staged)&&document.activeElement!==inMac)inMac.value=M.mac||'';
+    if(!('victron_mac' in staged)&&document.activeElement!==inMac)inMac.value=normMac(M.mac||'');
     // bindkey is write-only: never populate the field; show only set/not-set.
     const keySet=('victron_bindkey' in staged)?!!staged.victron_bindkey:!!M.keyset;
     keyState.textContent=keySet?'set':'not set';keyState.className='keyst '+(keySet?'set':'unset');
-    // collapsed-summary chip: paired = a MAC and a key are stored
+    // "show" is meaningless once a key is stored (write-only in NVS — never streams back): disable it unless the user is typing a fresh key.
+    { const off=keySet&&!inKey.value.trim(); btnEye.disabled=off; if(off&&inKey.type!=='password'){inKey.type='password';btnEye.textContent='show';} }
+    // collapsed-summary chip: paired = a MAC and a key are stored. When the device type is known (persisted
+    // record_type via /wd/info.json ptype), show the role ("AC Charger") instead of the generic "paired".
     const paired=!!(M.mac&&M.keyset);
-    pairChip.textContent=paired?'paired':'not set';pairChip.className='keyst '+(paired?'set':'unset');
-    // Sliders reflect device state (unless staged or being dragged); then apply the coupling
-    // bounds (setting max/min auto-clamps the value), then draw the readouts.
-    const setVal=(el,id,v)=>{if(!(id in staged)&&document.activeElement!==el&&v!=null&&v!=='')el.value=Math.round(+v);};
-    setVal(inBlLv,'backlight_level',M.blv);setVal(inDimLv,'dim_level',M.dimlv);
-    setVal(inRetTo,'return_timeout',M.retto);setVal(inDimTo,'dim_timeout',M.dimto);
-    if(inBlLv.value!=='')inDimLv.max=Math.round(+inBlLv.value);    // dim <= backlight
-    if(inRetTo.value!=='')inDimTo.min=Math.max(10,Math.round(+inRetTo.value));  // dim-after >= return, floor 10s
-    vBlLv.textContent=(inBlLv.value!==''?Math.round(+inBlLv.value):'—')+'%';
-    vDimLv.textContent=(inDimLv.value!==''?Math.round(+inDimLv.value):'—')+'%';
-    vRetTo.textContent=(inRetTo.value!==''?Math.round(+inRetTo.value):'—')+'s';
-    vDimTo.textContent=(inDimTo.value!==''?Math.round(+inDimTo.value):'—')+'s';
+    { const r=(paired&&+M.ptype>0)?roleInfo(M.ptype):null;
+      pairChip.textContent=paired?((r&&r.known)?r.label:'paired'):'not set';
+      pairChip.className='keyst '+(paired?'set':'unset'); }
+    // Brightness/dim sliders no longer ride SSE — they're seeded from /wd/cfg.json via seedCfg() (init + post-save + discard).
   }
 
   // Gallery: load the index once (tiny JSON — resolves the custom hero + builds the grid; thumbs
@@ -1030,9 +1366,11 @@
   // + pulse the new tile (it's already selected server-side by the converter's Save).
   (function(){
     const params=new URLSearchParams(location.search);
-    const want=params.has('banner')?+params.get('banner'):null;
+    const hm=location.hash.match(/banner=(\d+)/);   // converter returns to /#banner=N (a FRAGMENT: no cache-bust -> the page still 304s, no 44KB re-serve) — vs the old ?banner= query that forced a full 200
+    const want = hm ? +hm[1] : (params.has('banner')?+params.get('banner'):null);   // hash first, ?banner= kept as a fallback
     const sec=document.querySelector('.subsec.brand');
     if(sec)sec.addEventListener('toggle',()=>{if(sec.open)observeThumbs();});
+    // Gallery index fetched at t=0. (The Flow 5 cfg/gallery deferral A/B was a wash — stochastic cold-load variance swamped it — and was reverted; see cyd-web-load-plan.md.)
     refreshGallery().then(()=>{
       if(want!=null && gallery && (gallery.slots||[]).some(s=>s.id===want)){
         if(sec)sec.open=true;
@@ -1050,31 +1388,213 @@
 
   // ---- lazy JSON endpoints (off SSE) ----
   // These blobs no longer ride SSE (they were the >640B payloads that aborted the device's
-  // SSE buffer). The browser pulls each from /wd/*.json on its own cadence: the event log slowly;
+  // SSE buffer). The browser pulls each from /wd/*.json on its own cadence: the event log on demand (card-open + lc-change, Flow 1);
   // the scan list only while a 60s rescan window is open. Each fill reuses the existing
   // dedup-guarded render fn.
-  function wdFetch(u,cb){if(connDead)return;fetch(BASE+u,{cache:'no-store'}).then(r=>r.ok?r.text():'').then(cb).catch(()=>{});}  // connDead -> stop all polling (terminal "refresh" state)
+  // A (gallery-heap fix): a shared pause gate + auto-backoff so the pollers don't pile concurrent connections onto the
+  // single httpd worker (the set/load-burst wedge on the tight CYD). pausePollsUntil is bumped by a set/select (a quiet
+  // window for the device's render-swap) AND self-heals: a slow (>4s) or failed fetch = device busy -> skip ~one cycle.
+  // Kept < the 20s SSE-freshness threshold so a single backoff never false-trips the offline state.
+  // /wd tier request scheduler: a FIFO queue + a single drainer -> exactly ONE /wd fetch in flight at a time
+  // (single-socket backpressure), NO starvation (FIFO fairness — a poll enqueued while another is in flight simply
+  // runs next, so no phase-lock can starve the pollers), and NO pile-up (per-URL DEDUP caps the queue at
+  // the number of distinct pollers = 4: live/info/log/scan). The gallery tier has its own gq serializer; this is /wd only.
+  let pausePollsUntil=0, wdInflight=false;
+  const wdQ=[];   // [{u,cb}] — at most one entry per distinct URL (dedup)
+  function wdFetch(u,cb,force){
+    if(connDead || document.hidden || (dormant && !force)) return;   // terminal / hidden / superseded -> don't enqueue (force: a claim must run even while dormant, to take over); next interval tick re-offers
+    const ex=wdQ.find(j=>j.u===u);
+    if(ex) ex.cb=cb;                                // already queued -> replace cb with the latest value (freshness, no stacking)
+    else wdQ.push({u,cb});
+    wdPump();
+  }
+  function wdPump(){
+    if(wdInflight || connDead || Date.now()<pausePollsUntil || !wdQ.length) return;   // busy / terminal / backing off / empty
+    const job=wdQ.shift(), t0=Date.now(), ac=new AbortController();
+    const tm=setTimeout(()=>ac.abort(),T_ABORT);    // a wedged serve must not pin the slot; the abort RST frees the ESP socket fast
+    wdInflight=true;
+    try{
+      fetch(BASE+job.u,{cache:'no-store',signal:ac.signal}).then(r=>r.ok?r.text():'').then(t=>{
+        if(Date.now()-t0>4000) pausePollsUntil=Math.max(pausePollsUntil,Date.now()+WD_BACKOFF);   // slow serve -> back off one cycle (Math.max so it never SHORTENS a longer user-action pause, e.g. a delete's render-swap quiet window)
+        try{job.cb(t);}catch(_){}                   // a render exception must not wedge the drainer
+      }).catch(()=>{ pausePollsUntil=Math.max(pausePollsUntil,Date.now()+WD_BACKOFF); })   // fail/abort -> back off
+        .finally(()=>{ clearTimeout(tm); wdInflight=false; wdPump(); });   // clear + drain the next queued job (a backoff was set above -> wdPump no-ops until it lapses; the next interval tick re-pumps)
+    }catch(_){ clearTimeout(tm); wdInflight=false; wdPump(); }   // fetch() threw synchronously (near-impossible, fixed URLs) -> never wedge the drainer; re-pump so other queued jobs don't wait a cycle
+  }
   function pollLog(){wdFetch('/wd/log.json',t=>{M.clog=t;renderCharLog();});}
   function pollScan(){wdFetch('/wd/scan.json',t=>{M.scanjson=t;renderScanList();});}
   function pollInfo(){wdFetch('/wd/info.json',t=>{if(!t)return;let o;try{o=JSON.parse(t);}catch(_){return;}
     if(o.fwver!=null)M.fwver=o.fwver; if(o.fwbuild!=null)M.fwbuild=o.fwbuild;
     if(o.host!=null)M.host=o.host; if(o.ssid!=null)M.ssid=o.ssid;
     if(o.heap!=null)M.heap=o.heap; if(o.keyset!=null)M.keyset=!!o.keyset;   // slow tier: static + diag + pairing state
-    render();});}
-  // Fast-live tier (/wd/live.json, ~3s): the heartbeat + the frequently-changing mirrors. A successful fetch =
-  // device reachable -> keeps the SSE-freshness watchdog fresh even when the SSE is quiet (ESPHome sends no
-  // periodic SSE ping). uptime dropping = the device restarted (but answered) -> reconnect the SSE to re-sync.
-  let lastUptime=null;
-  function pollLive(){wdFetch('/wd/live.json',t=>{if(!t)return;connOk();let o;try{o=JSON.parse(t);}catch(_){return;}
-    if(o.el!=null)M.el=o.el; if(o.age!=null)M.age=o.age; if(o.offel!=null)M.offel=o.offel;
+    if(o.ptype!=null)M.ptype=o.ptype;   // paired device type (record_type; -1 unknown) -> the "Charger" chip shows the role
+    render(); maybeCheckUpdate();});}   // fwver now real -> the update-check can run (if the board enabled it)
+  // The 8s poll of the enriched /wd/live.json {uptime,lc[,owner],el,age,offel,brssi,ha} — since 2026-09-08 this is
+  // the SOLE source of the liveness heartbeat + the live-mirror bundle (the device no longer emits the wd_hb/wd_live
+  // SSE beacon). connOk() (top) stamps lastEventTs + lastHeartbeat -> fast-data freshness (hero OFFLINE watchdog) +
+  // transport liveness. It also: (a) re-checks ownership; (b) backstops uptime restart-detect; (c) fires the log
+  // refetch on an `lc` change (Charger card open); (d) reseeds el/age/offel/brssi/ha + liveBase, then renders. The
+  // 1s render tick advances el/age/offel locally between these 8s reseeds.
+  function pollOwner(){wdFetch('/wd/live.json',t=>{if(!t)return;connOk();let o;try{o=JSON.parse(t);}catch(_){return;}
+    if(o.owner!=null && myOwner!=null && o.owner>myOwner){ sleep(); return; }   // a strictly-newer owner epoch = another tab took over (BEFORE the mirror reseed/render below)
+    if(o.lc!=null){ if(lastLc!=null && o.lc!==lastLc && logOpen) setTimeout(pollLog,250); lastLc=o.lc; }   // charge-log changed -> refetch once (Charger card open)
+    if(o.uptime!=null){ if(lastUptime!=null&&o.uptime<lastUptime-2)connect(); lastUptime=o.uptime; }        // uptime dropped -> device restarted -> re-sync the SSE
+    if(o.el!=null)M.el=o.el; if(o.age!=null)M.age=o.age; if(o.offel!=null)M.offel=o.offel;                  // live mirror bundle (folded from the retired wd_live SSE frame)
     if(o.brssi!=null)M.brssi=o.brssi; if(o.ha!=null)M.ha=!!o.ha;
-    if(o.uptime!=null){ if(lastUptime!=null&&o.uptime<lastUptime-2)connect(); lastUptime=o.uptime; }
-    render();});}
-  pollInfo(); setInterval(pollInfo,30000);                            // static/diag/keyset — slow snapshot
-  pollLive(); setInterval(pollLive,3000);                             // fast heartbeat + live mirrors (uptime/el/age/offel/brssi/ha)
-  pollLog(); setInterval(pollLog,12000);                              // "Last Events" — near-live is plenty
+    liveBase=Date.now();                                                        // base for local el/age/offel ticking (render §) -> reset each poll
+    render();
+  });}
+  // A (gallery-heap) + Flow 4: the old page-load burst (SSE + 3 pollers + gallery hitting the single httpd worker at
+  // once, ~5 concurrent sockets x 5760B pbuf ~= the observed 28KB drop -> wedge) is now avoided WITHOUT a fixed stagger:
+  // the t=0 /wd opens are deferred 700ms (init block), the data pollers are per-section on-demand, and the wdQ FIFO
+  // keeps exactly one /wd fetch in flight.
+  // Per-section on-demand pollers (see the data-poll wiring above). log = event-driven (seed on open + on `lc` change,
+  // Flow 1); info = 5s while System open. fn() fires once immediately on open; cleared on close. Function decls are
+  // hoisted so the toggle listeners registered earlier can call these.
+  const secPollers={};
+  // 'log' is EVENT-DRIVEN (Flow 1): seed once on card-open, then refetch only when live.json's `lc` moves — no interval.
+  // 'info' keeps its 5s poll while the System section is open.
+  function secPollStart(k){ if(secPollers[k])return;
+    if(k==='log'){ logOpen=true; secPollers[k]=true; pollLog(); return; }
+    pollInfo(); secPollers[k]=setInterval(pollInfo,5000); }
+  function secPollStop(k){ if(k==='log'){ logOpen=false; secPollers[k]=null; return; }
+    if(secPollers[k]){ clearInterval(secPollers[k]); secPollers[k]=null; } }
+  // LWIP `recv_tcp: recv for wrong pcb!` guard: on a hard reload (Ctrl+Shift+R) the OLD page's pagehide->es.close()
+  // teardown and the NEW page's first /wd socket opens overlap, and on a tight heap a new socket can land on a pcb
+  // LWIP still holds in a closing state -> panic. Defer the t=0 /wd opens 700ms so they start AFTER the old page's
+  // clean FIN has drained (LAN close <100ms) and 200ms past the SSE's own connect defer (:632). claim() stays FIRST
+  // in the body so wdQ (FIFO) lands myOwner before pollOwner's first owner check. pollInfo/scan below are unaffected.
+  setTimeout(()=>{
+    claim();                                                         // claim ownership on load (single-viewer boards) — enqueue FIRST so myOwner lands before pollOwner's owner check (wdQ is a serial FIFO)
+    seedCfg();                                                       // brightness/dim seed from /wd/cfg.json (must run AFTER wdQ/wdFetch are declared — see the TDZ note at ~993)
+    pollOwner(); setInterval(pollOwner,8000);                        // the enriched /wd/live.json poll — liveness heartbeat + live mirrors + owner/uptime/lc (the sole periodic device signal; the SSE beacon is retired)
+  }, 700);
+  setTimeout(pollInfo, 1500);                                         // load-ONCE snapshot: static (fwver/host/ssid) + keyset/ptype (header) + initial diag. Re-polled while System is open + after a pairing save — NOT continuously (was a 30s interval; killed the steady-state info churn)
   setInterval(()=>{ if(Date.now()<scanUntil) pollScan(); },2000);    // only during an open rescan window
 
+  // ---- firmware update: client-side GitHub check (the DEVICE never does TLS) + web-served OTA upload ----
+  const OTA_REPO='witekin/winterdash';
+  let otaChecked=false, webOtaOk=false, boardCapsIn=false, otaExpectedSha=null, otaLatestVer='', otaLatestBare='';
+  function verParts(s){const m=String(s||'').match(/^(\d+(?:\.\d+)*)/);return m?m[1].split('.').map(Number):[0];}
+  function verGt(a,b){a=verParts(a);b=verParts(b);for(let i=0;i<Math.max(a.length,b.length);i++){const x=a[i]||0,y=b[i]||0;if(x!==y)return x>y;}return false;}
+  // "Skip this version": a per-browser dismissal (localStorage). Skipped -> hide the About badge + the update box, but KEEP the chip (click it to un-skip). Per-version: a newer release is not pre-skipped.
+  function otaSkipState(){ try{ return !!otaLatestBare && localStorage.getItem('wd_ota_skip')===otaLatestBare; }catch(_){ return false; } }
+  function applyOtaSkip(skip){
+    try{ if(skip) localStorage.setItem('wd_ota_skip', otaLatestBare); else localStorage.removeItem('wd_ota_skip'); }catch(_){}
+    const b=document.getElementById('updBadge'); if(b) b.style.display=skip?'none':'inline-block';
+    const r=document.getElementById('updRow'); if(r) r.style.display=skip?'none':'flex';
+    const p=document.getElementById('updPill'); if(p) p.title=skip?'Update skipped — click to show it again':'Click to skip this version';
+  }
+  function maybeCheckUpdate(){ if(otaChecked || !boardCapsIn || !M.fwbuild) return; otaChecked=true; checkUpdate(); }   // fire once BOTH the board caps (so webOtaOk is known) AND pollInfo's real fwver/fwbuild are in; the GitHub check itself is board-agnostic, only the CTA branches on webOtaOk
+  async function checkUpdate(){
+    try{
+      const r=await fetch('https://api.github.com/repos/'+OTA_REPO+'/releases/latest',{headers:{'Accept':'application/vnd.github+json'}});
+      if(!r.ok)return; const rel=await r.json();
+      const latest=String(rel.tag_name||'').replace(/^v/,''); if(!latest)return;
+      const fw=String(M.fwver||'dev'); const dash=fw.indexOf('-'); const board=dash<0?'':fw.slice(dash+1);
+      const cur=/^\d/.test(fw)?fw:'0';                      // dev-* -> compare as 0 (testable; only ever affects a dev board)
+      if(!verGt(latest,cur))return;                          // up to date -> no badge
+      const a=(rel.assets||[]).find(x=>board&&x.name&&x.name.startsWith(board+'-')&&x.name.endsWith('.ota.bin'));
+      const canDl=webOtaOk&&!!a&&/^https:\/\//i.test(a.browser_download_url||'');   // the guided Download->System path needs a web-OTA-capable board + an official per-board asset with a real https URL (scheme guard, defense-in-depth)
+      otaLatestVer='v'+latest; otaLatestBare=latest; otaExpectedSha=(canDl&&a.digest)?String(a.digest).replace(/^sha256:/,'').toLowerCase():null;   // published checksum for the upload guard (anti-brick); null -> skip the check (self-built / no digest)
+      const badge=document.getElementById('updBadge'); if(badge)badge.style.display='inline-block';
+      const row=document.getElementById('updRow'); if(row)row.style.display='flex';
+      const pill=document.getElementById('updPill'); if(pill){pill.textContent='v'+latest+' available'; pill.hidden=false;}   // chip lives on the Firmware row; reveal it here
+      const hint=document.getElementById('updHint'), dl=document.getElementById('updDl');
+      if(dl){
+        if(canDl){ dl.textContent='Download .ota.bin'; dl.href=a.browser_download_url; dl.setAttribute('download',''); dl.removeAttribute('target'); if(hint)hint.style.display=''; }
+        else { dl.textContent='Flash it'; dl.href='https://witekin.github.io/winterdash/'; dl.removeAttribute('download'); dl.target='_blank'; if(hint)hint.style.display='none'; }   // board too weak for web-OTA, or no per-board asset -> the USB web-flasher is the only update route
+      }
+      applyOtaSkip(otaSkipState());   // honor a prior per-browser "skip this version" (hides badge + box, keeps the chip)
+    }catch(_){}
+  }
+  // SHA-256 (pure JS: crypto.subtle is unavailable on the device's plain-http origin — insecure context). bytes:Uint8Array -> lowercase hex.
+  function sha256hex(bytes){
+    const K=[0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2];
+    const H=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+    const l=bytes.length, bitLen=l*8, withOne=l+1, k=((56-(withOne%64))+64)%64, total=withOne+k+8;
+    const m=new Uint8Array(total); m.set(bytes); m[l]=0x80;
+    const dv=new DataView(m.buffer);
+    dv.setUint32(total-8, Math.floor(bitLen/0x100000000)>>>0, false); dv.setUint32(total-4, bitLen>>>0, false);
+    const rotr=(x,n)=>(x>>>n)|(x<<(32-n)); const w=new Uint32Array(64);
+    for(let off=0;off<total;off+=64){
+      for(let i=0;i<16;i++) w[i]=dv.getUint32(off+i*4,false);
+      for(let i=16;i<64;i++){ const s0=rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>>3), s1=rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>>10); w[i]=(w[i-16]+s0+w[i-7]+s1)>>>0; }
+      let a=H[0],b=H[1],c=H[2],d=H[3],e=H[4],f=H[5],g=H[6],h=H[7];
+      for(let i=0;i<64;i++){
+        const S1=rotr(e,6)^rotr(e,11)^rotr(e,25), ch=(e&f)^(~e&g), t1=(h+S1+ch+K[i]+w[i])>>>0;
+        const S0=rotr(a,2)^rotr(a,13)^rotr(a,22), maj=(a&b)^(a&c)^(b&c), t2=(S0+maj)>>>0;
+        h=g;g=f;f=e;e=(d+t1)>>>0;d=c;c=b;b=a;a=(t1+t2)>>>0;
+      }
+      H[0]=(H[0]+a)>>>0;H[1]=(H[1]+b)>>>0;H[2]=(H[2]+c)>>>0;H[3]=(H[3]+d)>>>0;H[4]=(H[4]+e)>>>0;H[5]=(H[5]+f)>>>0;H[6]=(H[6]+g)>>>0;H[7]=(H[7]+h)>>>0;
+    }
+    return H.map(x=>('00000000'+(x>>>0).toString(16)).slice(-8)).join('');
+  }
+  // web-served OTA: validate the picked file -> (checksum guard) -> KILL all device-querying -> settle -> XHR upload to /update (same-origin) -> handle the response.
+  (function(){
+    const fileEl=document.getElementById('otaFile'), btn=document.getElementById('btnOta'), ov=document.getElementById('otaOverlay');
+    const fname=document.getElementById('otaFname'), errEl=document.getElementById('otaErr');
+    if(!fileEl||!btn||!ov)return;
+    const oi=document.getElementById('otaIcon'),ot=document.getElementById('otaTitle'),os=document.getElementById('otaSub'),bar=document.getElementById('otaBar'),closeBtn=document.getElementById('otaClose');
+    const show=(icon,title,sub)=>{oi.textContent=icon;ot.textContent=title;os.textContent=sub||'';ov.style.display='flex';};
+    const setErr=(t,ok)=>{ if(errEl){errEl.textContent=t||'';errEl.style.display=t?'block':'none';errEl.style.color=ok?'#9fb2c0':'#e0574a';} };   // ok=true -> neutral status (e.g. "Verifying…"); else a red error
+    // pick a file -> show its name + validate extension & ESP magic byte (0xE9); Update appears ONLY when the file is valid
+    fileEl.addEventListener('change',async()=>{
+      btn.hidden=true; setErr(''); const f=fileEl.files[0];
+      if(fname)fname.textContent=f?f.name:'No file chosen';
+      if(!f)return;
+      const bad=m=>{ setErr(m); fileEl.value=''; };   // clear the input so re-picking the SAME (re-downloaded) file still fires change
+      if(!/\.bin$/i.test(f.name)){ bad('Pick a firmware .bin file.'); return; }
+      try{ const head=new Uint8Array(await f.slice(0,1).arrayBuffer());
+        if(head[0]!==0xE9){ bad('Not a valid ESP firmware (.bin).'); return; }
+      }catch(_){ bad('Could not read the file.'); return; }
+      btn.hidden=false;
+    });
+    btn.addEventListener('click',async()=>{
+      const f=fileEl.files[0]; if(!f||btn.hidden)return; btn.hidden=true; setErr('');
+      const bad=m=>{ setErr(m); fileEl.value=''; };
+      // checksum guard: if the release published a per-board asset digest, the uploaded file MUST match it (anti-brick: wrong board / corrupt download). No digest -> skip (self-built / board not in the matrix). Either branch re-checks the magic byte at click time (guards a file swap after the change-time check).
+      if(otaExpectedSha){
+        setErr('Verifying checksum…', true);
+        try{ const buf=new Uint8Array(await f.arrayBuffer());
+          if(buf[0]!==0xE9){ bad('Not a valid ESP firmware (.bin).'); return; }
+          if(sha256hex(buf)!==otaExpectedSha){ bad("This file doesn't match the published "+otaLatestVer+" — re-download it."); return; }
+        }catch(_){ bad('Could not read the file.'); return; }
+        setErr('');
+      } else {
+        try{ const head=new Uint8Array(await f.slice(0,1).arrayBuffer());
+          if(head[0]!==0xE9){ bad('Not a valid ESP firmware (.bin).'); return; }
+        }catch(_){ bad('Could not read the file.'); return; }
+      }
+      connDead=true; try{if(es){es.close();es=null;}}catch(_){}   // stop ALL device-querying: wdFetch gates on connDead; es.close() FINs the SSE so the single httpd worker is free for the OTA
+      closeBtn.hidden=true; bar.style.width='0';
+      show('⏳','Preparing…','Closing connections to the device…');
+      setTimeout(()=>{                                             // settle ~1.8s: let the device reap the SSE/poller sockets BEFORE the upload (else the worker contends)
+        show('⚙️','Firmware update in progress','Do NOT close this tab. Uploading…');
+        const xhr=new XMLHttpRequest(); xhr.open('POST',BASE+'/update'); xhr.timeout=180000;
+        xhr.upload.onprogress=e=>{ if(e.lengthComputable) bar.style.width=Math.round(e.loaded/e.total*100)+'%'; };
+        xhr.onload=()=>{                                           // /update sends 200 "Update Successful!"/"Update Failed!" THEN reboots -> onload fires, parse the body
+          if(/Update Successful/i.test(xhr.responseText||'')){
+            bar.style.width='100%'; show('✅','Firmware uploaded','');
+            let left=120;                                          // live countdown of the safe rollback-quiet window (device rebooting) — we do NOT reconnect early; at 0 offer a Reload button (user-initiated)
+            (function tick(){
+              if(left<=0){ ot.textContent='Firmware ready'; os.textContent='The device should be back online — reload to reconnect.'; closeBtn.hidden=false; return; }
+              os.textContent='Do NOT unplug. The device is restarting — you can reload in '+left+'s…'; left--; setTimeout(tick,1000);
+            })();
+          }
+          else { show('❌','Update failed', String(xhr.responseText||'The device rejected the file.').slice(0,140)); closeBtn.hidden=false; }
+        };
+        xhr.onerror=()=>{ show('❌','Upload interrupted','The connection dropped during the upload — reload and try again.'); closeBtn.hidden=false; };   // device reset/closed mid-stream
+        xhr.ontimeout=()=>{ show('❌','Upload timed out','Reload and try again.'); closeBtn.hidden=false; };
+        const fd=new FormData(); fd.append('file',f,f.name); xhr.send(fd);   // handleUpload takes any file part -> XHR FormData == the native form
+      },1800);
+    });
+    closeBtn.addEventListener('click',()=>{ location.reload(); });   // revealed on failure OR at the end of the success countdown -> user-initiated reload reconnects (we never auto-reconnect during the reboot = rollback-trap)
+  })();
+  // update chip + Skip: Skip dismisses this version (badge + box hide, chip stays); clicking the chip toggles it back
+  { const pillEl=document.getElementById('updPill'), skipEl=document.getElementById('updSkip');
+    if(pillEl) pillEl.addEventListener('click',()=>applyOtaSkip(!otaSkipState()));
+    if(skipEl) skipEl.addEventListener('click',()=>applyOtaSkip(true)); }
   setInterval(render,1000); // tick age / elapsed
   render();
 </script>

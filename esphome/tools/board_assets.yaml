@@ -1,0 +1,24 @@
+# SINGLE SOURCE OF TRUTH for each board's baked banner set. Read by gen_board_assets.py, which emits every
+# derived artifact (web WebP header, on-screen preset YAML, picker package) — replacing the ~7 places the set
+# used to be hand-synced.
+#
+# Two explicit lists per board:
+#   web    - the browser picker/hero set; EVERY board serves it (headless too).
+#   screen - the on-screen LVGL bake set; screen boards only. [] = screenless (emit no on-screen files).
+# The *-asymmetry: on-screen bytes are PER-BOARD (each resizes to its own screen dims), web bytes are shared
+# (the browser scales) - so a preset's webp is board-independent; only WHICH presets differ.
+#
+# dash / saver = the on-screen bake RESIZE (w, h) - the generator's own numbers, SEPARATE from the converter
+# dims in board_*.yaml build_flags (WD_DASH_W/H). null on a screenless board.
+# budget = optional app-flash ceiling (bytes) for the baked set - guards the 4 MB slot.
+#
+# Order is CANONICAL + append-only (Battery first): the template select restores by NVS INDEX, so reordering
+# or removing a middle entry on a shipped board silently restores the wrong preset. Add new presets at the END.
+
+all: &all [Battery, Sedan, SUV, Pickup, Van, Classic, Sports, Quad, Motorcycle, Boat]
+
+boards:
+  esp32-tdisplay-16mb: {web: *all,      screen: *all,      dash: [112, 52], saver: [216, 88]}
+  esp32-tdisplay-4mb:  {web: [Battery], screen: [Battery], dash: [112, 52], saver: [216, 88], budget: 96000}
+  esp32-wroom32:       {web: *all,      screen: [],        dash: null,      saver: null}          # headless: web only
+  esp32-cyd:           {web: [Battery], screen: [Battery], dash: [174, 60], saver: [300, 132]}    # wired + HW-verified; Battery-only baked set (4MB flash-gated, app ~95%); custom hero via internal storage. NOTE: for CYD the on-screen Battery is the display_cyd.yaml `image:` (140x84); this dash dim is inert here (documents box-A) — the region BOUND is 174x96 in board_esp32_cyd.yaml

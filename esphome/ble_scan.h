@@ -3,6 +3,7 @@
 // esp32_ble_tracker on_ble_advertise trigger; exposed as JSON via a text_sensor.
 // Victron devices (manufacturer id 0x02E1) are flagged and sorted first.
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
@@ -14,8 +15,26 @@ struct Dev {
   std::string name;
   int rssi{-127};
   bool victron{false};
+  uint8_t rt{0};        // Victron record_type (device type) from the plaintext product-advertisement; 0 = unknown
   uint32_t last_ms{0};
 };
+
+// Parse the Victron manufacturer-data payload = the bytes AFTER the 0x02E1 company id (i.e. ESPHome's
+// ServiceData.data for a 0x02E1 manufacturer entry). Plaintext, no bindkey. Layout verified on 3 live IP65
+// packets (docs/internal/ble-name-type-plan.md §11.8):
+//   data[0] = 0x10 manufacturer_record_type (Product Advertisement)  <- gate on this
+//   data[1] = length
+//   data[2..3] = product_id (little-endian)
+//   data[4] = record_type (the device type)  <- what we want (0x01 Solar, 0x02 Monitor, 0x08 AC Charger, ...)
+// Returns true + fills rt/pid iff this is a readable product advertisement. The 0x02E1 company-id match is the
+// caller's job (it lives in ServiceData.uuid, not in data).
+inline bool parse_victron_header(const std::vector<uint8_t> &data, uint8_t &rt, uint16_t &pid) {
+  if (data.size() < 5 || data[0] != 0x10)
+    return false;
+  pid = (uint16_t) data[2] | ((uint16_t) data[3] << 8);
+  rt = data[4];
+  return true;
+}
 
 // Hard cap on the in-RAM device table. Pruning by age only happens in to_json() (every ~5s, 12s
 // window), so without this a burst of nearby strangers could spike heap between prunes. RAM-tight board.
@@ -34,7 +53,7 @@ inline std::map<std::string, Dev> &devices() {
 
 inline void clear() { devices().clear(); }
 
-inline void add(const std::string &mac, const std::string &name, int rssi, bool victron, uint32_t now) {
+inline void add(const std::string &mac, const std::string &name, int rssi, bool victron, uint8_t rt, uint32_t now) {
   if (rssi < RSSI_FLOOR)
     return;                              // too far for a stable link -> don't offer it for pairing
   auto &d = devices();
@@ -59,6 +78,8 @@ inline void add(const std::string &mac, const std::string &name, int rssi, bool 
   auto &dev = d[mac];
   if (!name.empty())
     dev.name = name;
+  if (rt)                                // latch the type once decoded (like the name — it may arrive on a later packet)
+    dev.rt = rt;
   dev.rssi = rssi;
   dev.victron = dev.victron || victron;
   dev.last_ms = now;
@@ -98,7 +119,7 @@ inline std::string to_json(uint32_t now, uint32_t max_age_ms, size_t cap) {
         esc += c;
     }
     out += "{\"mac\":\"" + p.first + "\",\"name\":\"" + esc + "\",\"rssi\":" + std::to_string(p.second.rssi) +
-           ",\"v\":" + (p.second.victron ? "true" : "false") + "}";
+           ",\"v\":" + (p.second.victron ? "true" : "false") + ",\"rt\":" + std::to_string(p.second.rt) + "}";
   }
   out += "]";
   return out;

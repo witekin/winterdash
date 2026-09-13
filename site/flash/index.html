@@ -253,7 +253,8 @@ async function initApp(){
   const boardSel=$('board'), verSel=$('ver');
   boardSel.add(new Option('Select your board…',''));                       // placeholder — nothing pre-picked
   for (const [id,b] of Object.entries(BOARDS)) boardSel.add(new Option(b.label, id));
-  boardSel.value='';
+  const want=new URLSearchParams(location.search).get('board');   // ?board=<id> deep-link (board cards / wiki) -> preselect
+  boardSel.value = (want && BOARDS[want]) ? want : '';
   // ONE action button, always present + right-aligned; only its label/enabled/handler change (no page jump).
   const actBtn=$('action');
   function setAction(label, enabled, fn){ actBtn.textContent=label; actBtn.disabled=!enabled; actBtn.onclick = enabled?fn:null; }

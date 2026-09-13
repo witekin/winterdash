@@ -26,7 +26,7 @@ globals:
 sensor:
   - platform: template
     id: bat_voltage
-    name: "Battery voltage"
+    internal: true   # device-only; HA/web bind to bat_voltage_pub (core.yaml), which CLEARS on a dropout (offline-stale fix 2026-09-10). The delta filter still throttles id().state for the on-device reads.
     device_class: voltage        # HA: proper unit/icon + long-term statistics
     state_class: measurement
     unit_of_measurement: "V"
@@ -36,7 +36,7 @@ sensor:
       - delta: 0.05   # producer-agnostic: only push bat_voltage on a real change (Demo + Live)
   - platform: template
     id: bat_current
-    name: "Battery current"
+    internal: true   # device-only; HA/web bind to bat_current_pub (core.yaml), which clears on a dropout
     device_class: current
     state_class: measurement
     unit_of_measurement: "A"
@@ -53,11 +53,16 @@ sensor:
     unit_of_measurement: "W"
     accuracy_decimals: 0
     update_interval: never
+    # Kept off the SSE + API. Power is exactly V*I (charger-only, i>=0) and the web computes it
+    # client-side (`pw=v*i` in dashboard.html render) — no reason to serialize a third full-rate row every tick
+    # onto the fragile SSE (it was a direct driver of the demo-mode `[E][json:111]` heap-churn). id() access
+    # (if any board reads it) is unaffected. HA loses a redundant "power" stat (derivable, not in the useful set).
+    internal: true
     filters:
       - delta: 0.5   # producer-agnostic: only push bat_power on a real change (Demo + Live)
   - platform: template
     id: charger_temp
-    name: "Charger temperature"
+    internal: true   # device-only; HA/web bind to charger_temp_pub (core.yaml), which clears on a dropout
     device_class: temperature
     state_class: measurement
     unit_of_measurement: "°C"
@@ -83,11 +88,11 @@ sensor:
 text_sensor:
   - platform: template
     id: device_state_raw
-    name: "Device state"
+    internal: true   # device-only; HA/web bind to device_state_pub (core.yaml), which clears on a dropout (the reported "HA holds stale Absorption" bug)
     update_interval: never
   - platform: template
     id: charger_error_raw
-    name: "Charger error"
+    internal: true   # device-only; HA/web bind to charger_error_pub (core.yaml), which clears on a dropout
     update_interval: never
 
 # -----------------------------------------------------------------------------
@@ -95,7 +100,9 @@ text_sensor:
 # is exercised without any interaction. Timeline is in TICK indices (0-98, so the
 # full cycle is 99 ticks = ~198s at 2s/tick — tightened from 150/300s: the steady
 # Float stretches were ~44% dead air, so they were trimmed and the marquee FAULT lengthened):
-# 0-25 BULK voltage ramps 11.2 -> 14.4 (CHARGING, yellow) 52s
+# 0-1   LOAD DETECT (IDLE, "Checking battery" hint) 4s
+# 2-3   TEST (IDLE, "Charger test" hint; 1.5A sets bat_present) 4s
+# 4-25  BULK voltage ramps 11.2 -> 14.4 (CHARGING, yellow) 44s
 # 26-41 ABSORPTION ~14.4-14.6 in window (CHARGING, green band) 32s
 # 42-50 ABSORPTION 13.9 below window (anomaly "Lower than...") 18s
 # 51-64 FLOAT ~13.7-13.8 in window (CHARGED, green) 28s
@@ -126,8 +133,14 @@ interval:
           std::string err = "No error";
           bool online = true;
 
-          if (t < 26) {                 // BULK: ramp up (52s)
-            float k = t / 26.0f;
+          if (t < 2) {                  // LOAD DETECT: charger probing for a battery (4s) -> IDLE + "Checking battery" hint
+            state = "Load detect";
+            v = 12.8f; i_bat = 0.0f; temp = 20.0f;
+          } else if (t < 4) {           // TEST: charger self-test (4s) -> IDLE + "Charger test" hint; the 1.5A also sets bat_present early, like the real charger
+            state = "Test";
+            v = 13.0f; i_bat = 1.5f; temp = 20.0f;
+          } else if (t < 26) {          // BULK: ramp up (44s)
+            float k = (t - 4) / 22.0f;
             state = "Bulk";
             v = 11.2f + k * (14.4f - 11.2f);
             i_bat = 4.9f - k * 0.9f;     // 4.9 -> 4.0

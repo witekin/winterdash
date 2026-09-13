@@ -1,0 +1,51 @@
+# =============================================================================
+# WinterDash — CYD port (ESP32-2432S028R, 2.8" 240x320 ILI9341, 4MB)  [1st-FLASH CANDIDATE]
+# -----------------------------------------------------------------------------
+# First real bring-up candidate for the CYD: it composes core + the CYD hardware/display/touch/LED modules so
+# a flash proves the board end-to-end (panel lights, touch navigates, RGB shows status, net + compute run).
+# STATE (2026-09-03): full UI port DONE (all TTGO pages + actions menu + animated splash + screensaver, 320x240).
+# Custom (user-uploaded) hero WORKS E2E via the INTERNAL storage partition (web gallery → mmap render on dashboard +
+# screensaver) — the microSD storage phase was ABANDONED (heap-wedge; see memory cyd-sd-abandoned), so custom-hero
+# lives in internal storage like the other boards (≥1 custom slot). See docs/internal/CHANGELOG.md (2026-09-03).
+# =============================================================================
+
+substitutions:
+  device_name: "winterdash"
+  friendly_name: "WinterDash"
+  fw_version: "dev-esp32-cyd"   # board-id half matches the master/asset name (esp32-cyd); CYD is not in the release matrix (no esp32-cyd asset) -> the web-OTA check lands on "Flash it". Release form (if ever shipped): "<ver>-esp32-cyd"
+  ble_signal_stale_s: "10"
+  ble_timeout_s: "20"           # offline overlay + LED at 20s (was 30) — "message not disco": brief alert, then relax fast (see display_cyd offline relax 25/100)
+  compute_interval: 1s
+  draw_interval: 500ms          # CYD draw cadence (matches TTGO); the display interval reads the status DTO
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  min_version: "2026.4.0"
+  name_add_mac_suffix: true
+  includes:
+    - dashboard_html.h
+    - convert_html.h
+    - banners_baked_esp32-cyd.h
+    - web_dashboard.h
+    - ble_scan.h
+    - charge_log.h
+    - wifi_reset.h
+    - netwatch_rtc.h
+    - api_traffic.h      # Layer B API-liveness feed (clean decl; shim in api_traffic.cpp)
+    - api_traffic.cpp
+    - netwatch_probe.h   # Layer B Phase 2 — client-independent tcpip-thread liveness probe
+    - netwatch_probe.cpp
+    - status_compute.h
+    - wd_font_buf.h      # static A8 glyph draw buffer -> glyph rasterization off the fragmentable 8-bit heap (NULL-deref crater mitigation); installed in display_cyd splash on_boot
+    - backlight_model.h  # pure header: the single backlight ladder (wd_bl::eff_backlight), board-agnostic
+
+packages:
+  core: !include packages/core.yaml            # board-agnostic platform layer (compute + web + publish)
+  banner_preset: !include packages/banner_preset_esp32-cyd.yaml   # generated picker (Battery)
+  board: !include packages/board_esp32_cyd.yaml      # classic ESP32, 4MB, partitions_esp32_cyd.csv, 2x SPI + backlight + banner cfg
+  display: !include packages/display_cyd.yaml  # mipi_spi ESP32-2432S028 + LEAN LVGL tree (splash/dashboard/system)
+  input: !include packages/input_cyd_touch.yaml  # XPT2046 touch nav (L/R + long-press menu) — CYD input module
+  led: !include packages/led_cyd_rgb.yaml        # on-board RGB status LED (GPIO4/16/17) — CYD LED module
+  mock: !include packages/mock_data.yaml       # Demo producer + canonical interface
+  victron: !include packages/victron_ble.yaml  # Live producer (real BLE decode)

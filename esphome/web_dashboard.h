@@ -12,21 +12,71 @@
 // SLOT_SPAN / R_DASH/R_SAVER/R_HERO/R_THUMB block below; the legacy FULL_OFF/THUMB_OFF aliases remain only for
 // the slot-0 GET fallbacks.
 #include "esphome/components/web_server_base/web_server_base.h"
+#include "esp_heap_caps.h"   // WD_GET_HEAP_FLOOR guard on the page serve (heap_caps_get_largest_free_block)
+
+// OOM guard for the /wd JSON builders: skip a rebuild when the largest byte-addressable (8-bit) free block is
+// below this, so a std::string alloc can't fail -> bad_alloc -> abort() (C++ exceptions are OFF on ESP-IDF -> a
+// failed `new` panics). The skipped slot keeps its last-good buffer (stale-but-present); the web detects the
+// freeze via the freshness markers (live: uptime, info: bctr). CONFIRMED panic site: the info.json builder's
+// std::string::operator+= under a fragmented 8-bit heap. (Re-add the WD_JSON_FLOOR_LOG dev-probe locally to re-tune.)
+#ifndef WD_JSON_BLK_FLOOR
+#define WD_JSON_BLK_FLOOR 3072   // info / scan / log builders (heavier alloc)
+#endif
+// (WD_LIVE_BLK_FLOOR removed 2026-09-08: it gated the wd_live SSE mirror bundle, which is gone — the live payload
+//  now folds into slot_live's alloc-free double-buffer assign, so there is no allocation to floor-gate.)
+// Guard on the FULL page serve (StaticPage GET / and /convert). Serving the ~35KB gzip body (chunked from flash --
+// the browser inflates, not the device) needs lwIP TCP send buffers (pbufs, heap-backed); on a save-cratered 8-bit
+// heap those allocs starve, the single synchronous httpd worker stalls in httpd_resp_send, lru_purge then drops
+// sockets -> STATUS 0 -> web unreachable until reboot. Below this floor, answer INSTANTLY with a tiny self-refreshing
+// 503 (rodata, needs no heap) so the worker stays alive and the client auto-retries. Shipped unconditionally: inert
+// on roomy boards (blk8 stays high); -D-overridable, 0 disables.
+// HW-TUNE THE VALUE: it MUST sit BETWEEN the wedge level and the idle largest-free block. This session measured the
+// CYD idle blk8 ~10.7KB (browser-closed) and the wedge pins it to ~0.4-1.5KB, so the valid window is ~(1.5KB, 10.7KB);
+// a floor >= idle blk8 would 503 EVERY fresh load (dashboard permanently unreachable). HW-MEASURED 2026-09-07: idle
+// blk8 oscillates 10752 with brief dips to ~6400 and a post-save residual settling ~8192 -> 8192 was too high (would
+// 503 those legit states). 4096 = catch a genuine crater (>1.5KB wedge) while passing the ~6400 dip + ~8192 residual.
+#ifndef WD_GET_HEAP_FLOOR
+#define WD_GET_HEAP_FLOOR 4096
+#endif
+// Heap-contiguity crater self-recovery (netwatch trigger=4). The 503-guard above sheds the WEB in the recoverable
+// band (WD_BLK8_FLOOR < blk8 < WD_GET_HEAP_FLOOR: degrade, screen untouched); below WD_BLK8_FLOOR CONTINUOUSLY the
+// heap is truly locked (measured: a real crater pins blk8 at ~1408 for 7+ min, no self-heal, web dead + HA dropped,
+// LCD still alive) and only an esp_restart defragments it. The netwatch 1s loop trips it after WD_BLK8_HOLD_MS of
+// STRICTLY CONTINUOUS sub-floor: a low_since timestamp that ANY sample >= floor resets, so neither the ~30s self-
+// healing cold-open transient (blk8 dips then recovers) NOR a board oscillating up into the 503-band between
+// requests can accumulate -> the reboot fires ~60s into a PERSISTENT lock, after the request barrage that caused it
+// has given up (not mid-barrage). 3-band ladder: > serve-floor serve / floor..serve-floor 503-degrade web / < floor
+// sustained -> reboot. Shipped unconditionally on EVERY board (self-recovery for a genuine crater anywhere), not
+// CYD-only. It just rarely fires off the CYD: every ESP32 has the same ~320KB SRAM (flash size is irrelevant), but
+// the TTGO's tiny 240x135 LVGL draw buffer (vs the CYD's 320x240) and the headless board's absence of LVGL leave a
+// much higher healthy blk8 floor there, so 2048 (far below any board's loaded floor -- CYD is the tightest at
+// ~6-10K) needs a real 60s continuous sub-floor lock to trip. -D-overridable per board, 0 disables the trip.
+// NOTE: a TIGHT re-crater loop (reboots < 300s apart) self-limits at the shared K=3 breaker (3 -> netwatch_disabled
+// -> stop + "NETWORK FAULT" degrade). A PERIODIC crater slower than the 300s window (device healthy between) is
+// self-healing and reboots each time it recurs (curative; observable via lifetime_reboots in /wd/info.json).
+#ifndef WD_BLK8_FLOOR
+#define WD_BLK8_FLOOR 2048        // < this (largest free 8-bit block) CONTINUOUSLY for WD_BLK8_HOLD_MS = a locked crater
+#endif
+#ifndef WD_BLK8_HOLD_MS
+#define WD_BLK8_HOLD_MS 60000     // continuous sub-floor time before reboot (>2x the ~30s longest recoverable dip)
+#endif
+// Per-board capability flag: is the web-served OTA self-update (About badge + GitHub version-check + the System
+// "Update firmware" uploader, all client-side) offered on this board? Emitted in /gallery board:{ota} and gated by
+// dashboard.html. Default ON; a board sets `-DWD_HAS_WEBOTA=0` to safe-fail it OFF (e.g. if the OTA upload proves too
+// heavy for that board's heap). The upload reuses the existing STA /update endpoint -> ~0 device cost either way.
+#ifndef WD_HAS_WEBOTA
+#define WD_HAS_WEBOTA 1
+#endif
 #include "esphome/core/string_ref.h"
 #include "dashboard_html.h"
 #include "convert_html.h"
-#ifdef WD_BAKE_MINIMAL
-#include "banners_baked_minimal.h"   // 4MB T-Display: Battery only (web hero matches the LCD bake-1)
-// The set of baked presets this board actually ships — published in GET /gallery's board:{} so the SHARED
-// dashboard.html builds the picker grid from THIS list, not a hard-coded 10 (else a 4MB unit renders 9 phantom
-// tiles whose /img/<name> 404s + a broken hero that sticks until reload). Keep in lock-step with the select
-// options in banner_preset_minimal.yaml / _full.yaml and the on-LCD bake set (presets_tdisplay_extra.yaml).
-#define WD_BAKED_JSON "\"Battery\""
-#else
-#include "banners_baked.h"           // 16MB T-Display + headless: the full 10-preset gallery
-#define WD_BAKED_JSON "\"Battery\",\"Sedan\",\"SUV\",\"Pickup\",\"Van\",\"Classic\",\"Sports\",\"Quad\",\"Motorcycle\",\"Boat\""
-#endif
+// This board's baked-banner WebP header (banners_baked_<board>.h, generated by tools/gen_board_assets.py from
+// board_assets.yaml) is #included by the master's `includes:` list JUST BEFORE web_dashboard.h, so the
+// banners_baked namespace is available here. GET /gallery's board:{baked[]} is built at request time by
+// iterating banners_baked::ENTRIES (below), so the picker set has ONE source — that header — with no hand-kept
+// WD_BAKED_JSON to drift, and no WD_BAKE_MINIMAL binary axis.
 #include "esp_partition.h"
+#include "esp_rom_crc.h"        // esp_rom_crc32_le — ROM CRC32 (zero flash): page ETag + hero cache version key
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include <atomic>
@@ -87,6 +137,22 @@ static const uint32_t MAGIC_THUMB = 0x42485457;   // 'WTHB' little-endian (thumb
 #endif
 static constexpr int WDB_DASH_W = WD_DASH_W,  WDB_DASH_H = WD_DASH_H;    // per-board (board_*.yaml build_flags)
 static constexpr int WDB_SAVER_W = WD_SAVER_W, WDB_SAVER_H = WD_SAVER_H;
+
+// Adaptive two-box dash placement (v4, opt-in per board): the dashboard hero is fit to whichever of a WIDE box A
+// or a TALL box B renders the car larger, then the device anchors it by height (short/box-A cars sit just above
+// the status band; tall/box-B cars top-anchor down the left column). WDB_DASH_W/H remain the single region BOUND
+// (both boxes must fit inside it -> region size + drift-lock unchanged). Boards that don't declare the flags fall
+// back to A=B=the single dash box, so the converter/device behave exactly as the legacy single-box path.
+#if defined(WD_DASH_AW) && defined(WD_DASH_AH) && defined(WD_DASH_BW) && defined(WD_DASH_BH)
+static constexpr bool WDB_DASH_TWOBOX = true;
+static constexpr int WDB_DASH_AW = WD_DASH_AW, WDB_DASH_AH = WD_DASH_AH, WDB_DASH_BW = WD_DASH_BW, WDB_DASH_BH = WD_DASH_BH;
+#else
+static constexpr bool WDB_DASH_TWOBOX = false;
+static constexpr int WDB_DASH_AW = WD_DASH_W, WDB_DASH_AH = WD_DASH_H, WDB_DASH_BW = WD_DASH_W, WDB_DASH_BH = WD_DASH_H;
+#endif
+static_assert(WDB_DASH_AW <= WDB_DASH_W && WDB_DASH_AH <= WDB_DASH_H &&
+              WDB_DASH_BW <= WDB_DASH_W && WDB_DASH_BH <= WDB_DASH_H,
+              "dash boxes A/B must fit within the WDB_DASH_W/H region bound");
 
 // constexpr geometry: every region SIZE derived from the dims/caps; offsets = running prefix sums (never k*REGION).
 static constexpr size_t wd_align_up(size_t v, size_t a) { return (v + a - 1) & ~(a - 1); }
@@ -205,13 +271,17 @@ struct JsonSlot {
 };
 inline JsonSlot slot_log, slot_scan;
 // About/Network read-only info + diagnostics, assembled on the main loop into one JSON doc
-// (a 5s interval builds it) and served at /wd/info.json. Off SSE + API for the whole cluster.
+// (a 15s interval builds it, static prefix cached — Flow 2) and served at /wd/info.json. Off SSE + API for the whole cluster.
 inline JsonSlot slot_info;
-// Fast-live tier: the small, frequently-changing mirrors (uptime + el/age/offel/brssi/ha), built on a
-// short interval and served at /wd/live.json. The web polls this fast (heartbeat + offline responsiveness)
-// while the heavier static/diag /wd/info.json polls slowly. Uptime rides here so the web can detect a
-// device restart (uptime dropped) and re-sync the SSE.
+// The web's liveness + live-mirror source (2026-09-08). Carries the full {uptime,lc[,owner],el,age,offel,brssi,ha}
+// payload, built by a 6s core interval and polled every 8s by the dashboard at /wd/live.json — OFF the HA API and
+// OFF SSE. It is the sole out-of-band path for: fast-data freshness (the hero OFFLINE watchdog), ownership re-check,
+// uptime-restart + log-`lc` change detection, and the el/age/offel the page ticks locally between polls. (Replaced
+// the wd_hb/wd_live SSE beacon text_sensors, which transmitted over the API and caused an idle-heap swing.)
 inline JsonSlot slot_live;
+// Brightness config seed (bl/dimto/retto/auto) for GET /wd/cfg.json — the internal: brightness numbers no longer
+// stream over SSE, so the web form reads them here on load. Built by a display-package interval (board-gated).
+inline JsonSlot slot_cfg;
 
 // GET /wd/<x>.json -> serve a JsonSlot's current buffer. Empty 200 body until the first main-loop
 // build; the dashboard treats "" as "nothing yet". no-store: the browser polls on its own cadence.
@@ -252,16 +322,52 @@ class JsonSlotGet : public AsyncWebHandler {
 class StaticPage : public AsyncWebHandler {
  public:
   StaticPage(const char *url, const uint8_t *body, size_t len, bool gzip = false)
-      : url_(url), body_(body), len_(len), gzip_(gzip) {}
+      : url_(url), body_(body), len_(len), gzip_(gzip) {
+    // Per-build ETag = crc32 of the (gzipped) flash bytes, quoted hex (RFC 7232 strong validator). Changes iff the
+    // page changes (edit/regen/OTA), so a reload revalidates cheaply (304, no body) and only re-transfers the ~35KB
+    // page after a real rebuild. One-time sub-ms cost over rodata at construction (register_dashboard, on_boot).
+    uint32_t c = esp_rom_crc32_le(0, body_, static_cast<uint32_t>(len_));
+    snprintf(etag_, sizeof(etag_), "\"%08x\"", c);
+  }
   bool canHandle(AsyncWebServerRequest *request) const override {
     char b[AsyncWebServerRequest::URL_BUF_SIZE];
     return request->method() == HTTP_GET && request->url_to(b) == url_;
   }
   void handleRequest(AsyncWebServerRequest *request) override {
-    // no-store: the page changes with every OTA and the browser was serving stale copies (heuristic
-    // caching, no validator). Always refetch — the page is small and LAN-served, so it's cheap.
+    // Conditional GET: a browser holding this build's ETag gets a bodyless 304, so the 35KB gzip page leaves the
+    // reload load-burst entirely (was Cache-Control: no-store = re-fetched every reload). no-cache = "store but
+    // ALWAYS revalidate", so an OTA (new ETag) still forces a fresh 200 -> no stale UI after an update. NB: the 304
+    // MUST use the raw esp_http_server API -- beginResponse(304,..) is remapped to 500 by the wrapper (init_response_
+    // knows only 200/404/409), so mirror web_server_idf's own redirect() raw path.
+    auto inm = request->get_header("If-None-Match");
+    if (inm.has_value() && inm.value().find(etag_) != std::string::npos) {
+      httpd_resp_set_status(*request, "304 Not Modified");
+      httpd_resp_set_hdr(*request, "ETag", etag_);
+      httpd_resp_set_hdr(*request, "Cache-Control", "no-cache");
+      httpd_resp_send(*request, nullptr, 0);   // headers only -- no body, no Content-Encoding
+      return;
+    }
+    // Low-heap guard (fresh full load only -- a cached client already 304'd above). A save-cratered 8-bit heap
+    // can't finish the ~35KB serve -> the single httpd worker wedges -> unreachable until reboot. Answer INSTANTLY
+    // with a tiny self-refreshing 503 (rodata, needs no heap) so the worker stays alive and every entry point
+    // (converter return, typed URL, bookmark, HA "visit device", 2nd phone) auto-recovers. Raw httpd path --
+    // beginResponse remaps non-200/404/409 to 500 (see the 304 branch above).
+    if (heap_caps_get_largest_free_block(MALLOC_CAP_8BIT) < WD_GET_HEAP_FLOOR) {
+      static const char BUSY_HTML[] =
+        "<!doctype html><meta charset=utf-8><meta http-equiv=refresh content=2>"
+        "<meta name=viewport content=\"width=device-width,initial-scale=1\">"
+        "<title>WinterDash</title><body style=\"font:16px system-ui;margin:0;min-height:100vh;display:flex;"
+        "align-items:center;justify-content:center;background:#0b0f14;color:#9cc\">"
+        "Device busy \xe2\x80\x94 finishing an image, reloading\xe2\x80\xa6</body>";
+      httpd_resp_set_status(*request, "503 Service Unavailable");
+      httpd_resp_set_hdr(*request, "Retry-After", "2");
+      httpd_resp_set_type(*request, "text/html");
+      httpd_resp_send(*request, BUSY_HTML, sizeof(BUSY_HTML) - 1);
+      return;
+    }
     auto *resp = request->beginResponse(200, "text/html", body_, len_);
-    resp->addHeader("Cache-Control", "no-store");
+    resp->addHeader("Cache-Control", "no-cache");
+    resp->addHeader("ETag", etag_);
     if (gzip_) resp->addHeader("Content-Encoding", "gzip");   // body_ is gzipped in flash; browser inflates
     request->send(resp);
   }
@@ -271,6 +377,7 @@ class StaticPage : public AsyncWebHandler {
   const uint8_t *body_;
   size_t len_;
   bool gzip_{false};
+  char etag_[12];   // quoted 8-hex crc32 of body_ + NUL (e.g. "1a2b3c4d")
 };
 
 // (The branded Wi-Fi onboarding page is served by the VENDORED captive_portal — see
@@ -292,7 +399,7 @@ class BannerWebpGet : public AsyncWebHandler {
     if (part != nullptr && esp_partition_read(part, off_, hdr, 8) == ESP_OK) {
       uint32_t mg, len;
       memcpy(&mg, hdr, 4); memcpy(&len, hdr + 4, 4);
-      if (mg == magic_ && len > 0 && len < (rsize_ - WEBP_DATA)) {
+      if (mg == magic_ && len > 0 && len <= (rsize_ - WEBP_DATA)) {   // <= matches the upload write-guard (a webp
         static esp_partition_mmap_handle_t gh = 0;
         const void *ptr = nullptr;
         if (gh) { esp_partition_munmap(gh); gh = 0; }
@@ -314,7 +421,7 @@ class BannerWebpGet : public AsyncWebHandler {
 
 // --- Serve a BAKED preset WebP from flash rodata at /img/<name> --------------
 // De-inlined from dashboard.html (the 10 base64 blobs were ~66% of the page and OOM-crashed the board
-// when served as one huge response). Bytes live in banners_baked.h (memory-mapped flash rodata -> no
+// when served as one huge response). Bytes live in the board's banners_baked_<board>.h (memory-mapped flash rodata -> no
 // heap copy). Long cache so the browser fetches each preset once. Presets change only on a reflash;
 // if the art is regenerated, hard-refresh once (or bump the cache window). Names are simple ASCII.
 class BannerBakedGet : public AsyncWebHandler {
@@ -375,7 +482,23 @@ class BannerGet : public AsyncWebHandler {
 // handle is created and torn down within one handleRequest, so its lifetime is bounded and
 // never overlaps another request. Do not port these to an async/multi-worker server as-is.
 
-// GET /gallery -> JSON index (header-only, no mmap): {next_free, slots:[{id,w,h,cat,sel,fav,name}]}
+// Per-board capability flags for the SHARED dashboard (emitted in the board:{} JSON below) — a display board sets
+// -DWD_HAS_DISPLAY=1 (and -DWD_HAS_LDR=1 if it has a light sensor) via its board_*.yaml build_flags; headless/others
+// default 0. The page shows/hides the brightness section + the Auto-dim toggle off these.
+#ifndef WD_HAS_DISPLAY
+#define WD_HAS_DISPLAY 0
+#endif
+#ifndef WD_HAS_LDR
+#define WD_HAS_LDR 0
+#endif
+#ifndef WD_LED_TYPE
+#define WD_LED_TYPE 0   // status-LED type (drives the web LED control): 0=none, 1=mono (Off/On), 2=rgb (Off/Lo/Med/High).
+#endif
+#ifndef WD_HAS_IDLEDIM
+#define WD_HAS_IDLEDIM 0    // board's idle-dim is a user 4-level OFF/LOW/MED/HIGH (every display board: CYD + TTGO; the retired dim_level % slider is gone)
+#endif
+
+// GET /gallery -> JSON index (header-only, no mmap): {next_free, slots:[{id,w,h,cat,sel,fav,crc,name}]}
 class GalleryList : public AsyncWebHandler {
  public:
   bool canHandle(AsyncWebServerRequest *request) const override {
@@ -385,18 +508,37 @@ class GalleryList : public AsyncWebHandler {
   bool isRequestHandlerTrivial() const override { return false; }
   void handleRequest(AsyncWebServerRequest *request) override {
     const esp_partition_t *p = gallery_part();
-    static char buf[1536];  // off the small httpd stack; single httpd worker -> safe to reuse. 768->1024->1536: a
-                            // full 10-slot gallery + the board:{} field (incl. the ~110B baked[]) fits ~1156B with
-                            // PLAIN names; 1536 also covers the pathological case (10 slots x 32-char names that
-                            // all escape-double to 64B). Every snprintf is n>=sizeof(buf) clamped -> truncation is
-                            // graceful (client rejects the JSON + retries), never an overflow.
+    static char buf[2048];  // off the small httpd stack; single httpd worker -> safe to reuse. 768->1024->1536->2048:
+                            // a full 10-slot gallery + the board:{} field (incl. the ~110B baked[]) fits ~1156B with
+                            // PLAIN names; 2048 covers the pathological case (10 slots x 32-char names that all escape-
+                            // double to 64B) PLUS the per-slot "crc":"xxxxxxxx" field (~+19B/slot, ~+190B/10 slots).
+                            // Every snprintf is n>=sizeof(buf) clamped -> truncation is graceful (client rejects the
+                            // JSON + retries), never an overflow.
     size_t n = 0;
     // board:{} = this board's converter cut-out sizes + baked[] (the presets this board ships) — emitted BEFORE the
     // truncatable slots loop so it's never dropped on a full gallery; the shared image-tool.html fits its .wdb to
     // dash/saver (v2a board-adaptive converter) and dashboard.html builds the picker grid from baked[].
     n += snprintf(buf + n, sizeof(buf) - n,
-                  "{\"next_free\":%d,\"board\":{\"dash\":[%d,%d],\"saver\":[%d,%d],\"baked\":[" WD_BAKED_JSON "]},\"slots\":[",
-                  p ? gallery_next_free(p) : -1, WDB_DASH_W, WDB_DASH_H, WDB_SAVER_W, WDB_SAVER_H);
+                  "{\"next_free\":%d,\"board\":{\"dash\":[%d,%d],\"saver\":[%d,%d],\"hero\":%d,\"thumb\":%d,\"ota\":%d,\"disp\":%d,\"ldr\":%d,\"ledtype\":%d,\"idim\":%d",
+                  p ? gallery_next_free(p) : -1, WDB_DASH_W, WDB_DASH_H, WDB_SAVER_W, WDB_SAVER_H,
+                  (int) (R_HERO_SIZE - WEBP_DATA),    // E/F2: board-adaptive hero webp cap (bytes the converter must fit)
+                  (int) (R_THUMB_SIZE - WEBP_DATA),   // F2: board-adaptive thumb webp cap (same board:{} mechanism; guards CYD's smaller ~12KB thumb region)
+                  (int) WD_HAS_WEBOTA,                // web-OTA self-update feature enabled for this board? (per-board -DWD_HAS_WEBOTA, default 1)
+                  (int) WD_HAS_DISPLAY, (int) WD_HAS_LDR, (int) WD_LED_TYPE, (int) WD_HAS_IDLEDIM);   // capability flags: screen / light sensor / LED type (0none/1mono/2rgb) / idle-dim level (the retired dim_level% `dimlv` slider is gone — every display board now uses the 4-level idle-dim)
+    if (n >= sizeof(buf)) n = sizeof(buf) - 1;
+    if (WDB_DASH_TWOBOX) {   // v4: advertise the two adaptive dash boxes (absent on single-box boards -> JSON unchanged)
+      n += snprintf(buf + n, sizeof(buf) - n, ",\"dashA\":[%d,%d],\"dashB\":[%d,%d]",
+                    WDB_DASH_AW, WDB_DASH_AH, WDB_DASH_BW, WDB_DASH_BH);
+      if (n >= sizeof(buf)) n = sizeof(buf) - 1;
+    }
+    n += snprintf(buf + n, sizeof(buf) - n, ",\"baked\":[");
+    if (n >= sizeof(buf)) n = sizeof(buf) - 1;
+    // baked[] = this board's shipped preset names, straight from the generated ENTRIES table (single source).
+    for (size_t bi = 0; bi < sizeof(banners_baked::ENTRIES) / sizeof(banners_baked::ENTRIES[0]); bi++) {
+      n += snprintf(buf + n, sizeof(buf) - n, "%s\"%s\"", bi ? "," : "", banners_baked::ENTRIES[bi].name);
+      if (n >= sizeof(buf)) { n = sizeof(buf) - 1; break; }
+    }
+    n += snprintf(buf + n, sizeof(buf) - n, "]},\"slots\":[");
     if (n >= sizeof(buf)) n = sizeof(buf) - 1;
     bool first = true;
     if (p != nullptr) {
@@ -408,9 +550,21 @@ class GalleryList : public AsyncWebHandler {
         uint8_t cat = h[10];
         bool sel = (gallery_sel == i);
         bool fav = (gallery_fav >> i) & 1ULL;
+        // Web hero cache VERSION key. Base = the .wdb v2 header's dash-pixel CRC32 (byte 12, ALREADY in the 48B
+        // header we read -> zero extra mmap; /gallery is polled hot during a hero change, so no per-slot mmap here).
+        // The dash CRC alone is a PROXY (it versions R_DASH, but the served hero is R_HERO) -> a near-identical dash
+        // cut-out from a DIFFERENT source reused on the same id could collide and serve a STALE immutable hero. So we
+        // FOLD the hero region's [magic|len] header (a cheap 8-byte read, not an mmap) into the key -> a collision now
+        // also needs an identical hero byte-length. v1/legacy (h[4]<2) has no dash CRC -> 0 (dev-only, wiped).
+        uint32_t crc = (h[4] >= 2) ? (h[12] | (h[13] << 8) | (h[14] << 16) | ((uint32_t) h[15] << 24)) : 0;
+        if (crc != 0) {
+          uint8_t hh[8];
+          if (esp_partition_read(p, gallery_slot_off(i) + R_HERO, hh, 8) == ESP_OK)
+            crc = esp_rom_crc32_le(crc, hh, 8);   // fold R_HERO [magic|len] so a stale-hero collision also needs an identical hero length
+        }
         n += snprintf(buf + n, sizeof(buf) - n,
-                      "%s{\"id\":%d,\"w\":%u,\"h\":%u,\"cat\":%u,\"sel\":%s,\"fav\":%s,\"name\":\"",
-                      first ? "" : ",", i, w, ht, cat, sel ? "true" : "false", fav ? "true" : "false");
+                      "%s{\"id\":%d,\"w\":%u,\"h\":%u,\"cat\":%u,\"sel\":%s,\"fav\":%s,\"crc\":\"%08x\",\"name\":\"",
+                      first ? "" : ",", i, w, ht, cat, sel ? "true" : "false", fav ? "true" : "false", crc);
         if (n >= sizeof(buf)) { n = sizeof(buf) - 1; break; }
         first = false;
         for (int k = 0; k < 32 && h[16 + k]; k++) {  // name: bounded, ASCII-only, JSON-escaped
@@ -450,12 +604,15 @@ class GalleryWebpGet : public AsyncWebHandler {
         uint32_t mg, len;
         memcpy(&mg, hdr, 4);
         memcpy(&len, hdr + 4, 4);
-        if (mg == magic_ && len > 0 && len < (rsize_ - WEBP_DATA)) {
+        if (mg == magic_ && len > 0 && len <= (rsize_ - WEBP_DATA)) {   // <= matches the upload write-guard (a webp
           esp_partition_mmap_handle_t h = 0;
           const void *ptr = nullptr;
           if (esp_partition_mmap(p, off + WEBP_DATA, len, ESP_PARTITION_MMAP_DATA, &ptr, &h) == ESP_OK) {
-            request->send(request->beginResponse(200, "image/webp",
-                          reinterpret_cast<const uint8_t *>(ptr), len));
+            auto *resp = request->beginResponse(200, "image/webp",
+                          reinterpret_cast<const uint8_t *>(ptr), len);
+            if (request->getParam("v") != nullptr)   // versioned URL (?id&v=crc) -> lock hard; the crc busts it on re-save
+              resp->addHeader("Cache-Control", "public, max-age=31536000, immutable");
+            request->send(resp);
             esp_partition_munmap(h);  // send is synchronous -> data already flushed, safe to unmap
             return;
           }
@@ -742,7 +899,7 @@ class GalleryCommit : public AsyncWebHandler {
 // POST /gallery/select?id=N , /gallery/delete?id=N , /gallery/favorite?id=N&fav=0|1 (body-less).
 // Sets the volatile intent; a main-loop consumer applies it: the board-agnostic data part (bnr_sel /
 // banner_preset / bnr_fav / flash erase / publish gallery_sel|fav) runs in core.yaml's 500ms housekeeping
-// (so headless works too); the LVGL render + mmap lifecycle run in display_ttgo's draw lambda.
+// (so headless works too); the LVGL render + mmap lifecycle run in display_tdisplay's draw lambda.
 class GalleryCmd : public AsyncWebHandler {
  public:
   enum Kind { SELECT, DELETE, FAVORITE };
@@ -802,6 +959,76 @@ class BindkeyPost : public AsyncWebHandler {
   const char *url_ = "/wd/bindkey";
 };
 
+// Brightness config write-only (off SSE/HA): backlight_level/dim_timeout/return_timeout are internal: entities and
+// ldr_enabled is the auto-dim master toggle, so the web drives them HERE instead of /number|/switch/.../set (those
+// routes vanish when the entity is internal:). httpd validates + clamps + parks the values + sets a flag; a DISPLAY-
+// package lambda applies them on the main loop (NEVER make_call from httpd — a number apply on a display board can
+// touch LVGL/backlight; same rule as bindkey). Seeded back to the form via GET /wd/cfg.json. Terse keys (payload size).
+inline std::atomic<bool> cfg_pending{false};
+// Field SUPERSET across all boards (-1 = "unchanged this POST"); each board's cfg-bridge reads only the fields it owns
+// (CYD: bl/dimto/retto/auto/led/idim; TTGO: bl/dimto/retto/idim). A stray field a board doesn't own is parked + ignored.
+inline std::atomic<int> cfg_bl{-1}, cfg_dimto{-1}, cfg_retto{-1}, cfg_auto{-1}, cfg_led{-1}, cfg_idim{-1};
+#if WD_DEBUG_LEDTEST
+inline std::atomic<int> cfg_ledtest{-2};   // brownout probe (sentinel -2 = unchanged; -1..100 applied): exact LED override
+#endif
+
+class CfgPost : public AsyncWebHandler {
+ public:
+  bool canHandle(AsyncWebServerRequest *request) const override {
+    char b[AsyncWebServerRequest::URL_BUF_SIZE];
+    return request->method() == HTTP_POST && request->url_to(b) == url_;
+  }
+  bool isRequestHandlerTrivial() const override { return false; }
+  void handleRequest(AsyncWebServerRequest *request) override {
+    auto rd = [&](const char *k, int lo, int hi, std::atomic<int> &dst) {
+      auto *p = request->getParam(k); if (p == nullptr) return;
+      int v = atoi(p->value().c_str()); if (v < lo) v = lo; if (v > hi) v = hi;
+      dst.store(v, std::memory_order_relaxed);
+    };
+    rd("bl", 30, 100, cfg_bl); rd("dimto", 5, 1800, cfg_dimto);
+    rd("retto", 5, 1800, cfg_retto); rd("auto", 0, 1, cfg_auto);
+    rd("led", 0, 3, cfg_led);         // CYD-owned RGB LED level (0=OFF..3=HIGH); other boards ignore it
+    rd("idim", 0, 3, cfg_idim);       // screen idle-dim level (0=OFF..3=HIGH); owned by EVERY display board (CYD + TTGO since the 2026-09-09 unification)
+    #if WD_DEBUG_LEDTEST
+    rd("ledtest", -1, 100, cfg_ledtest);   // brownout probe: exact LED brightness override (-1 = normal)
+    #endif
+    cfg_pending.store(true, std::memory_order_release);   // publish the value writes before the flag
+    request->send(200, "text/plain", "OK");
+  }
+ protected:
+  const char *url_ = "/wd/cfg";
+};
+
+#ifdef WD_SSE_MAX_VIEWERS
+// "latest-viewer-wins" ownership token — paired with the WD_SSE_MAX_VIEWERS SSE cap in web_server_idf. A
+// monotonic epoch bumped by GET /wd/claim; the current value is mirrored in /wd/live.json ("owner"). A dashboard
+// tab claims on activation, remembers its epoch, and — seeing the live poll report a HIGHER epoch (a newer tab
+// claimed) — goes dormant (closes its SSE + stops pollers, shows the takeover banner) instead of letting its own
+// freshness watchdog reconnect and thrash the heap. Device-side eviction closes the old SSE socket immediately;
+// this token is purely so the losing PAGE knows to stand down. Gated: uncapped boards stay multi-viewer.
+inline std::atomic<uint32_t> owner_epoch{0};
+
+// GET /wd/claim -> bump the epoch, return {"owner":N}: the caller becomes the current owner (latest wins).
+class ClaimGet : public AsyncWebHandler {
+ public:
+  bool canHandle(AsyncWebServerRequest *request) const override {
+    char b[AsyncWebServerRequest::URL_BUF_SIZE];
+    return request->method() == HTTP_GET && request->url_to(b) == url_;
+  }
+  bool isRequestHandlerTrivial() const override { return false; }
+  void handleRequest(AsyncWebServerRequest *request) override {
+    uint32_t e = owner_epoch.fetch_add(1, std::memory_order_relaxed) + 1;   // this caller is now the owner
+    char body[24];
+    int n = snprintf(body, sizeof(body), "{\"owner\":%u}", e);
+    auto *resp = request->beginResponse(200, "application/json", std::string(body, n > 0 ? (size_t) n : 0));
+    resp->addHeader("Cache-Control", "no-store");   // a claim must always hit the device, never a cached GET
+    request->send(resp);
+  }
+ protected:
+  const char *url_ = "/wd/claim";
+};
+#endif
+
 // Registered from on_boot at a priority above web_server's, so our handlers win.
 inline void register_dashboard() {
   auto *ws = web_server_base::global_web_server_base;
@@ -814,7 +1041,12 @@ inline void register_dashboard() {
   ws->add_handler(new JsonSlotGet("/wd/scan.json", &slot_scan, "application/json"));  // NOLINT
   ws->add_handler(new JsonSlotGet("/wd/info.json", &slot_info, "application/json"));   // NOLINT
   ws->add_handler(new JsonSlotGet("/wd/live.json", &slot_live, "application/json"));   // NOLINT (fast-live heartbeat)
+  ws->add_handler(new JsonSlotGet("/wd/cfg.json", &slot_cfg, "application/json"));      // NOLINT (brightness config seed)
   ws->add_handler(new BindkeyPost());   // NOLINT (Phase 3: write-only bindkey; value never streams)
+  ws->add_handler(new CfgPost());       // NOLINT (write-only brightness/auto-dim config; internal: entities)
+#ifdef WD_SSE_MAX_VIEWERS
+  ws->add_handler(new ClaimGet());      // NOLINT (latest-viewer-wins ownership claim; paired with the SSE cap)
+#endif
   // Legacy GET-only handlers kept for the web hero's fallback path (slot 0 == the original banner).
   ws->add_handler(new BannerWebpGet("/banner-full", FULL_OFF, R_HERO_SIZE, MAGIC_FULL));   // NOLINT
   ws->add_handler(new BannerWebpGet("/banner-thumb", THUMB_OFF, R_THUMB_SIZE, MAGIC_THUMB));  // NOLINT

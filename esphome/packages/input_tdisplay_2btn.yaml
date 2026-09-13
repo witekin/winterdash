@@ -9,7 +9,7 @@
 # (current_page, in_menu, menu_sel, s2_hold_ms, saver_active, backlight_dim) and
 # the *effect* is lv_scr_load / render_sys_menu (in display_tdisplay). A headless board
 # omits this file (system actions stay reachable via the button: entities in core
-# over web/HA); a CYD board swaps it for input_touch.yaml.
+# over web/HA); a CYD board swaps it for input_cyd_touch.yaml.
 #
 # Depends on display_tdisplay ids (page_*, backlight, render_sys_menu) via global id()
 # — so a board that includes input_tdisplay_2btn must also include display_tdisplay.
@@ -37,10 +37,10 @@ binary_sensor:
           if (id(saver_active)) {
             if (id(backlight_dim)) {
               id(backlight_dim) = false;
-              id(backlight).turn_on().set_brightness(id(backlight_level).state / 100.0f).perform();
+              id(backlight).turn_on().set_brightness(wd_bl::eff_backlight(id(backlight_level).state / 100.0f, 0.0f, wd_bl::BlMode::ACTIVE)).perform();   // C1: wake at the ladder active level (backlight_model.h; no LDR -> darkness 0)
             } else {
               id(saver_active) = false; id(current_page) = 0;
-              lv_scr_load(id(page_dashboard)->obj);
+              id(wd_load_screen).execute();   // A1: instant load via the shared guarded loader
             }
             return;
           }
@@ -48,7 +48,7 @@ binary_sensor:
           // Wake-swallow: a press on a dimmed screen only wakes, it doesn't navigate (B-nav).
           if (was_dim) {
             id(backlight_dim) = false;
-            id(backlight).turn_on().set_brightness(id(backlight_level).state / 100.0f).perform();
+            id(backlight).turn_on().set_brightness(wd_bl::eff_backlight(id(backlight_level).state / 100.0f, 0.0f, wd_bl::BlMode::ACTIVE)).perform();   // C1: wake at the ladder active level (backlight_model.h; no LDR -> darkness 0)
             return;
           }
           // In the System menu, S1 moves the highlight (Reboot -> Reset WiFi -> Factory reset -> Back -> ...).
@@ -59,14 +59,16 @@ binary_sensor:
             id(render_sys_menu).execute();
             return;
           }
-          id(current_page) = (id(current_page) + 1) % 6;   // Last Events (3rd) + System (6th); page_setup is
-          lv_obj_t *scr = id(page_dashboard)->obj;         // NOT in the cycle — it's an AP-mode takeover only.
-          if (id(current_page) == 1) scr = id(page_detail)->obj;
-          else if (id(current_page) == 2) scr = id(page_charlog)->obj;   // Last Events sits right after Charger detail
-          else if (id(current_page) == 3) scr = id(page_ble)->obj;
-          else if (id(current_page) == 4) scr = id(page_network)->obj;
-          else if (id(current_page) == 5) scr = id(page_system)->obj;
-          lv_scr_load(scr);
+          // A3.5: the on-device charger-log page (index 2) is CUT — cycle SKIPS it via an explicit PAGES[] index
+          // list (index-PRESERVING, mirrors the CYD input_cyd_touch.yaml): current_page stays in {0,1,3,4,5} so the
+          // draw gates (pg==1 detail / pg==3 ble) + the current_page==5 menu-enter below stay valid. A contiguous
+          // `% 5` renumber would shift ble->2 etc. and break all of them. System (index 5) is last; page_setup is
+          // NOT in the cycle (AP-mode takeover only).
+          static const int PAGES[] = {0, 1, 3, 4, 5};
+          const int NP = sizeof(PAGES) / sizeof(PAGES[0]);
+          int ci = 0; for (int i = 0; i < NP; i++) if (PAGES[i] == id(current_page)) ci = i;
+          id(current_page) = PAGES[(ci + 1) % NP];
+          id(wd_load_screen).execute();   // A1: the shared guarded loader maps current_page -> screen (instant)
   - platform: gpio
     id: btn2
     pin:
@@ -88,17 +90,17 @@ binary_sensor:
           if (id(saver_active)) {
             if (id(backlight_dim)) {
               id(backlight_dim) = false;
-              id(backlight).turn_on().set_brightness(id(backlight_level).state / 100.0f).perform();
+              id(backlight).turn_on().set_brightness(wd_bl::eff_backlight(id(backlight_level).state / 100.0f, 0.0f, wd_bl::BlMode::ACTIVE)).perform();   // C1: wake at the ladder active level (backlight_model.h; no LDR -> darkness 0)
             } else {
               id(saver_active) = false; id(current_page) = 0;
-              lv_scr_load(id(page_dashboard)->obj);
+              id(wd_load_screen).execute();   // A1: instant load via the shared guarded loader
             }
             return;
           }
           bool was_dim = id(backlight_dim);
           if (was_dim) {
             id(backlight_dim) = false;
-            id(backlight).turn_on().set_brightness(id(backlight_level).state / 100.0f).perform();
+            id(backlight).turn_on().set_brightness(wd_bl::eff_backlight(id(backlight_level).state / 100.0f, 0.0f, wd_bl::BlMode::ACTIVE)).perform();   // C1: wake at the ladder active level (backlight_model.h; no LDR -> darkness 0)
             return;
           }
           if (!id(in_menu)) {

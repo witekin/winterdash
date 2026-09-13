@@ -1,0 +1,204 @@
+# =============================================================================
+# board_esp32_cyd.yaml — Cheap Yellow Display (ESP32-2432S028R) HARDWARE layer  [1st-flash candidate]
+# -----------------------------------------------------------------------------
+# Classic ESP32, no-PSRAM, 4MB. Pins from the community CYD reference:
+#   Display (ILI9341, HSPI): CLK 14 / MOSI 13 / MISO 12 ; CS 15 / DC 2 (from the mipi_spi model) ; NO reset
+#     GPIO — the panel RST is tied to the ESP EN line (GPIO4 is the RGB-LED RED channel, a classic CYD trap).
+#   Touch (XPT2046, VSPI): CLK 25 / MOSI 32 / MISO 39 ; CS 33 / IRQ 36  (wired — see input_cyd_touch.yaml)
+#   RGB status LED: GPIO4 R / 16 G / 17 B (common-anode)  (see led_cyd_rgb.yaml) ; backlight GPIO21.
+# See docs/internal/cyd-bringup-plan.md + docs/internal/image-pipeline-plan.md Phase 4.
+# =============================================================================
+
+# --- Per-board banner cut-out sizes, scaled UP for the bigger 240x320 CYD panel. Under the v3 semi-uniform
+# slot engine the region SIZES DERIVE from these dims (web_dashboard.h) — no WD_REGION knob. The two webp caps
+# are opt-in shrinks (default 64KB): the CYD slot packs to 0x3F000 (252KB) = dash 64 + saver 128 + hero 48 +
+# thumb 12, so the 0x50000 (320KB) storage holds 1 full-quality custom slot. The CUSTOM user-uploaded hero WORKS E2E
+# via this internal storage slot (web gallery -> mmap render on dashboard + screensaver); the microSD phase was ABANDONED.
+substitutions:
+  banner_dash_w: "174"       # dash region BOUND = the envelope of the two adaptive boxes below (not a single cut-out)
+  banner_dash_h: "96"
+  banner_saver_w: "300"
+  banner_saver_h: "132"
+
+esphome:
+  platformio_options:
+    build_flags:
+      - "-DWD_DASH_W=${banner_dash_w}"
+      - "-DWD_DASH_H=${banner_dash_h}"
+      - "-DWD_SAVER_W=${banner_saver_w}"
+      - "-DWD_SAVER_H=${banner_saver_h}"
+      # Adaptive two-box hero placement (v4). The converter fits the car into whichever box renders it larger:
+      #   A = WIDE + short (174x60): may pass the status x (148) because it's short enough to sit ABOVE the status
+      #       band; 180-6 wide clears the DEMO/clock cluster (~x184). Device BOTTOM-anchors it just above the status.
+      #   B = TALL + narrow (156x96): its right edge (6+156=162) tucks ~14px under the status ICON (the status cluster
+      #       draws ON TOP, so the hero's corner hides under the icon, not over the text); 6+96=102 tall stays above
+      #       the data zone (y108). Device TOP-anchors it so it runs down the left column.
+      # Both fit inside the 174x96 bound above -> R_DASH_SIZE + slot span (drift-lock) unchanged.
+      - "-DWD_DASH_AW=174"
+      - "-DWD_DASH_AH=60"
+      - "-DWD_DASH_BW=156"
+      - "-DWD_DASH_BH=96"
+      - "-DWD_HERO_CAP=0xC000"       # 48KB web-hero region cap (opt-in shrink; default 64KB)
+      - "-DWD_THUMB_CAP=0x3000"      # 12KB web-thumb region cap
+      - "-DWD_EXPECT_SLOT_SPAN=0x3F000"  # drift-lock: dash64+saver128+hero48+thumb12 = 252KB (peer boards all set this)
+      - "-DWD_HAS_DISPLAY=1"         # capability flag for the shared dashboard's board:{} (has a screen)
+      - "-DWD_HAS_LDR=1"             # capability flag: has the onboard LDR -> the web shows the Auto-dim toggle
+      - "-DWD_LED_TYPE=2"            # status-LED type: 2=rgb (4-level OFF|LO|MED|HIGH via /wd/cfg 'led'). 0=none,1=mono.
+      # (D5 2026-09-09: the WD_JSON_FLOOR_LOG + WD_MEM_LOG dev-probes were REMOVED for the v0.2 gate — CYD now ships.
+      #  Their #ifdef-guarded ESP_LOGI blocks in core.yaml / display_cyd.yaml / wd_font_buf.h compile out; the guard
+      #  returns stay. Re-add a flag locally only for a heap-soak measurement.)
+      - "-DWD_HAS_IDLEDIM=1"         # capability flag: screen idle-dim is a user 4-level OFF/LOW/MED/HIGH (via /wd/cfg 'idim')
+      - "-DWD_HAS_WEBOTA=0"          # web-served OTA DISABLED on the CYD (board:{ota:0} -> the dashboard hides the System uploader). Safe-fail: HW test 2026-09-07 showed a task_wdt trigger during the 1.8MB flash-write on this no-PSRAM tight-heap board (loopTask starved while httpd wrote flash; survived as a warning, but on the edge) — this rationale stands regardless of whether the CYD ships. NOTE 2026-09-09: the CYD IS now slated to ship at v0.2 (maintainer call), so its release-asset / update-check handling is a post-master CI decision; the in-page uploader stays OFF either way, so the update path is the USB web-flasher ("Flash it"). Other boards keep the default =1.
+      - "-DWD_SSE_MAX_VIEWERS=1"     # tight-heap SSE cap: latest-viewer-wins (evict oldest). A 2nd concurrent dashboard
+                                     #   SSE fragments this no-PSRAM board's 8-bit heap irreversibly. Web emits "owner" +
+                                     #   the client goes dormant (red bar) on loss. Boards WITHOUT this flag = unlimited
+                                     #   viewers (headless has the heap). 1 = single viewer (product is single-viewer).
+      # - "-DWD_DEBUG_LEDTEST=1"     # UNCOMMENT for a brownout-probe build only: enables POST /wd/cfg?ledtest=N (exact LED %). Keep OFF in shipping.
+
+esp32:
+  board: esp32dev
+  flash_size: 4MB
+  partitions: partitions_esp32_cyd.csv     # PROVEN 4MB table: 0x1D0000 dual-OTA + 0x50000 storage (= 4mb/headless)
+  framework:
+    type: esp-idf
+    version: "5.5.4"                  # same pinned esp-idf as TTGO/headless
+    sdkconfig_options:                # inherited DRAM trims (CYD has the bigger draw buffer; see plan Phase 4)
+      CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM: "4"
+      # DYNAMIC_TX 12->8 frees ~6.4KB of 8-bit DRAM — raises the LVGL draw-buffer alloc floor so a web-load
+      # dip is less likely to fail a glyph/layer alloc and stall the LVGL loop. OUTBOUND buffers only, so the
+      # inbound path is untouched and this does NOT regress power_save_mode:none reachability (it also partly
+      # offsets that setting's ~7KB heap cost). RX buffers left as-is on purpose.
+      CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM: "8"
+      CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM: "16"
+      CONFIG_BTDM_SCAN_DUPL_CACHE_SIZE: "10"
+      # Note: shrinking the per-socket TCP RECEIVE window (TCP_WND) was evaluated and rejected — it saved <200 B of
+      # heap at the 1-client trough (reconnect traffic is small bursty requests, not window-filling transfers) while
+      # roughly halving OTA-RECEIVE throughput. That receive-side lever stays rejected.
+      # A3 (2026-09-08) — DIFFERENT buffer: the SEND buffer (SND_BUF, device->client dashboard serve), shrunk
+      # 5760 (4*MSS) -> 2880 (2*MSS) as a floor-resilience TRIAL. Rationale: caps per-socket TX queue-depth -> fewer
+      # 1536B TX pbufs pinned during the idle HA-connected heap swing -> higher 8-bit floor (measured longer holds /
+      # self-heal; docs/internal/cyd-idle-ha-swing.md). TRADE-OFF (watch in UAT): a smaller send window serves the
+      # ~KB dashboard in more RTTs -> slower cold-open -> longer heap-pressure window. If cold-open serve is slow,
+      # tune UP the ladder 2880 -> ~3600 -> 4320 (3*MSS) -> back toward the ~5744 IDF default (5760 = 4*MSS).
+      # Legal range 2440-65535.
+      CONFIG_LWIP_TCP_SND_BUF_DEFAULT: "2880"   # A3 (2*MSS). A/B-CONFIRMED 2026-09-08: 2880 floor (min8 8816 / blk8 13824+) beats 5760 (min8 5764 / blk8 9728) by ~4K under a demo+dashboard soak — fewer queued TX pbufs/socket = higher 8-bit floor, which is what protects the cold-open (hero serves rather than degrading-to-empty under heap pressure). 5760's page-serve-speed edge was UNMEASURABLE (its HAR GET / hit the browser cache = 304). Page serves fine at 2880 (1.2s/152KB, 200). Keep 2880.
+
+# CYD has TWO hardware SPI buses (the display and the touch controller are wired to DIFFERENT pins — they do
+# NOT share a bus). Give each an id so the display (tft_bus) and XPT2046 touch (touch_bus) bind unambiguously.
+#   Display (ILI9341, HSPI): CLK 14 / MOSI 13 / MISO 12 ; CS 15 / DC 2 ; RST tied to EN (no GPIO — see display_cyd)
+#   Touch   (XPT2046, VSPI): CLK 25 / MOSI 32 / MISO 39 ; CS 33 / IRQ 36
+# (microSD ABANDONED 2026-09-03 — always-mounted FATFS wedged the heap; custom-hero uses internal storage instead.)
+spi:
+  - id: tft_bus
+    clk_pin: 14
+    mosi_pin: 13
+    miso_pin: 12
+  - id: touch_bus
+    clk_pin: 25
+    mosi_pin: 32
+    miso_pin: 39
+
+output:
+  - platform: ledc
+    pin: 21                          # CYD backlight
+    id: backlight_output
+    frequency: 1000Hz
+
+light:
+  - platform: monochromatic
+    output: backlight_output
+    id: backlight
+    name: "Backlight"
+    internal: true
+    restore_mode: ALWAYS_ON
+    default_transition_length: 120ms
+
+# =============================================================================
+# Ambient-light (LDR) auto-brightness — CYD onboard photoresistor on GPIO34 (ADC1_CH6 = WiFi-safe, input-only).
+# Emits ONE cached CONTINUOUS "darkness" float `led_dark` in [0,1] (0=bright .. 1=full-dark; defined in led_cyd_rgb.yaml):
+# the LED scales by it and the display_cyd backlight LADDER (backlight_model.h) maps it to brightness. The CYD LDR is
+# INVERTED (DARK = HIGHER volts) with a WIDE real span (~0.14 bright -> ~1.6 total-dark on this unit; the earlier
+# "~135mV coarse" number was a bad first characterization).
+# MODEL = BRIGHT-ANCHORED PERCEPTUAL: we learn ONLY the bright end (v_bright); darkness is a FIXED perceptual log-span
+# (SPAN_DECADES) measured from it. So a one-off total-dark (a drawer, a black garage) just SATURATES darkness to 1.0 —
+# it can NEVER move the map or pollute NVS (the OLD "learn the dark extreme" model let a drawer poison the calibration
+# for days; this is structurally immune). CONTINUOUS output -> a dimly-lit garage dims MODERATELY, not only at near-black.
+# LAZY (this is a NON-CORE feature — must never cost board stability/RAM): one ADC read + a logf + a slew every 3s; the
+# consumers read the cached float. NVS: ONLY v_bright persists (lazy ~1x/h) -> a settled board is calibrated instantly
+# after a reboot. Polarity via ldr_inverted. All consts (SPAN_DECADES, the anchor/slew rates, band) are HW-TUNABLE feel
+# knobs — validate with the drawer test (bright a few min -> cover/drawer: watch `led_dark` ramp 0->1 smoothly).
+# =============================================================================
+globals:
+  - id: ldr_v_bright                 # learned BRIGHT anchor (volts) = where darkness reads 0. RAM (seeded from NVS on boot).
+    type: float
+    restore_value: no
+    initial_value: '3.3f'
+  - id: ldr_base_bright              # persisted bright anchor (LAZY ~1x/h) -> seeds ldr_v_bright for instant post-reboot calibration.
+    type: float
+    restore_value: true
+    initial_value: '3.3f'
+  - id: ldr_sync_ms                  # RAM: last lazy NVS persist tick.
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: ldr_inverted                 # polarity: true = DARK reads HIGHER volts (our unit + the common CYD). Persisted;
+    type: bool                       # a rare non-inverted board flips this via a future write-only /wd POST, never SSE.
+    restore_value: true
+    initial_value: 'true'
+  - id: ldr_enabled                  # auto-dim master toggle (persisted, default ON). false -> darkness pinned 0 (day/full).
+    type: bool                       # Flipped by the future write-only /wd POST, never SSE.
+    restore_value: true
+    initial_value: 'true'
+
+sensor:
+  - platform: adc
+    pin: GPIO34
+    id: ldr_volts
+    internal: true                   # characterization signal only — never an HA/SSE entity
+    attenuation: 12db                # full 0-3.3V range (readings are low; no clipping)
+    samples: 8                       # oversample to cut ADC noise (the swing is only ~135mV)
+    update_interval: 3s              # LAZY: ambient light is slow; nothing hot runs here
+    filters:
+      - exponential_moving_average: { alpha: 0.2, send_every: 1 }   # smooth flicker / mains ripple
+    on_value:
+      - lambda: |-
+          const float v = x;                                  // EMA-smoothed volts
+          if (!id(ldr_enabled)) { id(led_dark) = 0.0f; return; }   // auto-dim master toggle OFF -> darkness 0 = day/full
+          // Defer ALL action until the boot is "good" (60s == safe_mode boot_is_good_after, core.yaml:93) so it never
+          // runs in the fragile post-boot ramp; led_dark holds 0 (screen day/full) meanwhile.
+          if (millis() < 60000UL) return;
+          // Plausibility band: reject a pin pinned near a rail (no LDR / miswire); wide for divider variance.
+          if (v < 0.01f || v > 2.9f) return;
+          // One-shot anchor init: seed from NVS if a settled board was calibrated (instant, no re-learn — crucial for a
+          // NIGHT reboot); else init to the FIRST valid reading (setup is normally in daylight = a real bright, and it
+          // avoids an ~8-min converge from the 3.3 default).
+          static bool booted = false;
+          if (!booted) { booted = true; id(ldr_v_bright) = (id(ldr_base_bright) < 3.0f) ? id(ldr_base_bright) : v; }
+          const uint32_t now = millis();
+          const float SPAN_DECADES = 0.6f;                    // bright -> full-dark span in log10 decades (HW-tunable feel knob)
+          // Learn ONLY the bright anchor: approach a BRIGHTER reading moderately (~0.02/tick, TC ~min = fast enough to
+          // catch a real brightening in minutes), but leak toward DARK almost imperceptibly (~5e-6/tick, TC ~a week) so
+          // a rare glint that nudged it too-bright still recovers over days. Over a FULL-dark night the anchor drifts up
+          // ~0.1V but full-dark is far past the span -> darkness stays SATURATED at 1.0 (a few wear-safe NVS writes may
+          // trail the drift). Tradeoff (by design, HW-tunable via this rate): a MODERATELY-dark space over a very long
+          // night lets the screen creep brighter. Floor keeps it off zero. (The DARK end is the fixed log-span below.)
+          float vb = id(ldr_v_bright);
+          const bool brighter = id(ldr_inverted) ? (v < vb) : (v > vb);
+          vb = fmaxf(vb + (v - vb) * (brighter ? 0.02f : 0.000005f), 0.02f);
+          id(ldr_v_bright) = vb;
+          // Darkness 0..1 via a PERCEPTUAL (log-volts) span from the anchor. The dark end is the FIXED span, so a
+          // drawer / black garage SATURATES to 1.0 without moving the map or touching NVS. Polarity-aware.
+          const float ldk = id(ldr_inverted) ? (logf(v) - logf(vb)) : (logf(vb) - logf(v));   // rises as it gets darker
+          float dark = fminf(fmaxf(ldk / (SPAN_DECADES * 2.302585f), 0.0f), 1.0f);            // ln(10)=2.302585
+          // Slew toward the target with a deadband -> a smooth backlight ramp, no chatter on passing shadows/clouds.
+          const float cur = id(led_dark);
+          if (fabsf(dark - cur) >= 0.03f) {
+            float step = dark - cur;
+            if (step > 0.05f) step = 0.05f; else if (step < -0.05f) step = -0.05f;
+            id(led_dark) = cur + step;
+          }
+          // Lazy NVS persist of the bright anchor (~1x/h if drifted) — wear-safe; seeds instant calibration next boot.
+          if (now - id(ldr_sync_ms) > 3600000UL) {
+            id(ldr_sync_ms) = now;
+            if (fabsf(vb - id(ldr_base_bright)) > 0.02f) id(ldr_base_bright) = vb;
+          }

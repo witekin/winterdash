@@ -185,11 +185,16 @@
   </div>
 
   <div class="card">
-    <div class="btnrow">
+    <style>@keyframes ovspin{to{transform:rotate(360deg)}}</style>
+    <div class="btnrow" style="position:relative">
       <button class="btn" id="save" disabled>Save to gallery</button>
+      <button class="btn" id="viewdash" hidden>← Back to dashboard</button>
       <button class="btn" id="dl" disabled>Download WebP</button>
-      <a class="ghost" href="/" style="text-decoration:none">← Back to dashboard</a>
       <span class="meta" id="meta"></span>
+      <div id="ovbar" style="display:none;position:absolute;inset:-4px;background:rgba(8,12,16,.86);border-radius:10px;gap:10px;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:#cfe3ee;z-index:5">
+        <span style="width:16px;height:16px;border:2px solid #29b6f6;border-right-color:transparent;border-radius:50%;display:inline-block;animation:ovspin .8s linear infinite"></span>
+        <span id="ovmsg">Applying image…</span>
+      </div>
     </div>
     <div class="hint" id="cutNote" style="display:none;color:var(--amber);margin-top:8px"></div>
     <div class="hint" style="margin-top:12px"><b>Save to gallery</b> adds the banner to WinterDash and switches to it (works when this page is opened from the device, e.g. <code>winterdash-a1b2c3.local/convert</code>). <b>Download WebP</b> saves a portable image you can re-drop here later or use on another device. The device blob is generated automatically.</div>
@@ -208,8 +213,13 @@
   const el=document.createElement('canvas'); el.width=W; el.height=H; const ectx=el.getContext('2d'); // eraser mask (frame coords)
   let img=null, srcImg=null, mode='move', hasAlpha=false, erased=false, galleryFull=false;
   // Board-adaptive cut-out sizes (v2a): the device tells us its dash/saver .wdb targets via /gallery board:{}.
-  // Fallback to the TTGO literals if the field is absent (old firmware). Hero/thumb stay fixed (web-shared assets).
-  let boardDash=[112,50], boardSaver=[224,92];
+  // Fallback to the TTGO literals if the field is absent (old firmware). Hero DIMS stay fixed (480x178 web-display,
+  // board-independent) but its byte CAP is board-adaptive (E/F2): tight boards (CYD R_HERO=48.6KB) get a smaller cap
+  // than the old hardcoded 63KB, so we never upload a hero the device would reject 400. Thumb stays fixed (always fits).
+  let boardDash=[112,50], boardSaver=[224,92], boardHeroCap=63000, boardThumbCap=12000;
+  // Optional adaptive dash placement (v4): a WIDE box A + a TALL box B. If the board advertises both, the dash
+  // cut-out is fit to whichever renders the car larger; the device anchors by height. null -> single-box (legacy).
+  let boardDashA=null, boardDashB=null;
 
   function setSeg(el,v){[...el.children].forEach(b=>{if(b.dataset.v)b.classList.toggle('on',b.dataset.v===v);});}
   $('mode').addEventListener('click',e=>{if(e.target.dataset.v){mode=e.target.dataset.v;setSeg($('mode'),mode);stage.classList.toggle('erase',mode==='erase');ring.style.display='none';}});
@@ -252,7 +262,7 @@
       setTimeout(()=>{if(!img)$('fn').textContent='Drop or click the banner to add an image.';},2200);return;}
     const im=new Image();
     im.onload=()=>{srcImg=im;img=im;ectx.clearRect(0,0,W,H);erased=false;hasAlpha=alphaFraction(im)>0.01;   // reward an already-transparent PNG
-      $('prompt').style.display='none';$('replace').hidden=false;stage.classList.add('hasimg');
+      hideViewDash();$('prompt').style.display='none';$('replace').hidden=false;stage.classList.add('hasimg');   // a fresh image supersedes a prior save's View-dashboard / probe
       $('fn').textContent=f.name;if(!$('name').value)$('name').value=f.name.replace(/\.[^.]+$/,'').slice(0,31);
       render();meta();};   // Save/DL gated by the cut-out guard in render(), not here
     im.src=URL.createObjectURL(f);
@@ -502,19 +512,26 @@
   // /gallery/dash (server allocs the slot + leaves it UNCOMMITTED) -> saver?id -> hero?id ->
   // thumb?id -> commit?id (atomic go-live) -> select?id. Any failure before commit = free slot.
   async function saveToGallery(){
-    if(!img)return; const st=$('save'); if(!st)return; const old=st.textContent; st.disabled=true; st.textContent='Saving…';
+    if(!img)return; const st=$('save'); if(!st)return; hideViewDash(); ovShow('Applying image…'); const old=st.textContent; st.disabled=true; st.textContent='Saving…';
     try{
       const name=$('name').value||'', cat=+$('cat').value;
       const sub=subjectCanvas();
-      const dashBlob=wdbFromCanvas(fitCv(sub,boardDash[0],boardDash[1]),name,cat);   // dashboard car-field size (board-adaptive)
+      // Adaptive dash placement (v4): fit into the WIDE box A and the TALL box B, keep whichever renders the car
+      // larger (by area). Boards that don't advertise dashA/dashB fall back to the single dash box (byte-identical).
+      const bA=boardDashA||boardDash, bB=boardDashB||boardDash;
+      const cA=fitCv(sub,bA[0],bA[1]), cB=fitCv(sub,bB[0],bB[1]);
+      const dashCv=(cA.width*cA.height>=cB.width*cB.height)?cA:cB;
+      const dashBlob=wdbFromCanvas(dashCv,name,cat);   // dashboard car-field (board-adaptive, aspect-selected box)
       const saverBlob=wdbFromCanvas(fitCv(sub,boardSaver[0],boardSaver[1]),name,cat); // screensaver size (board-adaptive; device static_asserts it fits R_SAVER)
       let hero=await blobOf(fitCv(sub,480,178),0.82);
-      for(let q=0.82; hero.size>63000 && q>0.4; q-=0.15){ hero=await blobOf(fitCv(sub,480,178),q); }
-      if(hero.size>63000) throw new Error('image too large');
-      const thumb=await blobOf(fitCv(sub,120,90),0.75);
+      for(let q=0.82; hero.size>boardHeroCap && q>0.4; q-=0.15){ hero=await blobOf(fitCv(sub,480,178),q); }
+      if(hero.size>boardHeroCap) throw new Error('image too large for this board — pick a simpler image');
+      let thumb=await blobOf(fitCv(sub,120,90),0.75);
+      for(let q=0.75; thumb.size>boardThumbCap && q>0.35; q-=0.15){ thumb=await blobOf(fitCv(sub,120,90),q); }  // F2: fit the thumb to the board's thumb region (mirrors the hero cap)
+      if(thumb.size>boardThumbCap) throw new Error('thumbnail too large for this board — pick a simpler image');
       const put=(url,blob,fn)=>{const fd=new FormData();fd.append('f',blob,fn);return fetch(url,{method:'POST',body:fd});};
       const r0=await put('/gallery/dash',dashBlob,'d.wdb');     // id-less: server allocates
-      if(r0.status===409){ galleryFull=true; guardCutout(); st.textContent='Gallery full — delete one'; setTimeout(()=>{st.textContent=old;st.disabled=false;},2800); return; }
+      if(r0.status===409){ ovHide(); galleryFull=true; guardCutout(); st.textContent='Gallery full — delete one'; setTimeout(()=>{st.textContent=old;st.disabled=false;},2800); return; }
       if(!r0.ok) throw new Error('dash '+r0.status);
       const id=(await r0.json()).id;
       let r=await put('/gallery/saver?id='+id,saverBlob,'s.wdb'); if(!r.ok) throw new Error('saver '+r.status);
@@ -522,20 +539,57 @@
       r=await put('/gallery/thumb?id='+id,thumb,'t.webp');       if(!r.ok) throw new Error('thumb '+r.status);
       r=await fetch('/gallery/commit?id='+id,{method:'POST'});   if(!r.ok) throw new Error('commit '+r.status);
       await fetch('/gallery/select?id='+id,{method:'POST'});     // make the new banner live immediately
-      st.textContent='Saved ✓';
-      setTimeout(()=>{ location.href='/?banner='+id; }, 700);
+      // NO blind auto-navigate. The new hero's build_custom render-swap craters the CYD 8-bit heap ASYNC right after
+      // this; a full page GET onto that wedges the single httpd worker (unreachable until reboot). Instead morph Save
+      // into "← Back to dashboard" (showViewDash hides #save, reveals #viewdash); its click probe-then-navigates once
+      // the device can serve `/` again (below).
+      ovHide(); showViewDash(id);
       return;
-    }catch(e){ st.textContent='Failed'; }
+    }catch(e){ ovHide(); st.textContent='Failed'; }
     setTimeout(()=>{st.textContent=old||'Save to gallery';st.disabled=false;},2400);
   }
   { const sb=$('save'); if(sb) sb.addEventListener('click',saveToGallery); }
+
+  // --- Post-save "View dashboard": probe `/` until the device can serve it, THEN navigate. Never blind-nav into the
+  //     async render-swap crater (a full 44KB GET onto a cratered 8-bit heap wedges the single httpd worker ->
+  //     unreachable until reboot). The device 503-guards `/` while cratered; we poll it, single-in-flight + cancellable,
+  //     and require TWO consecutive OKs (>=800ms apart) to clear the ~1-draw-tick pre-render window, then go (the nav
+  //     revalidates to a 304 -> no 44KB re-transfer). Timeout -> the banner is committed/durable, offer a reboot.
+  // Overlay over the button bar — a VISIBLE in-progress cue during the two async waits (save, probe).
+  function ovShow(m){ const o=$('ovbar'),t=$('ovmsg'); if(t)t.textContent=m; if(o)o.style.display='flex'; }   // toggle display (an inline display beats the [hidden] attr) -> event-gated, only during save/probe
+  function ovHide(){ const o=$('ovbar'); if(o)o.style.display='none'; }
+  let vdProbing=false, vdAbort=null, vdMode='go', vdBannerId=null;
+  function cancelProbe(){ vdProbing=false; if(vdAbort){try{vdAbort.abort();}catch(_){}} vdAbort=null; }
+  // Save MORPHS to "← Back to dashboard" on save-success (same slot): hide #save, reveal #viewdash. Reset restores #save.
+  function showViewDash(id){ vdMode='go'; vdBannerId=(id!=null?id:null); const sv=$('save'); if(sv){ sv.hidden=true; sv.textContent='Save to gallery'; sv.disabled=false; } const vd=$('viewdash'); if(vd){ vd.hidden=false; vd.disabled=false; vd.textContent='← Back to dashboard'; } }
+  function hideViewDash(){ cancelProbe(); vdMode='go'; ovHide(); const vd=$('viewdash'); if(vd) vd.hidden=true; const sv=$('save'); if(sv) sv.hidden=false; }
+  async function onViewDash(){
+    const vd=$('viewdash'); if(!vd) return;
+    if(vdMode==='reboot'){ if(confirm('Reboot the device? Your image is saved and shows after ~20s.')){ fetch('/button/restart/press',{method:'POST'}).catch(()=>{}); ovShow('Rebooting… reconnect in ~20s'); } return; }
+    if(vdProbing) return;                                   // double-click guard
+    vdProbing=true; vd.disabled=true; ovShow('Opening dashboard…');
+    const t0=Date.now(); let streak=0;
+    while(vdProbing && Date.now()-t0 < 20000){
+      let ok=false;
+      try{ vdAbort=new AbortController(); const r=await fetch('/',{signal:vdAbort.signal}); ok=r.ok; }catch(_){ ok=false; }  // default cache mode -> a low-heap 503 is !ok; once healthy the later nav revalidates to 304
+      vdAbort=null;
+      if(!vdProbing){ ovHide(); return; }                   // cancelled by a new image / new save
+      if(ok){ if(++streak>=2){ location.href=(vdBannerId!=null?'/#banner='+vdBannerId:'/'); return; } } else streak=0;  // #banner=N is a FRAGMENT (not a query) -> no cache-bust -> the page 304s (no 44KB re-serve) AND the dashboard re-asserts the new hero from location.hash
+      await new Promise(r=>setTimeout(r,800));
+    }
+    vdProbing=false; ovHide(); vdMode='reboot'; vd.disabled=false; vd.textContent='Still busy — reboot device?';   // still cratered past ~20s
+  }
+  { const vd=$('viewdash'); if(vd) vd.addEventListener('click',onViewDash); }
 
   labels();render();
   // Up-front storage guard: ask the device whether the gallery is full BEFORE composing, so Save is blocked
   // up-front with a clear message instead of failing at save time. next_free==-1 => full (partition-cap-aware).
   fetch('/gallery').then(r=>r.ok?r.json():null).then(j=>{ if(j){ galleryFull=(j.next_free===-1);
     if(j.board){ const ok2=a=>Array.isArray(a)&&a.length===2&&a[0]>0&&a[1]>0;
-      if(ok2(j.board.dash)) boardDash=j.board.dash; if(ok2(j.board.saver)) boardSaver=j.board.saver; }
+      if(ok2(j.board.dash)) boardDash=j.board.dash; if(ok2(j.board.saver)) boardSaver=j.board.saver;
+      if(ok2(j.board.dashA)) boardDashA=j.board.dashA; if(ok2(j.board.dashB)) boardDashB=j.board.dashB;
+      if(typeof j.board.hero==='number' && j.board.hero>0) boardHeroCap=j.board.hero;
+      if(typeof j.board.thumb==='number' && j.board.thumb>0) boardThumbCap=j.board.thumb; }
     guardCutout(); } }).catch(()=>{});
 </script>
 </body>

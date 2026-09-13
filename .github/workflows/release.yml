@@ -5,7 +5,9 @@
 #   • <board>-<ver>.factory.bin — full image for a fresh USB flash (installer / esptool, @ 0x0)
 #   • <board>-<ver>.ota.bin     — app-only image for an over-the-air update (device update form /
 #                                 `esphome run`). The factory.bin is NOT OTA-uploadable.
-# CYD is intentionally NOT in the matrix (compile-only / NOT READY).
+# All boards build both images. NOTE: the CYD's in-page web uploader is disabled (WD_HAS_WEBOTA=0,
+# a no-PSRAM flash-write task_wdt risk) so its normal update path is the USB web-flasher — but the
+# ota.bin still ships for advanced `esphome run` use.
 #
 # Actions use major-version tags (@vN) from trusted publishers; Dependabot alerts cover them. Pin to
 # full commit SHAs if you want stricter supply-chain hardening. Validated end-to-end at release #1.
@@ -32,7 +34,7 @@ jobs:
           - { id: esp32-tdisplay-16mb, yaml: esphome/esp32-tdisplay-16mb.yaml }
           - { id: esp32-tdisplay-4mb,  yaml: esphome/esp32-tdisplay-4mb.yaml }
           - { id: esp32-wroom32,       yaml: esphome/esp32-wroom32.yaml }
-          # NO cyd — compile-only / NOT READY (manifest private:, new-board checklist).
+          - { id: esp32-cyd,           yaml: esphome/esp32-cyd.yaml }
     steps:
       - uses: actions/checkout@v7
 
@@ -65,6 +67,11 @@ jobs:
           test -n "$OFFICIAL_OTA" || { echo "::error::OFFICIAL_OTA_PASSWORD variable not set"; exit 1; }
           cp esphome/secrets.yaml.example esphome/secrets.yaml
           sed -i "s|^ota_password:.*|ota_password: \"${OFFICIAL_OTA}\"|" esphome/secrets.yaml
+
+      # Guard the single-source-of-truth: fail if the committed per-board banner assets drift from
+      # board_assets.yaml (someone edited the config without re-running the generator).
+      - name: Verify generated banner assets are in sync
+        run: python esphome/tools/gen_board_assets.py --all --check
 
       # -s fw_version overrides the master's substitution (shown on the System/About screen).
       - name: Compile ${{ matrix.id }}

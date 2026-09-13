@@ -3,6 +3,7 @@
   "boards": {
     "esp32-tdisplay-16mb": { "label": "LilyGO TTGO T-Display — 16 MB", "photo": "../assets/board-tdisplay.webp" },
     "esp32-tdisplay-4mb":  { "label": "LilyGO TTGO T-Display — 4 MB",  "photo": "../assets/board-tdisplay.webp" },
-    "esp32-wroom32":       { "label": "Screenless ESP32 (WROOM-32)",   "photo": "../assets/board-wroom32.webp" }
+    "esp32-wroom32":       { "label": "Screenless ESP32 (WROOM-32)",   "photo": "../assets/board-wroom32.webp" },
+    "esp32-cyd":           { "label": "LilyGO CYD — 2.8-inch touch (ESP32-2432S028R)", "photo": "../assets/board-cyd.webp" }
   }
 }

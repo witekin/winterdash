@@ -33,14 +33,15 @@ RTC_NOINIT_ATTR uint32_t netwatch_rtc_min_free;   // min free heap ever (across 
 RTC_NOINIT_ATTR uint8_t  netwatch_rtc_twdt;       // task-WDT reboots in the current window (reset-breaker bound)
 
 // --- Watchdog breadcrumb -------------------------------------------------------------------------------
-// trigger: what caused the LAST watchdog-initiated (marker) reboot — 0=none, 2=net-stale (network-stack wedge caught).
+// trigger: what caused the LAST watchdog-initiated (marker) reboot — 0=none, 2=net-stale (network-stack wedge caught),
+// 3=net-stale probe-path, 4=heap-contiguity crater (blk8 locked sub-floor -> web dead, LCD alive, net wedge blind).
 // Surfaced in /wd/info.json so a FIELD wedge self-reports "the watchdog fired" (trigger=2 + small uptime + SW reset)
 // even when the wedge can't be forced on the bench (ship armed, field-self-validated).
 // lifetime_reboots: NON-clearing count of watchdog reboots since the last PHYSICAL power-cycle (cleared on
 // `fresh` only, like min_free — NOT on the 300s window clear). Observability for the self-healing intermittent
 // wedge, which reboots forever without ever tripping the K=3 breaker (that's the watchdog working, but
 // the user is never told it's flapping) — surfaced in /wd/info.json.
-RTC_NOINIT_ATTR uint8_t  netwatch_rtc_trigger;          // 0=none, 2=net-stale client-path, 3=net-stale probe-path
+RTC_NOINIT_ATTR uint8_t  netwatch_rtc_trigger;          // 0=none, 2=net-stale client-path, 3=net-stale probe-path, 4=heap-crater
 RTC_NOINIT_ATTR uint32_t netwatch_rtc_lifetime_reboots; // watchdog reboots since last power-cycle (non-clearing)
 
 // Phase-2 flap-cap: the probe-only (clientless) arm reboots the MOST reboot-visible population (a user whose

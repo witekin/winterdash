@@ -47,7 +47,8 @@ struct StatusOut {
   const char *icon{nullptr};      // mdi glyph literal
   int         scode{0};           // 0 idle · 1 charging · 2 charged · 3 fault · 4 recond
   // --- verdict + link flags ---
-  std::string note;               // anomaly / aux line (shared with status_note_pub)
+  std::string note;               // anomaly / verdict line (shared with status_note_pub) — amber, priority over the phase
+  std::string raw;                // raw charger phase (device_state, verbatim) for the detail top line; "" when offline
   bool  offline{false};           // BLE stale > timeout (draw overlay + early-return)
   bool  ble_stale{false};         // step-1 stale (link dot / BLE page)
   bool  serious_warn{false};      // over/undervoltage keep-lit (draw writes serious_warn_active)

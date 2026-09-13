@@ -4,7 +4,7 @@
 # The headless port: an ESP32-D0WDQ6 dev board (4MB flash) with no screen. It is
 # the first board to prove core.yaml stands alone — same core, same producers,
 # same web + HA, just no display_tdisplay / input_tdisplay_2btn. The dashboard lives entirely
-# on the web page (which is the ONLY UI here), so banners_baked.h + gzip web are
+# on the web page (which is the ONLY UI here), so the web-banner header + gzip web are
 # inherited from core/shared unchanged (they have zero display dependency).
 #
 # This file is ONLY the chip + partition table. It deliberately drops the TTGO's
@@ -44,6 +44,9 @@ esphome:
       - "-DWD_HERO_CAP=0xC000"         # 48KB hero webp region (headroom over the converter's 63KB gate is N/A here)
       - "-DWD_THUMB_CAP=0x3000"        # 12KB thumb webp region
       - "-DWD_EXPECT_SLOT_SPAN=0x24000"  # compat lock: this board's shipped geometry = 144KB
+      - "-DWD_LED_TYPE=1"              # status-LED type: 1=mono (2-level Off/On via /wd/cfg 'led'; mono GPIO2, no PWM). 0=none,2=rgb.
+      # (WD_JSON_FLOOR_LOG dev-probe REMOVED 2026-09-09 — wroom32 is a SHIPPING board, opsec-flagged. The CYD's probes
+      #  stay for now (CYD not in the release matrix); strip them in the cyd-bringup->main pre-v0.2 pass.)
 
 esp32:
   board: esp32dev

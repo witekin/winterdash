@@ -7,7 +7,7 @@
 # AFTER boot it is the classic blink LED — safe (the board already boots fine).
 #
 # BOARD-SPECIFIC + PLUGGABLE (like input_tdisplay_2btn / input_wroom32_boot): a headless unit
-# includes THIS module; the CYD swaps it for a future led_rgb.yaml (RGB LED, colour-
+# includes THIS module; the CYD swaps it for led_cyd_rgb.yaml (RGB LED, colour-
 # coded). The STATE SET is board-agnostic — it reads the SAME core signals the web +
 # display consume (AP-active, wifi-connected, the status DTO's fault/offline/warn) —
 # so the logic is "designed once"; each board's LED module just RENDERS as much as its
@@ -92,6 +92,11 @@ interval:
           } else {                                           // 5: connecting (STA down past the settle window)
             led = (now % 1000) < 100;                        //    medium 1 Hz blink
           }
+          // User "Status LED off" pref (led_level==0, from the web /wd/cfg 'led' -> core global): silence the LED,
+          // BUT keep the active BOOT/Wi-Fi-reset gesture feedback and the critical NETWORK-FAULT SOS lit — on a
+          // screenless board the LED is the ONLY local cue for those, so a "quiet" pref must not blind the user to a
+          // fault or hide their own reset gesture. Normal heartbeat / AP / attention ARE silenced.
+          if (id(led_level) == 0 && !id(wifi_reset_pending) && !held && !id(netwatch_disabled)) led = false;
           // Write only on a level CHANGE (edge), not every 50ms tick — the gpio output has no rate guard
           // and won't warn, but this drops ~20 redundant writes/s to a handful (the pattern's edges).
           static int8_t prev = -1;                           // -1 = unknown -> force the first write

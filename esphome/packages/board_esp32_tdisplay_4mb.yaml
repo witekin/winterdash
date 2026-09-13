@@ -6,7 +6,8 @@
 # banner dims are byte-identical to board_esp32_tdisplay_16mb.yaml; only three things change for 4MB:
 #   1. flash_size 16MB -> 4MB
 #   2. partitions -> partitions_esp32_tdisplay_4mb.csv (0x1D0000 dual-OTA + 320KB storage)
-#   3. -DWD_BAKE_MINIMAL: bake ONLY the Battery preset (LCD + web) so the app fits under the 1.8125MB slot.
+#   3. a MINIMAL baked set (Battery only, LCD + web) via tools/board_assets.yaml, so the app fits under the
+#      1.8125MB slot. (The baked set is board_assets.yaml data now, not a -D flag.)
 # The default slot geometry (64KB .wdb align, 64KB webp caps -> SLOT_SPAN 256KB) is UNCHANGED, so custom
 # banners keep full quality and there is no packed-offset (F3) render risk. Never inherit the 16MB table.
 # =============================================================================
@@ -27,10 +28,13 @@ esphome:
       # Same 256KB slot geometry as the 16MB (default 64KB .wdb align + 64KB webp caps) — full-quality customs,
       # byte-compatible layout, no F3. New board, no field banners, but keep the compat lock as a geometry guard.
       - "-DWD_EXPECT_SLOT_SPAN=0x40000"
-      # MINIMAL bake: only the Battery preset compiles (LCD image list via presets_extra omission + the display
-      # preset lookup-chains collapse to Battery here; web hero via banners_baked_minimal.h). This is what drops
-      # the app ~830KB (10->1 on-screen + 10->1 web webp) so it fits a 4MB dual-OTA slot.
-      - "-DWD_BAKE_MINIMAL"
+      - "-DWD_HAS_DISPLAY=1"         # capability flag for the shared dashboard's board:{} (has a screen)
+      - "-DWD_HAS_IDLEDIM=1"         # unified with the CYD: screen idle-dim is the 4-level OFF/LOW/MED/HIGH (web /wd/cfg 'idim'). No LDR -> no Auto-dim, no LED (WD_HAS_LDR/WD_LED_TYPE default 0) = "the CYD dim model with auto-dim off"
+      - "-DWD_SSE_MAX_VIEWERS=1"     # tight-heap SSE cap (LVGL-axis policy — same 2nd-viewer shatter class as the CYD;
+                                     #   cap by default). Web emits "owner"; client goes dormant on loss. Single-viewer.
+      # Minimal baked set (Battery only, LCD + web) — declared in board_assets.yaml (screen:[Battery], web:[Battery])
+      # and emitted by gen_board_assets.py. This is what drops the app ~830 KB (10->1 on-screen + 10->1 web webp)
+      # so it fits the 4 MB dual-OTA slot. (The old -DWD_BAKE_MINIMAL binary axis is retired.)
 
 esp32:
   board: esp32dev

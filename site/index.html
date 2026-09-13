@@ -67,7 +67,7 @@
   .subtle{color:var(--faint);font-size:13px;margin:14px 0 0;max-width:44ch}
   .compat{color:var(--muted);font-size:13.5px;margin:16px 0 0;padding-top:14px;border-top:1px solid var(--line);max-width:46ch}
   .compat b{color:var(--text);font-weight:600}
-  .shot{width:100%;border:1px solid var(--line);border-radius:16px;display:block;
+  .shot{width:100%;border-radius:16px;display:block;
         box-shadow:0 24px 60px -22px rgba(0,0,0,.75)}
   @media (max-width:760px){
     .hero .wrap{grid-template-columns:1fr;gap:30px}
@@ -83,7 +83,9 @@
   /* ---- feature cards (concrete, no emoji; brand-blue accent) ---- */
   .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
   @media (max-width:760px){ .grid3{grid-template-columns:1fr} }
-  .feat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px 20px}
+  .feat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px 20px;
+        display:block;color:inherit;text-decoration:none;transition:border-color .15s,background .15s}
+  .feat:hover{border-color:var(--muted);background:var(--panel2);text-decoration:none}
   .fimg{display:block;height:92px;width:auto;max-width:100%;margin:2px auto 14px;object-fit:contain;
         filter:drop-shadow(0 6px 12px rgba(0,0,0,.35))}
   .feat h3{margin:0 0 7px;font-size:16.5px}
@@ -91,12 +93,38 @@
 
   /* ---- boards ---- */
   .board{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;
-         display:flex;flex-direction:column;align-items:center;text-align:center;gap:11px}
+         display:flex;flex-direction:column;align-items:center;text-align:center;gap:11px;
+         transition:border-color .15s,background .15s}
+  .board:hover{border-color:var(--muted);background:var(--panel2)}
+  .cardbody{display:flex;flex-direction:column;align-items:center;text-align:center;gap:11px;
+            width:100%;flex:1;color:inherit;text-decoration:none}
+  .cardbody:hover{text-decoration:none}
   .board img{height:112px;width:auto;object-fit:contain;filter:drop-shadow(0 6px 14px rgba(0,0,0,.4))}
   .board .bn{font-weight:700;font-size:15px}
   .board .bd{color:var(--faint);font-size:13px;flex:1}
-  .board a{font-size:14px;font-weight:700}
+  .blinks{display:flex;gap:18px;justify-content:center;align-items:center}
+  .blinks a{font-size:14px;font-weight:700}
+  .blinks .docs{color:var(--muted)}
+  .blinks .docs:hover{color:var(--text)}
   .boardnote{text-align:center;color:var(--muted);font-size:14px;margin:22px auto 0;max-width:62ch}
+
+  /* free-software line (hero) + boards carousel */
+  .freeline{font-size:15.5px;color:var(--text);margin:0 0 22px;max-width:44ch}
+  .freeline b{color:var(--green);font-weight:700}
+  .carousel{position:relative}
+  .track{display:flex;gap:16px;overflow-x:auto;scroll-snap-type:x mandatory;
+         scrollbar-width:none;-ms-overflow-style:none;padding-bottom:2px}
+  .track::-webkit-scrollbar{display:none}
+  .track > .board{flex:0 0 clamp(230px,31%,300px);scroll-snap-align:start}
+  .cbtn{position:absolute;top:68px;z-index:2;width:40px;height:40px;border-radius:50%;
+        border:1px solid var(--line);background:var(--panel2);color:var(--text);font-size:22px;
+        line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .cbtn:hover{border-color:var(--muted)} .cbtn:disabled{opacity:.28;cursor:default}
+  .cprev{left:-10px} .cnext{right:-10px}
+  .dots{display:flex;justify-content:center;gap:8px;margin-top:18px}
+  .dot{width:8px;height:8px;padding:0;border:none;border-radius:50%;background:var(--line);cursor:pointer}
+  .dot.on{background:var(--blue)}
+  @media (max-width:760px){ .track > .board{flex:0 0 80%} .cbtn{display:none} }
 
   /* ---- footer ---- */
   footer{border-top:1px solid var(--line);margin-top:40px;padding:30px 0 44px;color:var(--faint);font-size:13px}
@@ -114,6 +142,7 @@
       <a class="ghost" href="#features">Features</a>
       <a class="ghost" href="#boards">Boards</a>
       <a class="ghost" href="https://github.com/witekin/winterdash/wiki" target="_blank" rel="noopener">Docs</a>
+      <a href="https://www.youtube.com/@WinterDashESP" target="_blank" rel="noopener" aria-label="WinterDash on YouTube" style="display:inline-flex;align-items:center"><svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="#FF0000" d="M23.5 6.2a3 3 0 0 0-2.11-2.12C19.52 3.5 12 3.5 12 3.5s-7.52 0-9.39.58A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.11 2.12C4.48 20.5 12 20.5 12 20.5s7.52 0 9.39-.58A3 3 0 0 0 23.5 17.8 31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8z"/><path fill="#fff" d="M9.55 15.57V8.43L15.82 12z"/></svg></a>
       <a class="cta" href="flash/">Flash</a>
     </nav>
   </div>
@@ -127,6 +156,7 @@
       <h1>Know what your Victron Blue&nbsp;Smart charger is doing — at a glance, all winter.</h1>
       <p class="lead">A tiny gadget that reads your charger over Bluetooth and shows it on a little screen, a web
         page on your phone, and in Home&nbsp;Assistant — for a car, motorcycle, or boat battery.</p>
+      <p class="freeline"><b>The firmware is free &amp; open-source</b> — you just bring your own ESP32 board (from ~€5).</p>
       <div class="btns">
         <a class="btn primary" href="flash/">Flash a board</a>
         <a class="btn" href="https://github.com/witekin/winterdash/wiki/Install-and-update#first-time-setup" target="_blank" rel="noopener">I already have one</a>
@@ -146,40 +176,40 @@
     <p class="kicker">Features</p>
     <h2>What it does.</h2>
     <div class="grid3">
-      <div class="feat">
+      <a class="feat" href="https://github.com/witekin/winterdash/wiki/Reading-your-WinterDash" target="_blank" rel="noopener">
         <img class="fimg" src="assets/feat-readings.webp" alt="">
         <h3>Live charger readings</h3>
         <p>Voltage, current, and charge stage (Bulk / Absorption / Float) read straight from the charger's Bluetooth
           broadcast. Nothing wired to the charger.</p>
-      </div>
-      <div class="feat">
+      </a>
+      <a class="feat" href="https://github.com/witekin/winterdash/wiki/Custom-banners" target="_blank" rel="noopener">
         <img class="fimg" src="assets/feat-banner.webp" alt="">
         <h3>Your own banner</h3>
         <p>Put your actual car, motorcycle, or boat on the screen — the built-in converter turns any photo into a
           banner, right on the device.</p>
-      </div>
-      <div class="feat">
+      </a>
+      <a class="feat" href="https://github.com/witekin/winterdash/wiki/The-web-dashboard" target="_blank" rel="noopener">
         <img class="fimg" src="assets/feat-web-ha.webp" alt="">
         <h3>Web &amp; Home Assistant</h3>
         <p>Open a web page from your phone on your own network — and it shows up in Home&nbsp;Assistant automatically,
           no key to enter.</p>
-      </div>
-      <div class="feat">
+      </a>
+      <a class="feat" href="https://github.com/witekin/winterdash/wiki/Boards" target="_blank" rel="noopener">
         <img class="fimg" src="assets/feat-hardware.webp" alt="">
         <h3>Cheap hardware</h3>
-        <p>Runs on a <b>€7–20</b> ESP32 board you can buy anywhere. No proprietary hardware, no subscription.</p>
-      </div>
-      <div class="feat">
+        <p>Runs on a <b>€5–25</b> ESP32 board you can buy anywhere. No proprietary hardware, no subscription.</p>
+      </a>
+      <a class="feat" href="https://github.com/witekin/winterdash" target="_blank" rel="noopener">
         <img class="fimg" src="assets/feat-oss.webp" alt="">
         <h3>Free &amp; open-source</h3>
         <p>GPL-3.0. No account, no cloud, no telemetry — everything runs on your own device, on your own network.</p>
-      </div>
-      <div class="feat">
+      </a>
+      <a class="feat" href="https://github.com/witekin/winterdash/wiki/What-is-WinterDash" target="_blank" rel="noopener">
         <img class="fimg" src="assets/feat-demo.webp" alt="">
         <h3>Demo mode</h3>
         <p>A realistic charge cycle plays with no charger connected, so you can try the whole thing before you pair
           anything.</p>
-      </div>
+      </a>
     </div>
   </div>
 </section>
@@ -189,25 +219,56 @@
   <div class="wrap">
     <p class="kicker">Supported boards</p>
     <h2>Flash a ready-made build in a minute.</h2>
-    <div class="grid3">
-      <div class="board">
-        <img src="assets/board-tdisplay.webp" alt="LilyGO TTGO T-Display">
-        <div class="bn">TTGO T-Display · 16 MB</div>
-        <div class="bd">Color screen + 2 buttons. The full experience.</div>
-        <a href="flash/">Install →</a>
+    <div class="carousel">
+      <button class="cbtn cprev" type="button" aria-label="Previous board">‹</button>
+      <div class="track" id="boardTrack">
+        <div class="board">
+          <div class="cardbody">
+            <img src="assets/board-tdisplay.webp" alt="LilyGO TTGO T-Display">
+            <div class="bn">TTGO T-Display · 16 MB</div>
+            <div class="bd">Color screen + 2 buttons. The main, recommended board.</div>
+          </div>
+          <div class="blinks">
+            <a class="docs" href="https://github.com/witekin/winterdash/wiki/Board-TTGO" target="_blank" rel="noopener">Docs →</a>
+            <a href="flash/?board=esp32-tdisplay-16mb">Install →</a>
+          </div>
+        </div>
+        <div class="board">
+          <div class="cardbody">
+            <img src="assets/board-cyd.webp" alt="LilyGO CYD 2.8-inch touch board">
+            <div class="bn">CYD · 2.8″ touch</div>
+            <div class="bd">The roomiest screen — a 2.8″ touch display, all in one board.</div>
+          </div>
+          <div class="blinks">
+            <a class="docs" href="https://github.com/witekin/winterdash/wiki/Board-CYD" target="_blank" rel="noopener">Docs →</a>
+            <a href="flash/?board=esp32-cyd">Install →</a>
+          </div>
+        </div>
+        <div class="board">
+          <div class="cardbody">
+            <img src="assets/board-wroom32.webp" alt="Screenless ESP32">
+            <div class="bn">Screenless ESP32</div>
+            <div class="bd">No screen — a status light plus the web dashboard. The cheapest build.</div>
+          </div>
+          <div class="blinks">
+            <a class="docs" href="https://github.com/witekin/winterdash/wiki/Board-headless" target="_blank" rel="noopener">Docs →</a>
+            <a href="flash/?board=esp32-wroom32">Install →</a>
+          </div>
+        </div>
+        <div class="board">
+          <div class="cardbody">
+            <img src="assets/board-tdisplay.webp" alt="LilyGO TTGO T-Display 4 MB">
+            <div class="bn">TTGO T-Display · 4 MB</div>
+            <div class="bd">Same screen, the cheaper 4 MB variant.</div>
+          </div>
+          <div class="blinks">
+            <a class="docs" href="https://github.com/witekin/winterdash/wiki/Board-TTGO" target="_blank" rel="noopener">Docs →</a>
+            <a href="flash/?board=esp32-tdisplay-4mb">Install →</a>
+          </div>
+        </div>
       </div>
-      <div class="board">
-        <img src="assets/board-tdisplay.webp" alt="LilyGO TTGO T-Display 4 MB">
-        <div class="bn">TTGO T-Display · 4 MB</div>
-        <div class="bd">Same screen, the cheaper 4 MB variant.</div>
-        <a href="flash/">Install →</a>
-      </div>
-      <div class="board">
-        <img src="assets/board-wroom32.webp" alt="Screenless ESP32">
-        <div class="bn">Screenless ESP32</div>
-        <div class="bd">No screen — a status light plus the web dashboard.</div>
-        <a href="flash/">Install →</a>
-      </div>
+      <button class="cbtn cnext" type="button" aria-label="Next board">›</button>
+      <div class="dots" id="boardDots" aria-hidden="true"></div>
     </div>
     <p class="boardnote">You pair the charger once, with a code from the VictronConnect app — no soldering, no wiring
       to the charger. <a href="https://github.com/witekin/winterdash/wiki/Supported-chargers-and-boards" target="_blank" rel="noopener">Which board? Prices &amp; where to buy →</a></p>
@@ -221,6 +282,7 @@
       <a href="https://github.com/witekin/winterdash" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/witekin/winterdash/wiki" target="_blank" rel="noopener">Docs</a>
       <a href="https://github.com/witekin/winterdash/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="https://www.youtube.com/@WinterDashESP" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px"><svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path fill="#FF0000" d="M23.5 6.2a3 3 0 0 0-2.11-2.12C19.52 3.5 12 3.5 12 3.5s-7.52 0-9.39.58A3 3 0 0 0 .5 6.2 31.3 31.3 0 0 0 0 12a31.3 31.3 0 0 0 .5 5.8 3 3 0 0 0 2.11 2.12C4.48 20.5 12 20.5 12 20.5s7.52 0 9.39-.58A3 3 0 0 0 23.5 17.8 31.3 31.3 0 0 0 24 12a31.3 31.3 0 0 0-.5-5.8z"/><path fill="#fff" d="M9.55 15.57V8.43L15.82 12z"/></svg>YouTube</a>
       <a href="https://esphome.io" target="_blank" rel="noopener">Powered by ESPHome</a>
     </nav>
     <p class="disc">Independent open-source project — not affiliated with, endorsed by, or sponsored by Victron
@@ -228,6 +290,39 @@
       Free software under the <a href="https://github.com/witekin/winterdash/blob/main/LICENSE" target="_blank" rel="noopener">GNU GPL v3</a>.</p>
   </div>
 </footer>
+
+<script>
+(function(){
+  var track=document.getElementById('boardTrack'), dots=document.getElementById('boardDots');
+  if(!track||!dots) return;
+  var cards=[].slice.call(track.children);
+  var prev=document.querySelector('.cprev'), next=document.querySelector('.cnext');
+  function step(){ return (cards[0]?cards[0].offsetWidth:260)+16; }
+  function pages(){ return Math.max(1, Math.round((track.scrollWidth-track.clientWidth)/step())+1); }  // reachable scroll positions, not card count
+  function buildDots(){
+    var n=pages(); if(dots.children.length===n) return;
+    dots.innerHTML='';
+    for(var i=0;i<n;i++){ (function(i){
+      var d=document.createElement('button'); d.className='dot'; d.type='button';
+      d.setAttribute('aria-label','Position '+(i+1));
+      d.addEventListener('click',function(){ track.scrollTo({left:i*step(),behavior:'smooth'}); });
+      dots.appendChild(d);
+    })(i); }
+  }
+  function upd(){
+    buildDots();
+    var i=Math.min(Math.round(track.scrollLeft/step()), dots.children.length-1);
+    [].forEach.call(dots.children,function(d,j){ d.classList.toggle('on',j===i); });
+    if(prev) prev.disabled = track.scrollLeft<=2;
+    if(next) next.disabled = track.scrollLeft >= track.scrollWidth-track.clientWidth-2;
+  }
+  if(prev) prev.addEventListener('click',function(){ track.scrollBy({left:-step(),behavior:'smooth'}); });
+  if(next) next.addEventListener('click',function(){ track.scrollBy({left:step(),behavior:'smooth'}); });
+  track.addEventListener('scroll',upd,{passive:true});
+  window.addEventListener('resize',upd);
+  upd();
+})();
+</script>
 
 </body>
 </html>

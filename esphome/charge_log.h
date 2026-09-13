@@ -19,7 +19,8 @@ struct Event {
   std::string label;   // "Bulk"/"Absorption"/"Float"/"Storage"/"Off"/"Fault: ..."/"No signal"/"Powered on"
 };
 
-static const size_t CAP = 8;  // keep the last 8 (web shows all; the TTGO page shows the last 5)
+static const size_t CAP = 6;  // keep the last 6 (web shows all; the TTGO page shows the last 5) — smaller ring
+                              // trims both the held RAM and the peak to_json() std::string (Flow 4 heap trim)
 
 static const char *const MON[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
@@ -141,10 +142,12 @@ inline void ttgo_time(const Event &e, uint32_t now_ms, uint32_t now_epoch, char 
   }
 }
 
-// JSON object: {"more":<dropped>,"e":[{"t":"HH:MM","d":"26 Aug","ago":123,"s":"Bulk"}, ...]}
+// JSON object: {"more":<dropped>,"e":[{"t":"HH:MM","d":"26 Aug","ago":123,"ep":1756...,"s":"Bulk"}, ...]}
 // e is NEWEST FIRST. "more" = events dropped off the front of the ring (0 = nothing dropped;
 // >0 -> the UI shows an "N earlier events not kept" marker). t/d are "" when epoch==0 (logged
-// pre-SNTP). ago = seconds since capture. localtime_r honors the TZ set via set_timezone().
+// pre-SNTP). ago = seconds since capture (a build-time snapshot). ep = the effective wall-clock
+// epoch (0 pre-SNTP) -> the web ticks "N ago" LOCALLY from ep + its own clock, so the device
+// no longer rebuilds every 5s just to advance "ago". localtime_r honors the TZ set via set_timezone().
 inline std::string to_json(uint32_t now_ms, uint32_t now_epoch) {
   auto &e = events();
   uint32_t dropped = (total_count() > e.size()) ? (total_count() - (uint32_t) e.size()) : 0;
@@ -172,7 +175,8 @@ inline std::string to_json(uint32_t now_ms, uint32_t now_epoch) {
         esc += c;
     }
     out += "{\"t\":\"" + std::string(t) + "\",\"d\":\"" + std::string(d) +
-           "\",\"ago\":" + std::to_string(ago) + ",\"s\":\"" + esc + "\"}";
+           "\",\"ago\":" + std::to_string(ago) + ",\"ep\":" + std::to_string(ep) +
+           ",\"s\":\"" + esc + "\"}";
   }
   out += "]}";
   return out;
