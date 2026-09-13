@@ -26,6 +26,7 @@
   .head{display:flex;align-items:baseline;gap:10px;padding:2px 2px 0;margin:0;font-weight:inherit}
   .wm{font-weight:800;font-size:22px;line-height:1;letter-spacing:.01em}
   .wm .w1{color:#eaf4ff} .wm .w2{color:var(--blue)}
+  a.wm{text-decoration:none;color:inherit;cursor:pointer} a.wm:hover{text-decoration:none;opacity:.85}
   .head .sub{color:var(--muted);font-size:13px;font-weight:600}
   /* one-line product sentence + expectations, for people who land here directly */
   .about .intro{color:var(--muted);font-size:13.5px;line-height:1.55;margin:0}
@@ -113,7 +114,7 @@
 </head>
 <body>
 <div class="app">
-  <h1 class="head"><span class="wm"><span class="w1">Winter</span><span class="w2">Dash</span></span><span class="sub">Installer</span></h1>
+  <h1 class="head"><a class="wm" href="../" aria-label="WinterDash — home"><span class="w1">Winter</span><span class="w2">Dash</span></a><span class="sub">Installer</span></h1>
 
   <!-- Browser gate: Web Serial is Chromium-desktop only -->
   <div id="gate" class="card gate hidden">
