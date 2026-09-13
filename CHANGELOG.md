@@ -7,7 +7,8 @@ User-facing changes to WinterDash. Dates are release dates.
 ### Added
 - Reads **Victron Blue Smart** charger data over Bluetooth ("Instant Readout") and shows it on the
   device screen and a built-in **web dashboard** on your own network.
-- Runs on three boards: **LilyGO TTGO T-Display** (16 MB and 4 MB) and a **screenless ESP32** (WROOM-32).
+- Runs on four boards: **LilyGO TTGO T-Display** (16 MB and 4 MB), a **screenless ESP32** (WROOM-32), and the
+  **CYD** (ESP32-2432S028R, a 2.8" touch screen + RGB status light).
 - **No app, no cable to configure:** flash once, then join the `WinterDashAP` Wi-Fi from your phone to
   put it on your home Wi-Fi.
 - **Browser installer** — pick your board and click Install in Chrome/Edge; nothing to install on your computer.

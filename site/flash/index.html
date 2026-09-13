@@ -319,7 +319,7 @@ async function initApp(){
 
   async function flash(){
     const b = BOARDS[boardSel.value]; const v = b.versions[+verSel.value];
-    if (!v.url){   // T-Display bins come from the release CI — not in this local preview
+    if (!v.url){   // screen-board bins come from the release CI — not in this local preview
       setState('CONNECTED','check',COL.green);
       setAux('This board’s firmware is built by the release CI — not available in this local preview. Pick the screenless board to test.');
       setAction('Install', true, flash); return;

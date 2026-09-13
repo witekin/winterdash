@@ -29,7 +29,7 @@ A tiny open-source gadget that reads your **Victron Blue Smart** battery charger
 and shows its status — voltage, current, charge stage — on a **little screen on the device**, on a **web page you
 open from your phone**, and optionally in **Home Assistant**. Aimed at non-technical friends keeping an eye on a
 car / motorcycle / boat battery over the winter — plus makers who want to build or flash one. It runs on a cheap
-ESP32 board (from ~€7); a realistic **demo mode** plays a full charge cycle with no charger connected.
+ESP32 board (from ~€5); a realistic **demo mode** plays a full charge cycle with no charger connected.
 
 > Independent open-source project — not affiliated with, endorsed by, or sponsored by Victron Energy.
 > "Victron" and "Blue Smart" are trademarks of Victron Energy B.V., used only to describe compatibility.
@@ -50,26 +50,27 @@ Home Assistant guides.
 
 ## How it works
 
-ESPHome firmware for a **LilyGO TTGO T-Display** (ESP32, ST7789V 135×240 IPS) that shows the charger's BLE "Instant
-Readout" broadcast on the built-in display via LVGL (6 screens + 2-button nav), plus a device-hosted web dashboard.
-The same firmware also runs headless on a screenless ESP32 (status LED + web dashboard). Home Assistant is an
-optional link over the native API. The charger broadcast is read-only and AES-encrypted — WinterDash never writes
+ESPHome firmware that shows a Victron Blue Smart charger's BLE "Instant Readout" broadcast on a little screen, a
+device-hosted web dashboard, and — optionally — Home Assistant. It runs on several ESP32 boards: the **LilyGO TTGO
+T-Display** (ST7789 135×240 IPS, multi-screen LVGL UI + 2-button nav), the **CYD** (ESP32-2432S028R, 2.8″ touch
+screen + RGB status light), and a **screenless ESP32-WROOM-32** (status LED + web dashboard only). Home Assistant is
+an optional link over the native API. The charger broadcast is read-only and AES-encrypted — WinterDash never writes
 to the charger.
 
 ## Status
 
-Working on real hardware; the Victron decode is live-verified on a Blue Smart IP65s 12/5 (fw 3.65) through a full
-charge cycle (Bulk → Absorption → Float). Shipping boards: TTGO T-Display (16 MB and 4 MB) and a screenless
-ESP32-WROOM-32; the CYD touch board is in progress. See the
+Verified on real hardware — the Victron decode is live-verified on a Blue Smart IP65s 12/5 (fw 3.65) through a full
+charge cycle (Bulk → Absorption → Float). **Shipping boards (v0.2):** TTGO T-Display (16 MB and 4 MB), a screenless
+ESP32-WROOM-32, and the **CYD** (2.8″ touch, ESP32-2432S028R). See the
 **[wiki](https://github.com/witekin/winterdash/wiki)** for install, flashing, and usage.
 
 ## Hardware summary
 
-- **Board:** LilyGO TTGO T-Display (16 MB or 4 MB), or a screenless ESP32-WROOM-32
+- **Board:** LilyGO TTGO T-Display (16 MB or 4 MB), the CYD (ESP32-2432S028R, 2.8″ touch), or a screenless ESP32-WROOM-32
 - **MCU:** ESP32 (WiFi + BLE, no PSRAM)
-- **Display:** IPS ST7789V, 135×240, SPI (ESPHome `mipi_spi` model `T-DISPLAY`) — TTGO only
-- **Input:** BLE broadcast from a Victron charger (read-only, AES-encrypted)
-- **Output:** local LVGL display + optional Home Assistant (native API)
+- **Display:** TTGO — IPS ST7789 135×240 (`mipi_spi` model `T-DISPLAY`); CYD — 2.8″ ILI9341 240×320 with resistive touch; headless — none
+- **Input:** BLE broadcast from a Victron charger (read-only, AES-encrypted); on-device nav is 2 buttons (TTGO), touch (CYD), or a BOOT button (headless)
+- **Output:** on-device screen or status light (CYD RGB · headless mono LED) + web dashboard + optional Home Assistant (native API)
 
 ## Charger pairing
 
@@ -90,6 +91,7 @@ single-output Blue Smart 12V/24V are expected to work (same BLE record).
     ├── esp32-tdisplay-16mb.yaml  # TTGO T-Display, 16 MB (screen + 2-button nav) — the main board
     ├── esp32-tdisplay-4mb.yaml   # TTGO T-Display, 4 MB (same, one saved banner)
     ├── esp32-wroom32.yaml        # screenless ESP32 build (status LED + web dashboard)
+    ├── esp32-cyd.yaml            # CYD (ESP32-2432S028R), 2.8" touch + RGB status light
     ├── packages/                 # board / display / input / core / producer packages
     ├── components/captive_portal/ # vendored ESPHome captive — branded Wi-Fi onboarding page
     ├── tools/                    # generators for the flash-baked HTML + setup QR
