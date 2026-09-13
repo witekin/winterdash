@@ -42,7 +42,7 @@ ESP32 board (from ~€7); a realistic **demo mode** plays a full charge cycle wi
   [The web dashboard](https://github.com/witekin/winterdash/wiki/The-web-dashboard)
 - **I want to build or flash one** →
   [**Flash a ready-made build in your browser**](https://witekin.github.io/winterdash/flash/) ·
-  [Supported chargers & boards](https://github.com/witekin/winterdash/wiki/Supported-chargers-and-boards) ·
+  [Supported chargers & boards](https://github.com/witekin/winterdash/wiki/Boards) ·
   [Build from source](https://github.com/witekin/winterdash/wiki/Build-from-source)
 
 The **[project wiki](https://github.com/witekin/winterdash/wiki)** has the full install, setup, pairing, and
