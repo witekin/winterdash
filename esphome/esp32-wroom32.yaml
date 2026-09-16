@@ -33,6 +33,10 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  # HA device-registry identity (screen-mirror): manufacturer="winterdash" (discovery marker) + model="wroom32".
+  project:
+    name: "winterdash.wroom32"
+    version: "0.3.0"
   min_version: "2026.4.0"
   name_add_mac_suffix: true      # -> winterdash-<mac6>.local (distinct from the TTGO unit)
   # Same shared/core headers as the TTGO master — every one is board-agnostic (web + status + logs).

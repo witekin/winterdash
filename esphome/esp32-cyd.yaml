@@ -21,6 +21,12 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  # HA device-registry identity: project.name "author.project" -> HA splits to manufacturer="winterdash" (the
+  # stable discovery marker the screen-mirror integration matches on) + model="cyd" (the board); version -> sw_version;
+  # ESPHome also sets configuration_url to the web_server host (the DHCP-proof hero source). See ha-screen-mirror-plan.md.
+  project:
+    name: "winterdash.cyd"
+    version: "0.3.0"
   min_version: "2026.4.0"
   name_add_mac_suffix: true
   includes:

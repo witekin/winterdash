@@ -302,6 +302,34 @@ sensor:
     unit_of_measurement: "°C"
     accuracy_decimals: 0
     update_interval: never
+  # HA screen-mirror range-bar single-source (docs/internal/ha-screen-mirror-plan.md Round 2). band_low/high =
+  # the green "expected" window (charge setpoint ± tol) the LCD paints; wd_scale = the nominal-voltage axis factor
+  # (1.0 @12V, 2.0 @24V). Together they let the companion card draw the SAME range bar (axis 9.5..15.5 × scale,
+  # band placed by voltage) WITHOUT duplicating the setpoint table -> no drift. Published ON-CHANGE by the compute
+  # lambda (band -> NaN when there is no live window: no band phase, or offline). Diagnostic = enabled + on API
+  # (the card must read them) but tucked out of the main entity view; on-change only -> ~zero idle API/SSE churn.
+  - platform: template
+    id: band_low_pub
+    name: "WinterDash band low"
+    device_class: voltage
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    entity_category: diagnostic
+    update_interval: never
+  - platform: template
+    id: band_high_pub
+    name: "WinterDash band high"
+    device_class: voltage
+    unit_of_measurement: "V"
+    accuracy_decimals: 2
+    entity_category: diagnostic
+    update_interval: never
+  - platform: template
+    id: wd_scale_pub
+    name: "WinterDash scale"
+    accuracy_decimals: 1
+    entity_category: diagnostic
+    update_interval: never
 
 text_sensor:
   # Diagnostics: WHY the last boot happened (esp_reset_reason at startup) — e.g. "Software reset via
@@ -344,6 +372,34 @@ text_sensor:
   - platform: template
     id: charger_error_pub
     name: "Charger error"
+    update_interval: never
+  # WinterDash device-type + contract-version markers for the HA "screen-mirror" integration
+  # (docs/internal/ha-screen-mirror-plan.md). KIND = the product THIS FIRMWARE mirrors (charger/solar/monitor) —
+  # orthogonal to the board (that's the registry `model`, from the master's `project:` block). v1 = the constant
+  # "charger" (this build only decodes/renders an AC charger). FUTURE seam: derive KIND from the paired Victron
+  # device-type ([[history/feat/ble-device-type]]) once multi-type rendering exists. SCHEMA = the entity-role
+  # contract version; bump ONLY on an additive role-vocab change (append-only covenant). Both are ENABLED diagnostic
+  # entities — `disabled_by_default` would drop the HA state so the integration couldn't read them — and publish
+  # ONCE at boot (`update_interval: never` + the on_boot lambda below) => zero ongoing API traffic.
+  - platform: template
+    id: wd_kind
+    name: "WinterDash kind"
+    entity_category: diagnostic
+    update_interval: never
+  - platform: template
+    id: wd_schema
+    name: "WinterDash schema"
+    entity_category: diagnostic
+    update_interval: never
+  # HA screen-mirror change-token + hero URL (docs/internal/ha-screen-mirror-plan.md §3). Publishes the EXACT web
+  # hero path the dashboard's <img id=carImg> resolves to: "/img/<name>" (baked) or "/gallery/hero?id=N&v=<crc>"
+  # (custom slot). One value = the precise change-token (crc covers custom-slot swap/re-save) AND the baked-vs-custom
+  # URL, so the HA image entity refetches exactly on a hero change. Computed on-change in the 500ms housekeeping.
+  # ENABLED diagnostic (name FROZEN -> object-id winterdash_hero_ref; the integration exact-matches it — never rename).
+  - platform: template
+    id: hero_ref
+    name: "WinterDash hero ref"
+    entity_category: diagnostic
     update_interval: never
   # (Removed the wd_hb "Heartbeat" + wd_live "Live data" SSE-beacon text_sensors — 2026-09-08. They were
   # non-internal, so despite disabled_by_default ESPHome transmitted their state over the HA native API on EVERY
@@ -768,6 +824,18 @@ interval:
             std::string oce = cleared ? std::string("") : err;
             if (ods != lds) { lds = ods; id(device_state_pub).publish_state(ods); }
             if (oce != lce) { lce = oce; id(charger_error_pub).publish_state(oce); }
+          }
+          // ---- HA screen-mirror range-bar single-source: publish the green band window + the axis scale
+          //      (band_low/high + wd_scale) so the companion card draws the same bar without the setpoint table.
+          //      band -> NaN when there is no live window (no band phase, or offline) so HA hides it exactly when
+          //      the LCD does; wd_scale is config (charge_profile), link-independent. On-change only. ----
+          {
+            float ob_lo = (offline || !show_band) ? NAN : band_lo;
+            float ob_hi = (offline || !show_band) ? NAN : band_hi;
+            static float lbl = NAN, lbh = NAN, lsc = NAN;
+            if ((std::isnan(ob_lo) != std::isnan(lbl)) || (!std::isnan(ob_lo) && !std::isnan(lbl) && fabsf(ob_lo - lbl) >= 0.01f)) { lbl = ob_lo; id(band_low_pub).publish_state(ob_lo); }
+            if ((std::isnan(ob_hi) != std::isnan(lbh)) || (!std::isnan(ob_hi) && !std::isnan(lbh) && fabsf(ob_hi - lbh) >= 0.01f)) { lbh = ob_hi; id(band_high_pub).publish_state(ob_hi); }
+            if (std::isnan(lsc) || fabsf(sc - lsc) >= 0.01f) { lsc = sc; id(wd_scale_pub).publish_state(sc); }
           }
           // ---- charger event log (RAM-only rolling history; newest-first) ----
           // Log a fine-grained state change once per transition (charge_log::note dedups by
@@ -1272,6 +1340,30 @@ interval:
           // (E) publish selection/favorites for GET /gallery (sel = -1 while a baked preset is live).
           wd::gallery_sel = (id(banner_preset).state == "Custom") ? id(bnr_sel) : -1;
           wd::gallery_fav = (uint64_t) id(bnr_fav);
+          // (F) HA screen-mirror: publish hero_ref = the EXACT web hero path the dashboard's <img id=carImg>
+          //     resolves to. Baked -> "/img/<name>"; Custom -> "/gallery/hero?id=N&v=<crc>". Runs AFTER the (E)
+          //     self-heal above, so a "Custom" state here always names a valid used slot. On-change only
+          //     (text_sensor has no delta filter). The crc read (2 small header reads, no mmap) is gated behind
+          //     Custom, so a baked preset does ZERO flash reads. Board-agnostic (headless runs this same lambda).
+          {
+            std::string href;
+            const std::string &bp = id(banner_preset).state;
+            if (bp == "Custom") {
+              const esp_partition_t *p = wd::gallery_part();
+              int n = id(bnr_sel);
+              if (wd::gallery_slot_used(p, n)) {
+                char b[48];
+                snprintf(b, sizeof(b), "/gallery/hero?id=%d&v=%08x", n, wd::slot_hero_crc(p, n));
+                href = b;
+              } else {
+                href = "/img/Battery";   // defensive: the (E) self-heal target if the slot vanished mid-tick
+              }
+            } else if (!bp.empty()) {
+              href = "/img/" + bp;        // baked (Battery/Sedan/...): the option names are URL-safe ASCII
+            }
+            static std::string last_href = "\x01";   // impossible seed -> first real value always publishes
+            if (!href.empty() && href != last_href) { last_href = href; id(hero_ref).publish_state(href); }
+          }
           // --- Status-LED level config (BOARD-AGNOSTIC; drain owned here, not in display, so every board gets it).
           //     cfg_led is set by the shared /wd/cfg CfgPost; exchange it into led_level (led_cyd_rgb reads 0..3,
           //     led_wroom32 reads 0=off). exchange(-1) self-guards (idle=-1) and does NOT touch cfg_pending, so it
@@ -1433,6 +1525,8 @@ esphome:
       then:
         - lambda: |-
             id(hostname_info).publish_state(std::string(App.get_name().c_str()) + ".local");
+            id(wd_kind).publish_state("charger");   // HA screen-mirror KIND marker — constant in v1 (see the text_sensor note)
+            id(wd_schema).publish_state("1");         // HA screen-mirror entity-role contract version
             // Charger event log baseline (RAM-only; SNTP not valid yet -> epoch 0, "N ago" only).
             esphome::charge_log::note("Powered on", 0, millis());
             id(charger_log_json).update();        // Flow 1: seed the slot at boot (build-on-change; not the old 5s timer) so an early card-open shows the baseline even before SNTP

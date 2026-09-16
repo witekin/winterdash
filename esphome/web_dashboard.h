@@ -222,6 +222,21 @@ inline bool gallery_slot_used(const esp_partition_t *p, int slot) {
   return p != nullptr && slot >= 0 && slot < gallery_slot_cap(p) &&
          esp_partition_read(p, gallery_slot_off(slot), m, 4) == ESP_OK && memcmp(m, "WDB1", 4) == 0;
 }
+// Web-hero cache/version key for a slot: the .wdb v2 dash-CRC (48B header byte 12) folded with the R_HERO
+// [magic|len] header (a cheap 8B read, no mmap). Single-sourced so GET /gallery AND the hero_ref text_sensor
+// (HA screen-mirror change-token) build the identical `?v=` and never drift. 0 for a free / legacy(v1) slot.
+inline uint32_t slot_hero_crc(const esp_partition_t *p, int slot) {
+  if (!gallery_slot_used(p, slot)) return 0;
+  uint8_t h[48];
+  if (esp_partition_read(p, gallery_slot_off(slot), h, 48) != ESP_OK) return 0;
+  uint32_t crc = (h[4] >= 2) ? (h[12] | (h[13] << 8) | (h[14] << 16) | ((uint32_t) h[15] << 24)) : 0;
+  if (crc != 0) {
+    uint8_t hh[8];
+    if (esp_partition_read(p, gallery_slot_off(slot) + R_HERO, hh, 8) == ESP_OK)
+      crc = esp_rom_crc32_le(crc, hh, 8);
+  }
+  return crc;
+}
 // First free slot for a new save, EXCLUDING the currently-rendered slot (never clobber the live
 // banner even if its magic were torn). Uncommitted (0xFF word0) and deleted (0x00) both read free.
 inline int gallery_next_free(const esp_partition_t *p) {
@@ -550,18 +565,10 @@ class GalleryList : public AsyncWebHandler {
         uint8_t cat = h[10];
         bool sel = (gallery_sel == i);
         bool fav = (gallery_fav >> i) & 1ULL;
-        // Web hero cache VERSION key. Base = the .wdb v2 header's dash-pixel CRC32 (byte 12, ALREADY in the 48B
-        // header we read -> zero extra mmap; /gallery is polled hot during a hero change, so no per-slot mmap here).
-        // The dash CRC alone is a PROXY (it versions R_DASH, but the served hero is R_HERO) -> a near-identical dash
-        // cut-out from a DIFFERENT source reused on the same id could collide and serve a STALE immutable hero. So we
-        // FOLD the hero region's [magic|len] header (a cheap 8-byte read, not an mmap) into the key -> a collision now
-        // also needs an identical hero byte-length. v1/legacy (h[4]<2) has no dash CRC -> 0 (dev-only, wiped).
-        uint32_t crc = (h[4] >= 2) ? (h[12] | (h[13] << 8) | (h[14] << 16) | ((uint32_t) h[15] << 24)) : 0;
-        if (crc != 0) {
-          uint8_t hh[8];
-          if (esp_partition_read(p, gallery_slot_off(i) + R_HERO, hh, 8) == ESP_OK)
-            crc = esp_rom_crc32_le(crc, hh, 8);   // fold R_HERO [magic|len] so a stale-hero collision also needs an identical hero length
-        }
+        // Web hero cache VERSION key = slot_hero_crc() (dash-pixel CRC32 folded with the R_HERO [magic|len]).
+        // Single-sourced with the hero_ref text_sensor so the two never drift. It re-reads the 48B header (a
+        // cheap header-only read, no mmap; /gallery is polled hot during a hero change) -> negligible.
+        uint32_t crc = slot_hero_crc(p, i);
         n += snprintf(buf + n, sizeof(buf) - n,
                       "%s{\"id\":%d,\"w\":%u,\"h\":%u,\"cat\":%u,\"sel\":%s,\"fav\":%s,\"crc\":\"%08x\",\"name\":\"",
                       first ? "" : ",", i, w, ht, cat, sel ? "true" : "false", fav ? "true" : "false", crc);

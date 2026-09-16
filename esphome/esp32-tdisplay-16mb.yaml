@@ -31,6 +31,10 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  # HA device-registry identity (screen-mirror): manufacturer="winterdash" (discovery marker) + model="tdisplay-16mb".
+  project:
+    name: "winterdash.tdisplay-16mb"
+    version: "0.3.0"
   # Version floor guard: fail the build fast if someone compiles with an OLDER ESPHome than the
   # one this config is written + tested against. This is a FLOOR only — ESPHome has no max_version; the ceiling
   # ("never take latest") is enforced by the pinned toolchain (requirements.txt esphome==2026.4.0, ideally a

@@ -54,8 +54,9 @@ ESPHome firmware that shows a Victron Blue Smart charger's BLE "Instant Readout"
 device-hosted web dashboard, and — optionally — Home Assistant. It runs on several ESP32 boards: the **LilyGO TTGO
 T-Display** (ST7789 135×240 IPS, multi-screen LVGL UI + 2-button nav), the **CYD** (ESP32-2432S028R, 2.8″ touch
 screen + RGB status light), and a **screenless ESP32-WROOM-32** (status LED + web dashboard only). Home Assistant is
-an optional link over the native API. The charger broadcast is read-only and AES-encrypted — WinterDash never writes
-to the charger.
+an optional link over the native API — plus an optional **[Lovelace card](https://github.com/witekin/winterdash-ha)**
+that mirrors the on-screen dashboard into Home Assistant. The charger broadcast is read-only and AES-encrypted —
+WinterDash never writes to the charger.
 
 ## Status
 

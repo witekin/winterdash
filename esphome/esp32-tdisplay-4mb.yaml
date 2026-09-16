@@ -24,6 +24,10 @@ substitutions:
 esphome:
   name: ${device_name}
   friendly_name: ${friendly_name}
+  # HA device-registry identity (screen-mirror): manufacturer="winterdash" (discovery marker) + model="tdisplay-4mb".
+  project:
+    name: "winterdash.tdisplay-4mb"
+    version: "0.3.0"
   min_version: "2026.4.0"
   name_add_mac_suffix: true   # -> winterdash-<mac6>.local (distinct per unit; AP SSID stays static WinterDashAP)
   # 4MB partition table (0x1D0000 dual-OTA + 320KB storage) is set under esp32: in board_esp32_tdisplay_4mb.
